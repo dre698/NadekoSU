@@ -47,7 +47,7 @@ object ManagerUpdateRepository {
     private const val RELEASE_ARTIFACT = "Manager-release"
 
     // sync with build.gradle.kts
-    private const val CI_MANAGER_VERSION_CODE_OFFSET = 10000
+    private const val CI_MANAGER_VERSION_CODE_OFFSET = 30000
     private const val SHORT_SHA_LENGTH = 7
     private const val UNIVERSAL_ABI = "universal"
 

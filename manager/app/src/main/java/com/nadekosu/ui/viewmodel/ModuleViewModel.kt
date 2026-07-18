@@ -28,6 +28,7 @@ import java.util.Locale
 data class ModuleUiState(
     val moduleList: List<ModuleViewModel.ModuleInfo> = emptyList(),
     val moduleSizes: Map<String, String> = emptyMap(),
+    val moduleBanners: Map<String, ByteArray?> = emptyMap(),
     val isRefreshing: Boolean = false,
     val search: String = "",
     val sortEnabledFirst: Boolean = false,
@@ -68,6 +69,50 @@ class ModuleViewModel : ViewModel() {
         )
         _uiState.update { state ->
             state.copy(moduleSizes = state.moduleSizes + (dirId to size))
+        }
+    }
+
+    fun loadBanner(dirId: String) = viewModelScope.launch(Dispatchers.IO) {
+        // Sudah pernah dicoba (baik ketemu maupun tidak) - jangan ulangi terus
+        if (_uiState.value.moduleBanners.containsKey(dirId)) return@launch
+
+        val bytes = try {
+            val propBannerName = try {
+                val propFile = SuFile.open("/data/adb/modules/$dirId/module.prop")
+                if (propFile.exists()) {
+                    propFile.newInputStream().bufferedReader().useLines { lines ->
+                        lines.firstOrNull { it.trim().startsWith("banner=") }
+                            ?.substringAfter("banner=")
+                            ?.trim()
+                    }
+                } else null
+            } catch (e: Exception) {
+                null
+            }
+
+            val candidates = buildList {
+                if (!propBannerName.isNullOrBlank() && !propBannerName.startsWith("http", true)) {
+                    add(propBannerName)
+                }
+                addAll(listOf("banner.webp", "banner.png", "banner.jpg", "banner.jpeg", "banner"))
+            }.distinct()
+
+            var found: ByteArray? = null
+            for (name in candidates) {
+                val file = SuFile.open("/data/adb/modules/$dirId/$name")
+                if (file.exists() && file.isFile) {
+                    found = file.newInputStream().use { it.readBytes() }
+                    break
+                }
+            }
+            found
+        } catch (e: Exception) {
+            Log.e(TAG, "load module banner failed $dirId: ${e.message}")
+            null
+        }
+
+        _uiState.update { state ->
+            state.copy(moduleBanners = state.moduleBanners + (dirId to bytes))
         }
     }
 

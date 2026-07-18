@@ -7,6 +7,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
@@ -33,6 +34,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -102,9 +104,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.FixedScale
@@ -998,6 +1002,7 @@ private fun ModuleList(
                     viewModel = viewModel,
                     module = module,
                     moduleSizes = uiState.moduleSizes,
+                    moduleBanners = uiState.moduleBanners,
                     updateUrl = module.moduleUpdate?.zipUrl.orEmpty(),
                     onUninstallClicked = {
                         viewModel.viewModelScope.launch {
@@ -1267,6 +1272,7 @@ fun ModuleItem(
     viewModel: ModuleViewModel,
     module: ModuleViewModel.ModuleInfo,
     moduleSizes: Map<String, String>,
+    moduleBanners: Map<String, ByteArray?>,
     updateUrl: String,
     onUninstallClicked: (ModuleViewModel.ModuleInfo) -> Unit,
     onCheckChanged: (Boolean) -> Unit,
@@ -1285,6 +1291,17 @@ fun ModuleItem(
     val clipboardManager = context.getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
     val hapticFeedback = LocalHapticFeedback.current
 
+    val bannerBytes = moduleBanners[module.dirId]
+    val bannerBitmap: ImageBitmap? = remember(bannerBytes) {
+        bannerBytes?.let {
+            try {
+                BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap()
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
     Surface(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
@@ -1296,11 +1313,34 @@ fun ModuleItem(
                 MaterialTheme.colorScheme.surfaceBright.copy(CardConfig.cardAlpha),
         shape = RoundedCornerShape(16.dp)
     ) {
+        Box {
+            if (bannerBitmap != null) {
+                Image(
+                    bitmap = bannerBitmap,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    alpha = 0.35f,
+                    modifier = Modifier.matchParentSize()
+                )
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.surfaceBright.copy(alpha = 0.55f),
+                                    MaterialTheme.colorScheme.surfaceBright.copy(alpha = 0.85f)
+                                )
+                            )
+                        )
+                )
+            }
         val textDecoration = if (!module.remove) null else TextDecoration.LineThrough
         val interactionSource = remember { MutableInteractionSource() }
 
         LaunchedEffect(module.dirId) {
             viewModel.loadSize(module.dirId)
+            viewModel.loadBanner(module.dirId)
         }
 
         val sizeStr = moduleSizes[module.dirId]
@@ -1558,6 +1598,7 @@ fun ModuleItem(
                 }
             }
         }
+        }
     }
 }
 
@@ -1586,6 +1627,7 @@ fun ModuleItemPreview() {
     ModuleItem(
         viewModel<ModuleViewModel>(),
         module,
+        emptyMap(),
         emptyMap(),
         "",
         {},

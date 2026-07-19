@@ -1314,25 +1314,27 @@ fun ModuleItem(
     ) {
         Box {
             if (bannerBitmap != null) {
-                Image(
-                    bitmap = bannerBitmap,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    alpha = 0.35f,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.surfaceBright.copy(alpha = 0.55f),
-                                    MaterialTheme.colorScheme.surfaceBright.copy(alpha = 0.85f)
+                Box(modifier = Modifier.matchParentSize()) {
+                    Image(
+                        bitmap = bannerBitmap,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        alpha = 0.35f,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.surfaceBright.copy(alpha = 0.55f),
+                                        MaterialTheme.colorScheme.surfaceBright.copy(alpha = 0.85f)
+                                    )
                                 )
                             )
-                        )
-                )
+                    )
+                }
             }
         val textDecoration = if (!module.remove) null else TextDecoration.LineThrough
         val interactionSource = remember { MutableInteractionSource() }

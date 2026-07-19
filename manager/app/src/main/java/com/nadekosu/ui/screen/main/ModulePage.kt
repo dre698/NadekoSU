@@ -7,7 +7,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
@@ -1271,7 +1270,7 @@ fun ModuleItem(
     viewModel: ModuleViewModel,
     module: ModuleViewModel.ModuleInfo,
     moduleSizes: Map<String, String>,
-    moduleBanners: Map<String, ByteArray?>,
+    moduleBanners: Map<String, ImageBitmap?>,
     updateUrl: String,
     onUninstallClicked: (ModuleViewModel.ModuleInfo) -> Unit,
     onCheckChanged: (Boolean) -> Unit,
@@ -1290,16 +1289,7 @@ fun ModuleItem(
     val clipboardManager = context.getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
     val hapticFeedback = LocalHapticFeedback.current
 
-    val bannerBytes = moduleBanners[module.dirId]
-    val bannerBitmap: ImageBitmap? = remember(bannerBytes) {
-        bannerBytes?.let {
-            try {
-                BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap()
-            } catch (e: Exception) {
-                null
-            }
-        }
-    }
+    val bannerBitmap: ImageBitmap? = moduleBanners[module.dirId]
 
     Surface(
         modifier = Modifier
@@ -1319,7 +1309,7 @@ fun ModuleItem(
                         bitmap = bannerBitmap,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        alpha = 0.35f,
+                        alpha = 0.18f,
                         modifier = Modifier.fillMaxSize()
                     )
                     Box(
@@ -1328,9 +1318,11 @@ fun ModuleItem(
                             .background(
                                 Brush.verticalGradient(
                                     colors = listOf(
-                                        MaterialTheme.colorScheme.surfaceBright.copy(alpha = 0.55f),
-                                        MaterialTheme.colorScheme.surfaceBright.copy(alpha = 0.85f)
-                                    )
+                                        MaterialTheme.colorScheme.surfaceBright.copy(alpha = 0f),
+                                        MaterialTheme.colorScheme.surfaceBright.copy(alpha = 0.8f)
+                                    ),
+                                    startY = 0f,
+                                    endY = Float.POSITIVE_INFINITY
                                 )
                             )
                     )

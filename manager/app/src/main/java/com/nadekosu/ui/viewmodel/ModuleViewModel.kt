@@ -1,9 +1,13 @@
 package com.nadekosu.ui.viewmodel
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.SystemClock
 import android.util.Log
 import androidx.compose.runtime.Stable
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nadekosu.data.appPreferences
@@ -28,7 +32,7 @@ import java.util.Locale
 data class ModuleUiState(
     val moduleList: List<ModuleViewModel.ModuleInfo> = emptyList(),
     val moduleSizes: Map<String, String> = emptyMap(),
-    val moduleBanners: Map<String, ByteArray?> = emptyMap(),
+    val moduleBanners: Map<String, ImageBitmap?> = emptyMap(),
     val isRefreshing: Boolean = false,
     val search: String = "",
     val sortEnabledFirst: Boolean = false,
@@ -76,7 +80,7 @@ class ModuleViewModel : ViewModel() {
         // Sudah pernah dicoba (baik ketemu maupun tidak) - jangan ulangi terus
         if (_uiState.value.moduleBanners.containsKey(dirId)) return@launch
 
-        val bytes = try {
+        val decoded: ImageBitmap? = try {
             val propBannerName = try {
                 val propFile = SuFile.open("/data/adb/modules/$dirId/module.prop")
                 if (propFile.exists()) {
@@ -97,23 +101,38 @@ class ModuleViewModel : ViewModel() {
                 addAll(listOf("banner.webp", "banner.png", "banner.jpg", "banner.jpeg", "banner"))
             }.distinct()
 
-            var found: ByteArray? = null
+            var rawBytes: ByteArray? = null
             for (name in candidates) {
                 val file = SuFile.open("/data/adb/modules/$dirId/$name")
                 if (file.exists() && file.isFile) {
-                    found = file.newInputStream().use { it.readBytes() }
+                    rawBytes = file.newInputStream().use { it.readBytes() }
                     break
                 }
             }
-            found
+            rawBytes?.let { decodeSampledBitmap(it, targetWidthPx = 720) }?.asImageBitmap()
         } catch (e: Exception) {
             Log.e(TAG, "load module banner failed $dirId: ${e.message}")
             null
         }
 
         _uiState.update { state ->
-            state.copy(moduleBanners = state.moduleBanners + (dirId to bytes))
+            state.copy(moduleBanners = state.moduleBanners + (dirId to decoded))
         }
+    }
+
+    /** Decode gambar dengan downsampling, biar gak nge-load bitmap ukuran penuh yang berat di memori/CPU. */
+    private fun decodeSampledBitmap(bytes: ByteArray, targetWidthPx: Int): Bitmap? {
+        val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOptions)
+
+        var sampleSize = 1
+        val width = boundsOptions.outWidth
+        while (width / (sampleSize * 2) >= targetWidthPx) {
+            sampleSize *= 2
+        }
+
+        val decodeOptions = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOptions)
     }
 
     private fun updateBooleanPref(

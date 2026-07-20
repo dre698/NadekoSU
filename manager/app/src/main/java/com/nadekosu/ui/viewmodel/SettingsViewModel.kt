@@ -85,6 +85,7 @@ data class SettingsUiState(
     val useAltIcon: Boolean = false,
 
     val cardAlpha: Float = 1f,
+    val moduleBannerAlpha: Float = 0.9f,
     val backgroundDim: Float = 0f,
     val isCustomBackgroundEnabled: Boolean = false,
 
@@ -146,6 +147,7 @@ class SettingsViewModel : ViewModel() {
                 currentAppLocale = getCurrentAppLocale(context),
                 useAltIcon = prefs.getBoolean("use_alt_icon", false),
                 cardAlpha = CardConfig.cardAlpha,
+                moduleBannerAlpha = CardConfig.moduleBannerAlpha,
                 backgroundDim = ThemeConfig.backgroundDim,
                 isCustomBackgroundEnabled = ThemeConfig.customBackgroundUri != null,
                 systemDpi = systemDpi,
@@ -291,6 +293,7 @@ class SettingsViewModel : ViewModel() {
             it.copy(
                 themeMode = index,
                 cardAlpha = CardConfig.cardAlpha,
+                moduleBannerAlpha = CardConfig.moduleBannerAlpha,
                 backgroundDim = ThemeConfig.backgroundDim,
             )
         }
@@ -369,6 +372,7 @@ class SettingsViewModel : ViewModel() {
             it.copy(
                 isCustomBackgroundEnabled = true,
                 cardAlpha = CardConfig.cardAlpha,
+                moduleBannerAlpha = CardConfig.moduleBannerAlpha,
                 backgroundDim = ThemeConfig.backgroundDim,
             )
         }
@@ -400,6 +404,7 @@ class SettingsViewModel : ViewModel() {
             it.copy(
                 isCustomBackgroundEnabled = false,
                 cardAlpha = CardConfig.cardAlpha,
+                moduleBannerAlpha = CardConfig.moduleBannerAlpha,
                 backgroundDim = ThemeConfig.backgroundDim,
             )
         }
@@ -417,6 +422,12 @@ class SettingsViewModel : ViewModel() {
         context.appPreferences.putBoolean("is_custom_alpha_set", true)
         context.appPreferences.putFloat("card_alpha", newValue)
         _uiState.update { it.copy(cardAlpha = newValue) }
+    }
+
+    fun handleModuleBannerAlphaChange(context: Context, newValue: Float) {
+        CardConfig.moduleBannerAlpha = newValue
+        context.appPreferences.putFloat("module_banner_alpha", newValue)
+        _uiState.update { it.copy(moduleBannerAlpha = newValue) }
     }
 
     fun handleBackgroundDimChange(context: Context, newValue: Float) {

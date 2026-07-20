@@ -899,6 +899,16 @@ private fun SegmentedColumnScope.backgroundAdjustmentControls(
     item(
         topPadding = 1.dp
     ) {
+        ModuleBannerAlphaSlider(
+            state = state,
+            viewModel = viewModel,
+            coroutineScope = coroutineScope
+        )
+    }
+
+    item(
+        topPadding = 1.dp
+    ) {
         DimSlider(
             state = state,
             viewModel = viewModel,
@@ -1019,6 +1029,51 @@ private fun AlphaSlider(
             )
             Text(
                 text = "${(state.cardAlpha * 100).roundToInt()}%",
+                style = MaterialTheme.typography.labelMediumEmphasized
+            )
+        }
+    }
+}
+
+@Composable
+private fun ModuleBannerAlphaSlider(
+    state: SettingsUiState,
+    viewModel: SettingsViewModel,
+    coroutineScope: CoroutineScope
+) {
+    val context = LocalContext.current
+    SettingsBaseWidget(
+        icon = Icons.TwoTone.Opacity,
+        title = stringResource(R.string.settings_module_banner_alpha),
+        descriptionColumnContent = {
+            val alphaSliderValue by animateFloatAsState(
+                targetValue = state.moduleBannerAlpha,
+                label = "Module Banner Alpha Slider Animation"
+            )
+
+            KeyPointSlider(
+                value = alphaSliderValue,
+                onValueChange = { newValue ->
+                    viewModel.handleModuleBannerAlphaChange(context, newValue)
+                },
+                onValueChangeFinished = {
+                    coroutineScope.launch(Dispatchers.IO) {
+                        viewModel.saveCardConfig(context)
+                    }
+                },
+                valueRange = 0f..1f,
+                keyPoints = listOf(0.25f, 0.5f, 0.75f),
+            )
+        }
+    ) {
+        Box(contentAlignment = Alignment.CenterEnd) {
+            Text( // Some stupid way to solve measure problem
+                text = "100%",
+                style = MaterialTheme.typography.labelMediumEmphasized,
+                modifier = Modifier.alpha(0f)
+            )
+            Text(
+                text = "${(state.moduleBannerAlpha * 100).roundToInt()}%",
                 style = MaterialTheme.typography.labelMediumEmphasized
             )
         }

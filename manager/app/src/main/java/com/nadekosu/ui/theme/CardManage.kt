@@ -34,6 +34,15 @@ object CardConfig {
     var cardElevation by mutableStateOf(0.dp)
         internal set
 
+    // Module banner 透明度
+    private var _moduleBannerAlpha by mutableFloatStateOf(0.9f)
+
+    var moduleBannerAlpha: Float
+        get() = _moduleBannerAlpha
+        set(value) {
+            _moduleBannerAlpha = value.coerceIn(0f, 1f)
+        }
+
     // 功能开关
     var isShadowEnabled by mutableStateOf(true)
         internal set
@@ -50,6 +59,7 @@ object CardConfig {
     // 配置键名
     private object Keys {
         const val CARD_ALPHA = "card_alpha"
+        const val MODULE_BANNER_ALPHA = "module_banner_alpha"
         const val CUSTOM_BACKGROUND_ENABLED = "custom_background_enabled"
         const val IS_SHADOW_ENABLED = "is_shadow_enabled"
         const val IS_CUSTOM_ALPHA_SET = "is_custom_alpha_set"
@@ -82,6 +92,7 @@ object CardConfig {
 
     fun reset() {
         cardAlpha = 1f
+        moduleBannerAlpha = 0.9f
         cardElevation = 0.dp
         isShadowEnabled = true
         isCustomBackgroundEnabled = false
@@ -103,6 +114,7 @@ object CardConfig {
     fun save(context: Context) {
         val prefs = context.appPreferences
         prefs.putFloat(Keys.CARD_ALPHA, cardAlpha)
+        prefs.putFloat(Keys.MODULE_BANNER_ALPHA, moduleBannerAlpha)
         prefs.putBoolean(Keys.CUSTOM_BACKGROUND_ENABLED, isCustomBackgroundEnabled)
         prefs.putBoolean(Keys.IS_SHADOW_ENABLED, isShadowEnabled)
         prefs.putBoolean(Keys.IS_CUSTOM_ALPHA_SET, isCustomAlphaSet)
@@ -113,6 +125,7 @@ object CardConfig {
     fun load(context: Context) {
         val prefs = context.appPreferences
         cardAlpha = prefs.getFloat(Keys.CARD_ALPHA, 1f).coerceIn(0f, 1f)
+        moduleBannerAlpha = prefs.getFloat(Keys.MODULE_BANNER_ALPHA, 0.9f).coerceIn(0f, 1f)
         isCustomBackgroundEnabled = prefs.getBoolean(Keys.CUSTOM_BACKGROUND_ENABLED, false)
         isShadowEnabled = prefs.getBoolean(Keys.IS_SHADOW_ENABLED, true)
         isCustomAlphaSet = prefs.getBoolean(Keys.IS_CUSTOM_ALPHA_SET, false)

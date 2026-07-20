@@ -232,6 +232,7 @@
     <string name="settings_custom_enable_high_contrast">High Contrast Mode</string>
     <string name="settings_custom_enable_high_contrast_summary">Render shadow around with text</string>
     <string name="settings_card_alpha">Card transparency</string>
+    <string name="settings_module_banner_alpha">Module banner opacity</string>
     <string name="home_android_version">Android version</string>
     <string name="home_device_model">Device model</string>
     <string name="su_not_allowed">Granting superuser to %s is not allowed</string>

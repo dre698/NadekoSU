@@ -607,6 +607,16 @@ private fun AppearanceSettings(
                 backgroundAdjustmentControls(state, viewModel, coroutineScope)
             }
         )
+
+        item(
+            topPadding = 1.dp
+        ) {
+            ModuleBannerAlphaSlider(
+                state = state,
+                viewModel = viewModel,
+                coroutineScope = coroutineScope
+            )
+        }
     }
 }
 
@@ -890,16 +900,6 @@ private fun SegmentedColumnScope.backgroundAdjustmentControls(
         topPadding = 1.dp
     ) {
         AlphaSlider(
-            state = state,
-            viewModel = viewModel,
-            coroutineScope = coroutineScope
-        )
-    }
-
-    item(
-        topPadding = 1.dp
-    ) {
-        ModuleBannerAlphaSlider(
             state = state,
             viewModel = viewModel,
             coroutineScope = coroutineScope

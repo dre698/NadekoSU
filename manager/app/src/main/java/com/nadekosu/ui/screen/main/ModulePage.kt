@@ -1309,7 +1309,7 @@ fun ModuleItem(
                         bitmap = bannerBitmap,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        alpha = 0.18f,
+                        alpha = 0.9f,
                         modifier = Modifier.fillMaxSize()
                     )
                     Box(

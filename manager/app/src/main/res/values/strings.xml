@@ -78,6 +78,9 @@
     <string name="metamodule_uninstall_confirm">Are you sure you want to uninstall module %s? This action will affect all modules, and certain features provided by the metamodule (such as mounting) will no longer work</string>
     <string name="module_uninstall_success">%s uninstalled</string>
     <string name="module_uninstall_failed">Failed to uninstall: %s</string>
+    <string name="module_backup_restore">Backup &amp; Restore Modules</string>
+    <string name="module_backup">Backup</string>
+    <string name="module_restore">Restore</string>
     <string name="module_version">Version</string>
     <string name="module_author">Author</string>
     <string name="refresh">Refresh</string>

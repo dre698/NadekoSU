@@ -21,4 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "NadekoSU"
 include(":app")
+include(":baselineprofile")
 include(":lint-rules")

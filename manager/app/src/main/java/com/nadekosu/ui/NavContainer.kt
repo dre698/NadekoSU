@@ -81,8 +81,8 @@ import com.nadekosu.ui.screen.kernelFlash.KernelFlashScreen
 import com.nadekosu.ui.screen.main.MainScreen
 import com.nadekosu.ui.screen.moduleRepo.ModuleRepoScreen
 import com.nadekosu.ui.screen.moduleRepo.OnlineModuleDetailScreen
+import com.nadekosu.ui.screen.susfs.SuSFSConfigScreen
 import com.nadekosu.ui.screen.themeSettings.ThemeSettingsScreen
-import com.nadekosu.ui.susfs.SuSFSConfigScreen
 import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.backgroundImagePainter
 import com.nadekosu.ui.util.LocalBackgroundBlurAnchor

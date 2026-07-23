@@ -3,6 +3,7 @@ package com.nadekosu.ui.viewmodel
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.SystemClock
 import android.util.Log
 import androidx.compose.runtime.Stable
@@ -10,6 +11,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
 import com.nadekosu.data.appPreferences
 import com.nadekosu.ksuApp
 import com.nadekosu.ui.util.HanziToPinyin
@@ -33,6 +37,8 @@ data class ModuleUiState(
     val moduleList: List<ModuleViewModel.ModuleInfo> = emptyList(),
     val moduleSizes: Map<String, String> = emptyMap(),
     val moduleBanners: Map<String, ImageBitmap?> = emptyMap(),
+    val isBackupRestoreRunning: Boolean = false,
+    val backupRestoreResult: String? = null,
     val isRefreshing: Boolean = false,
     val search: String = "",
     val sortEnabledFirst: Boolean = false,
@@ -118,6 +124,75 @@ class ModuleViewModel : ViewModel() {
         _uiState.update { state ->
             state.copy(moduleBanners = state.moduleBanners + (dirId to decoded))
         }
+    }
+
+    /**
+     * Backup semua module yang ter-install (/data/adb/modules) jadi satu file
+     * .tar.gz di folder Download, biar bisa dipindah/disimpan manual oleh user.
+     */
+    fun backupModules(context: Context) = viewModelScope.launch(Dispatchers.IO) {
+        _uiState.update { it.copy(isBackupRestoreRunning = true, backupRestoreResult = null) }
+
+        val message = try {
+            val downloadDir = File("/sdcard/Download")
+            if (!downloadDir.exists()) downloadDir.mkdirs()
+
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val backupPath = "/sdcard/Download/NadekoSU_modules_backup_$timestamp.tar.gz"
+
+            val shell = getRootShell()
+            val command = "busybox tar -czf \"$backupPath\" -C /data/adb modules"
+            val result = shell.newJob().add(command).to(ArrayList(), ArrayList()).exec()
+
+            if (result.isSuccess && File(backupPath).exists()) {
+                "Backup berhasil disimpan di: $backupPath"
+            } else {
+                "Backup gagal: ${result.err.joinToString("\n").ifBlank { "unknown error" }}"
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "backupModules failed: ${e.message}")
+            "Backup gagal: ${e.message}"
+        }
+
+        _uiState.update { it.copy(isBackupRestoreRunning = false, backupRestoreResult = message) }
+    }
+
+    /**
+     * Restore module dari file backup .tar.gz yang dipilih user lewat file picker.
+     * Butuh reboot manual setelah restore biar module-nya ke-mount ulang.
+     */
+    fun restoreModules(context: Context, uri: Uri) = viewModelScope.launch(Dispatchers.IO) {
+        _uiState.update { it.copy(isBackupRestoreRunning = true, backupRestoreResult = null) }
+
+        val message = try {
+            val cacheFile = File(context.cacheDir, "nadekosu_restore_temp.tar.gz")
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                cacheFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            } ?: throw IllegalStateException("Gagal membaca file yang dipilih")
+
+            val shell = getRootShell()
+            val command = "busybox tar -xzf \"${cacheFile.absolutePath}\" -C /data/adb"
+            val result = shell.newJob().add(command).to(ArrayList(), ArrayList()).exec()
+
+            cacheFile.delete()
+
+            if (result.isSuccess) {
+                "Restore berhasil. Reboot device supaya module ter-load ulang."
+            } else {
+                "Restore gagal: ${result.err.joinToString("\n").ifBlank { "unknown error" }}"
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "restoreModules failed: ${e.message}")
+            "Restore gagal: ${e.message}"
+        }
+
+        _uiState.update { it.copy(isBackupRestoreRunning = false, backupRestoreResult = message) }
+    }
+
+    fun clearBackupRestoreResult() {
+        _uiState.update { it.copy(backupRestoreResult = null) }
     }
 
     /** Decode gambar dengan downsampling, biar gak nge-load bitmap ukuran penuh yang berat di memori/CPU. */

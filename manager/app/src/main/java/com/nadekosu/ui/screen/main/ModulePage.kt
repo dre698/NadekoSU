@@ -72,6 +72,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
@@ -609,6 +610,61 @@ private fun ModuleBottomSheetContent(
                             )
                         }
                     }
+                )
+            }
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+        Text(
+            text = stringResource(R.string.module_backup_restore),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+        )
+
+        val context = LocalContext.current
+        val restoreLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.OpenDocument()
+        ) { uri ->
+            if (uri != null) {
+                viewModel.restoreModules(context, uri)
+            }
+        }
+
+        Column(
+            modifier = Modifier.padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { viewModel.backupModules(context) },
+                    enabled = !uiState.isBackupRestoreRunning,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(stringResource(R.string.module_backup))
+                }
+                OutlinedButton(
+                    onClick = { restoreLauncher.launch(arrayOf("*/*")) },
+                    enabled = !uiState.isBackupRestoreRunning,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(stringResource(R.string.module_restore))
+                }
+            }
+
+            if (uiState.isBackupRestoreRunning) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+
+            uiState.backupRestoreResult?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

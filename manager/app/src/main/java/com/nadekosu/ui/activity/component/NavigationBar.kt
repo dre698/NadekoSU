@@ -2,14 +2,35 @@ package com.nadekosu.ui.activity.component
 
 import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateBottomPadding
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,14 +45,24 @@ import androidx.compose.material3.WideNavigationRailColors
 import androidx.compose.material3.WideNavigationRailDefaults
 import androidx.compose.material3.WideNavigationRailItem
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nadekosu.ksuApp
@@ -82,6 +113,17 @@ fun NavigationBar(
     }
 
     if (isBottomBar) {
+        if (ThemeConfig.isFloatingNavBar) {
+            FloatingBottomBar(
+                destinations = destinations,
+                selectedIndex = page,
+                onSelect = { handlePageChange(it) },
+                superuserCount = superuserCount,
+                moduleCount = moduleCount,
+                isHideOtherInfo = isHideOtherInfo,
+            )
+            return
+        }
         FlexibleBottomAppBar(
             modifier = Modifier
                 .windowInsetsPadding(
@@ -138,6 +180,152 @@ fun NavigationBar(
                     moduleCount = moduleCount,
                     isHideOtherInfo = isHideOtherInfo,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FloatingBottomBar(
+    destinations: List<BottomBarDestination>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    superuserCount: Int,
+    moduleCount: Int,
+    isHideOtherInfo: Boolean,
+) {
+    val animatedSelectedIndex by animateFloatAsState(
+        targetValue = selectedIndex.toFloat(),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "floatingNavSelectedIndex"
+    )
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(
+                WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
+            )
+            .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+    ) {
+        val screenWidth = maxWidth
+        val horizontalScreenPadding = when {
+            screenWidth > 600.dp -> 32.dp
+            screenWidth > 400.dp -> 24.dp
+            else -> 16.dp
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = horizontalScreenPadding, vertical = 14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                modifier = Modifier.wrapContentWidth(),
+                shape = RoundedCornerShape(24.dp),
+                color =
+                    if (ThemeConfig.isEnableBlur)
+                        Color.Transparent
+                    else
+                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(CardConfig.cardAlpha),
+                tonalElevation = 3.dp,
+                shadowElevation = 8.dp
+            ) {
+                val itemSize = 56.dp
+                val itemSpacing = 4.dp
+                val containerPadding = 7.dp
+
+                val navBarWidth = (itemSize * destinations.size) +
+                        (itemSpacing * (destinations.size - 1)) +
+                        (containerPadding * 2)
+
+                val density = LocalDensity.current
+                val itemSizePx = with(density) { itemSize.toPx() }
+                val itemSpacingPx = with(density) { itemSpacing.toPx() }
+
+                Box(
+                    modifier = Modifier
+                        .width(navBarWidth)
+                        .height(72.dp)
+                ) {
+                    var totalWidth by remember { mutableStateOf(0) }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = containerPadding)
+                            .onSizeChanged { totalWidth = it.width }
+                    ) {
+                        if (totalWidth > 0 && destinations.isNotEmpty()) {
+                            val indicatorOffset = (itemSizePx + itemSpacingPx) * animatedSelectedIndex
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .padding(vertical = 8.dp)
+                                    .offset {
+                                        IntOffset(x = indicatorOffset.toInt(), y = 0)
+                                    }
+                                    .width(itemSize),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(itemSize)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.secondaryContainer,
+                                            shape = RoundedCornerShape(16.dp)
+                                        )
+                                )
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.spacedBy(itemSpacing),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            destinations.forEachIndexed { index, destination ->
+                                val isSelected = index == selectedIndex
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(itemSize)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .clickable {
+                                            if (!isSelected) onSelect(index)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    BadgedBox(
+                                        badge = {
+                                            DestinationBadge(
+                                                dest = destination,
+                                                superUser = superuserCount,
+                                                module = moduleCount,
+                                                isHideOtherInfo = isHideOtherInfo,
+                                            )
+                                        }
+                                    ) {
+                                        Icon(
+                                            if (isSelected) destination.iconSelected else destination.iconNotSelected,
+                                            stringResource(destination.label),
+                                            tint = if (isSelected) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

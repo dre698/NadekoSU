@@ -41,6 +41,7 @@ import androidx.compose.material.icons.twotone.ColorLens
 import androidx.compose.material.icons.twotone.Contrast
 import androidx.compose.material.icons.twotone.DarkMode
 import androidx.compose.material.icons.twotone.DesignServices
+import androidx.compose.material.icons.twotone.Dock
 import androidx.compose.material.icons.twotone.Draw
 import androidx.compose.material.icons.twotone.FormatColorFill
 import androidx.compose.material.icons.twotone.FormatSize
@@ -913,6 +914,21 @@ private fun SegmentedColumnScope.backgroundAdjustmentControls(
             state = state,
             viewModel = viewModel,
             coroutineScope = coroutineScope
+        )
+    }
+
+    item(
+        topPadding = 1.dp
+    ) {
+        val context = LocalContext.current
+        SettingsSwitchWidget(
+            icon = Icons.TwoTone.Dock,
+            title = stringResource(id = R.string.settings_floating_nav_bar),
+            description = stringResource(id = R.string.settings_floating_nav_bar_summary),
+            checked = ThemeConfig.isFloatingNavBar,
+            onCheckedChange = { isChecked ->
+                BackgroundManager.saveFloatingNavBar(context, isChecked)
+            }
         )
     }
 

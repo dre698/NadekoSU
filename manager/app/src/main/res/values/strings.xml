@@ -227,6 +227,8 @@
     <string name="background_crop_loading">Loading image</string>
     <string name="background_crop_rotation_angle">Rotation</string>
     <string name="settings_config_enable_blur">Enable Blur</string>
+    <string name="settings_floating_nav_bar">Floating Navigation Bar</string>
+    <string name="settings_floating_nav_bar_summary">Gaya navigasi bar mengambang seperti pill, terinspirasi dari KernelSU-Next</string>
     <string name="settings_config_enable_blur_summary">Enable blur process for this app</string>
     <string name="settings_exp_draw_background_to_blur">Draw Custom background to blur</string>
     <string name="settings_exp_draw_background_to_blur_description">Experiment feature, process with your own risk</string>

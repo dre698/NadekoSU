@@ -120,6 +120,7 @@ object ThemeConfig {
     var isEnableBlur by mutableStateOf(false)
     var isEnableBlurExp by mutableStateOf(false)
     var isUseBackgroundSeedColor by mutableStateOf(false)
+    var isFloatingNavBar by mutableStateOf(false)
 
     // 主题变化检测
     private var lastDarkModeState: Boolean? = null
@@ -268,6 +269,11 @@ object BackgroundManager {
         context.appPreferences.putBoolean("enable_blur_exp", enable)
     }
 
+    fun saveFloatingNavBar(context: Context, enable: Boolean) {
+        ThemeConfig.isFloatingNavBar = enable
+        context.appPreferences.putBoolean("floating_nav_bar", enable)
+    }
+
     fun saveUseBackgroundSeedColor(context: Context, enable: Boolean) {
         ThemeConfig.isUseBackgroundSeedColor = enable
         context.appPreferences.putBoolean("use_background_seed_color", enable)
@@ -325,6 +331,7 @@ object BackgroundManager {
         ThemeConfig.isEnableBlurExp = prefs.getBoolean("enable_blur_exp", false)
         ThemeConfig.isUseBackgroundSeedColor = prefs.getBoolean("use_background_seed_color", false)
         ThemeConfig.isHighContrastMode = prefs.getBoolean("high_contrast_mode", false)
+        ThemeConfig.isFloatingNavBar = prefs.getBoolean("floating_nav_bar", false)
     }
 
     private fun saveBackgroundUri(context: Context, uri: Uri?) {

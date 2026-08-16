@@ -16,8 +16,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.calculateBottomPadding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -209,8 +207,9 @@ private fun FloatingBottomBar(
             .windowInsetsPadding(
                 WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
             )
-            .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
     ) {
+        val density = LocalDensity.current
+        val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(density).toDp() }
         val screenWidth = maxWidth
         val horizontalScreenPadding = when {
             screenWidth > 600.dp -> 32.dp
@@ -221,7 +220,8 @@ private fun FloatingBottomBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = horizontalScreenPadding, vertical = 14.dp),
+                .padding(horizontal = horizontalScreenPadding, vertical = 14.dp)
+                .padding(bottom = bottomInset),
             contentAlignment = Alignment.Center
         ) {
             Surface(

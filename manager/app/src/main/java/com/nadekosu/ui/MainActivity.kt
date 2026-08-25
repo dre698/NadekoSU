@@ -5,34 +5,52 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import com.nadekosu.KernelSUApplication
-import com.nadekosu.Natives
+import com.nadekosu.domain.model.StartupState
+import com.nadekosu.domain.usecase.ApplyLanguageUseCase
+import com.nadekosu.domain.usecase.EnsureManagerInstalledUseCase
+import com.nadekosu.domain.usecase.ObserveStartupStateUseCase
 import com.nadekosu.ui.activity.util.ThemeChangeContentObserver
 import com.nadekosu.ui.activity.util.ThemeUtils
 import com.nadekosu.ui.component.ZipFileInfo
-import com.nadekosu.ui.screen.themeSettings.util.applyLanguage
 import com.nadekosu.ui.theme.KernelSUTheme
-import com.nadekosu.ui.util.install
+import com.nadekosu.ui.viewmodel.HomeUiAction
 import com.nadekosu.ui.viewmodel.HomeViewModel
+import com.nadekosu.ui.viewmodel.ModuleUiAction
 import com.nadekosu.ui.viewmodel.ModuleViewModel
+import com.nadekosu.ui.viewmodel.SettingsUiAction
+import com.nadekosu.ui.viewmodel.SettingsUiEvent
 import com.nadekosu.ui.viewmodel.SettingsViewModel
+import com.nadekosu.ui.viewmodel.SuperUserUiAction
 import com.nadekosu.ui.viewmodel.SuperUserViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
-    private lateinit var superUserViewModel: SuperUserViewModel
-    private lateinit var homeViewModel: HomeViewModel
-    private lateinit var moduleViewModel: ModuleViewModel
-    private lateinit var settingsViewModel: SettingsViewModel
+    private val superUserViewModel: SuperUserViewModel by viewModel()
+    private val homeViewModel: HomeViewModel by viewModel()
+    private val moduleViewModel: ModuleViewModel by viewModel()
+    private val settingsViewModel: SettingsViewModel by viewModel()
+    private val observeStartupState: ObserveStartupStateUseCase by inject()
+    private val ensureManagerInstalled: EnsureManagerInstalledUseCase by inject()
+    private val themeUtils: ThemeUtils by inject()
+    private val applyLanguage: ApplyLanguageUseCase by inject()
+    private val startupState by lazy { observeStartupState() }
 
     private var showConfirmationDialog: MutableState<Boolean> = mutableStateOf(false)
     private var pendingZipFiles = mutableStateOf<List<ZipFileInfo>>(emptyList())
@@ -41,7 +59,7 @@ class MainActivity : ComponentActivity() {
     private var isInitialized = false
 
     override fun attachBaseContext(newBase: Context?) {
-        super.attachBaseContext(newBase?.let { applyLanguage(it) })
+        super.attachBaseContext(newBase?.let(applyLanguage::invoke))
     }
 
     private val intentState = MutableStateFlow(0)
@@ -59,15 +77,32 @@ class MainActivity : ComponentActivity() {
 
             super.onCreate(savedInstanceState)
 
-            homeViewModel =
-                ViewModelProvider(applicationContext as KernelSUApplication)[HomeViewModel::class.java]
             splashScreen.setKeepOnScreenCondition {
-                !homeViewModel.uiState.value.isInitialDataLoaded
+                shouldKeepStartupSplash(
+                    startupState = startupState.value,
+                    homeInitialDataLoaded = homeViewModel.state.value.isInitialDataLoaded,
+                )
             }
 
-            val isManager = Natives.isManager
-            if (isManager && !Natives.requireNewKernel()) {
-                install()
+            lifecycleScope.launch { ensureManagerInstalled() }
+            lifecycleScope.launch {
+                settingsViewModel.events.collect { event ->
+                    when (event) {
+                        is SettingsUiEvent.Error -> if (event.message.isNotBlank()) {
+                            Toast.makeText(this@MainActivity, event.message, Toast.LENGTH_LONG)
+                                .show()
+                        }
+
+                        is SettingsUiEvent.Message -> {
+                            val message = event.formatArg?.let {
+                                getString(event.stringResource, it)
+                            } ?: getString(event.stringResource)
+                            Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                        }
+
+                        SettingsUiEvent.RestartActivity -> recreate()
+                    }
+                }
             }
 
             // Initialize app state once.
@@ -113,13 +148,16 @@ class MainActivity : ComponentActivity() {
 
             setContent {
                 KernelSUTheme {
-                    NavContainer(
-                        zipUri = zipUri,
-                        intentState = intentState,
-                        settingsViewModel = settingsViewModel,
-                        showConfirmationDialog = showConfirmationDialog,
-                        pendingZipFiles = pendingZipFiles,
-                    )
+                    when (val state = startupState.collectAsStateWithLifecycle().value) {
+                        is StartupState.Failed -> StartupFailureContent(state.message)
+                        else -> NavContainer(
+                            zipUri = zipUri,
+                            intentState = intentState,
+                            settingsViewModel = settingsViewModel,
+                            showConfirmationDialog = showConfirmationDialog,
+                            pendingZipFiles = pendingZipFiles,
+                        )
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -135,45 +173,45 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun initializeViewModels() {
-        superUserViewModel =
-            ViewModelProvider(applicationContext as KernelSUApplication)[SuperUserViewModel::class.java]
-        homeViewModel =
-            ViewModelProvider(applicationContext as KernelSUApplication)[HomeViewModel::class.java]
-        settingsViewModel =
-            ViewModelProvider(applicationContext as KernelSUApplication)[SettingsViewModel::class.java]
-        moduleViewModel =
-            ViewModelProvider(applicationContext as KernelSUApplication)[ModuleViewModel::class.java]
-
         // Register theme change observer.
-        themeChangeObserver = ThemeUtils.registerThemeChangeObserver(this)
+        themeChangeObserver = themeUtils.registerThemeChangeObserver(this)
     }
 
     private fun initializeData() {
         lifecycleScope.launch {
             try {
-                superUserViewModel.fetchAppList()
+                homeViewModel.dispatch(HomeUiAction.Refresh(showIndicator = false))
+                superUserViewModel.dispatch(SuperUserUiAction.Refresh)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
 
         // Initialize theme settings.
-        ThemeUtils.initializeThemeSettings(this, settingsViewModel)
+        themeUtils.initializeThemeSettings(this, settingsViewModel)
     }
 
     override fun onResume() {
         try {
             super.onResume()
-            ThemeUtils.onActivityResume()
+            themeUtils.onActivityResume(this)
+            synchronizeUiSettings()
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
+    private fun synchronizeUiSettings() {
+        if (!isInitialized) return
+
+        settingsViewModel.dispatch(SettingsUiAction.Initialize)
+        moduleViewModel.dispatch(ModuleUiAction.ReloadSettings)
+    }
+
     override fun onPause() {
         try {
             super.onPause()
-            ThemeUtils.onActivityPause(this)
+            themeUtils.onActivityPause()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -181,10 +219,23 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         try {
-            ThemeUtils.unregisterThemeChangeObserver(this, themeChangeObserver)
+            themeUtils.unregisterThemeChangeObserver(this, themeChangeObserver)
             super.onDestroy()
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+}
+
+@androidx.compose.runtime.Composable
+private fun StartupFailureContent(reason: String) {
+    Column(
+        modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = reason,
+            style = MaterialTheme.typography.bodyLarge,
+        )
     }
 }

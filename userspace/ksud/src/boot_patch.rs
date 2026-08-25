@@ -2,7 +2,7 @@
 use std::os::unix::fs::PermissionsExt;
 use std::{
     fs::File,
-    io::{BufReader, Cursor, Read, Seek, SeekFrom},
+    io::{Cursor, Seek, SeekFrom},
     path::PathBuf,
 };
 
@@ -15,7 +15,21 @@ use anyhow::{Context, Result, anyhow, bail, ensure};
 use memmap2::{Mmap, MmapOptions};
 use regex_lite::Regex;
 
-use crate::assets;
+use crate::{assets, banner};
+
+const KSU_BLOCK_MODULES_CONFIG: &str = "ksu_block_modules";
+const KSU_BLOCK_MODULES_MAX_LEN: usize = 255;
+
+fn valid_block_modules(modules: &str) -> bool {
+    modules.len() <= KSU_BLOCK_MODULES_MAX_LEN
+        && (modules.is_empty()
+            || modules.split(',').all(|name| {
+                !name.is_empty()
+                    && name
+                        .bytes()
+                        .all(|ch| ch.is_ascii_alphanumeric() || ch == b'_' || ch == b'-')
+            }))
+}
 
 #[cfg(target_os = "android")]
 mod android {
@@ -293,14 +307,28 @@ rm -f /data/adb/post-fs-data.d/post_ota.sh
 #[cfg(target_os = "android")]
 pub use android::*;
 
-#[allow(clippy::needless_pass_by_value)]
-fn parse_kmi(buffer: Vec<u8>) -> Result<String> {
+fn map_file(file: &PathBuf) -> Result<Mmap> {
+    let mut f = File::open(file).with_context(|| format!("open {}", file.display()))?;
+    let len = f
+        .seek(SeekFrom::End(0))
+        .with_context(|| format!("seek end of {}", file.display()))? as usize;
+    let mmap = unsafe { MmapOptions::new().len(len).map(&f)? };
+    Ok(mmap)
+}
+
+pub fn parse_kmi(buffer: &[u8]) -> Result<String> {
     let re = Regex::new(r"(\d+\.\d+)(?:\S+)?(android\d+)").context("Failed to compile regex")?;
     buffer
-        .windows(3)
+        .windows(4)
         .enumerate()
         .filter(|(_, x)| {
-            x[1] == b'.' && (x[0] == b'5' || x[0] == b'6') && (x[2] >= b'0' && x[2] <= b'9')
+            x[1] == b'.'
+                && x[2].is_ascii_digit()
+                && match x[0] {
+                    b'5' => x[3].is_ascii_digit(),
+                    b'6'..=b'9' => true,
+                    _ => false,
+                }
         })
         .find_map(|(i, _)| {
             let a = &buffer[i..buffer.len().min(i + 100)];
@@ -325,24 +353,18 @@ fn parse_kmi(buffer: Vec<u8>) -> Result<String> {
 }
 
 fn parse_kmi_from_kernel(kernel: &PathBuf) -> Result<String> {
-    let file = File::open(kernel).context("Failed to open kernel file")?;
-    let mut reader = BufReader::new(file);
-    let mut buffer = Vec::new();
-    reader
-        .read_to_end(&mut buffer)
-        .context("Failed to read kernel file")?;
+    let data = std::fs::read(kernel).context("Failed to read kernel file")?;
 
-    parse_kmi(buffer)
+    parse_kmi(&data)
 }
 
 fn parse_kmi_from_boot(image: &PathBuf) -> Result<String> {
-    let image = unsafe { Mmap::map(&File::open(image)?)? };
-
+    let image = map_file(image)?;
     let bootimage = BootImage::parse(&image)?;
     if let Some(kernel) = bootimage.get_blocks().get_kernel() {
         let mut output = Vec::<u8>::new();
         kernel.dump(&mut output, false)?;
-        parse_kmi(output)
+        parse_kmi(&output)
     } else {
         bail!("no kernel found in boot image")
     }
@@ -451,6 +473,22 @@ pub struct BootPatchArgs {
     /// Do not load custom rc
     #[arg(long, default_value = "false")]
     no_custom_rc: bool,
+
+    /// Block what module loading
+    #[arg(
+        long,
+        value_name = "NAMES",
+        default_value = "vr,vklp,oplus_secure_guard,oplus_secure_guard_new"
+    )]
+    block_modules: Option<String>,
+
+    #[cfg(not(target_os = "android"))]
+    #[arg(long, default_value = "aarch64")]
+    arch: String,
+
+    /// Patching ramdisk instead of boot image. This is used for AVD ramdisk
+    #[arg(long, default_value = "false")]
+    ramdisk: bool,
 }
 
 pub fn patch(args: BootPatchArgs) -> Result<()> {
@@ -468,16 +506,27 @@ pub fn patch(args: BootPatchArgs) -> Result<()> {
             adb_debug_prop,
             cmdline,
             no_install,
+            block_modules,
             #[cfg(target_os = "android")]
             ota,
             #[cfg(target_os = "android")]
             flash,
             #[cfg(target_os = "android")]
             partition,
-            ..
+            no_custom_rc,
+            #[cfg(not(target_os = "android"))]
+            arch,
+            ramdisk,
         } = args;
 
-        println!(include_str!("./android/banner"));
+        if let Some(modules) = &block_modules {
+            ensure!(
+                valid_block_modules(modules),
+                "blocked preset module list must be at most 255 bytes and contain only letters, digits, '_' or '-'"
+            );
+        }
+
+        println!("{}", banner::print_banner());
 
         #[cfg(target_os = "android")]
         let patch_file = image.is_some();
@@ -488,6 +537,15 @@ pub fn patch(args: BootPatchArgs) -> Result<()> {
         }
 
         let is_replace_kernel = kernel.is_some();
+
+        if ramdisk && is_replace_kernel {
+            bail!("incompatiable option: --ramdisk and --kernel")
+        }
+
+        #[cfg(target_os = "android")]
+        if ramdisk && flash {
+            bail!("incompatiable option: --ramdisk and --flash")
+        }
 
         if is_replace_kernel {
             ensure!(
@@ -505,11 +563,9 @@ pub fn patch(args: BootPatchArgs) -> Result<()> {
                 if ota {
                     let slot_suffix = get_slot_suffix(true);
                     println!("- Trying to auto detect KMI version from boot");
-                    if let Ok(kmi) = parse_kmi_from_boot(&PathBuf::from(&format!(
+                    return parse_kmi_from_boot(&PathBuf::from(&format!(
                         "/dev/block/by-name/boot{slot_suffix}"
-                    ))) {
-                        return Ok(kmi);
-                    }
+                    )));
                 }
                 #[cfg(target_os = "android")]
                 match get_current_kmi() {
@@ -520,7 +576,9 @@ pub fn patch(args: BootPatchArgs) -> Result<()> {
                         println!("- {e}");
                     }
                 }
-                Ok(if let Some(image_path) = &image {
+                Ok(if ramdisk {
+                    bail!("please specify kmi manually")
+                } else if let Some(image_path) = &image {
                     println!(
                         "- Trying to auto detect KMI version for {}",
                         image_path.display()
@@ -563,7 +621,11 @@ pub fn patch(args: BootPatchArgs) -> Result<()> {
         println!("- Parsing boot image");
 
         let boot_image_data = map_file(&boot_image_file)?;
-        let boot_image = BootImage::parse(&boot_image_data)?;
+        let boot_image = if ramdisk {
+            BootImage::parse_raw_ramdisk(&boot_image_data)?
+        } else {
+            BootImage::parse(&boot_image_data)?
+        };
         enforce_bootimage_version(&boot_image)?;
 
         let mut patcher = BootImagePatchOption::new(&boot_image);
@@ -583,9 +645,23 @@ pub fn patch(args: BootPatchArgs) -> Result<()> {
         } else if let Some(kmod_path) = kmod {
             Box::new(map_file(&kmod_path)?)
         } else {
-            println!("- KMI: {kmi}");
-            let name = format!("{kmi}_kernelsu.ko");
-            Box::new(assets::get_asset(&name).with_context(|| format!("Failed to load {name}"))?)
+            #[cfg(target_os = "android")]
+            {
+                println!("- KMI: {kmi}");
+                let name = format!("{kmi}_kernelsu.ko");
+                Box::new(
+                    assets::get_asset(&name).with_context(|| format!("Failed to load {name}"))?,
+                )
+            }
+            #[cfg(not(target_os = "android"))]
+            {
+                println!("- KMI: {kmi}");
+                println!("- Arch: {arch}");
+                let name = format!("{arch}/{kmi}_kernelsu.ko");
+                Box::new(
+                    assets::get_asset(&name).with_context(|| format!("Failed to load {name}"))?,
+                )
+            }
         };
 
         let ksu_init: Box<dyn AsRef<[u8]>> = if no_install {
@@ -593,7 +669,17 @@ pub fn patch(args: BootPatchArgs) -> Result<()> {
         } else if let Some(init_path) = init {
             Box::new(map_file(&init_path)?)
         } else {
-            Box::new(assets::get_asset("ksuinit").context("Failed to load ksuinit")?)
+            #[cfg(not(target_os = "android"))]
+            {
+                Box::new(
+                    assets::get_asset(&format!("{arch}/ksuinit"))
+                        .context("Failed to load ksuinit")?,
+                )
+            }
+            #[cfg(target_os = "android")]
+            {
+                Box::new(assets::get_asset("ksuinit").context("Failed to load ksuinit")?)
+            }
         };
 
         let (mut cpio, vendor_ramdisk_idx) =
@@ -629,15 +715,48 @@ pub fn patch(args: BootPatchArgs) -> Result<()> {
             }
         }
 
-        if allow_shell {
-            println!("- Adding allow shell config");
+        let mut ksu_config: Vec<String> = cpio
+            .entry_by_name("ksu_config")
+            .and_then(CpioEntry::data)
+            .and_then(|v| str::from_utf8(v).ok())
+            .map(|v| v.split(' ').map(std::borrow::ToOwned::to_owned).collect())
+            .unwrap_or_default();
+
+        let mut apply_config = |name: &str, value: &str, add: bool| {
+            let has_value = ksu_config.iter().any(|v| v == value);
+
+            if add {
+                println!("- Adding {name} config");
+                if !has_value {
+                    ksu_config.push(value.to_owned());
+                }
+            } else if has_value {
+                println!("- Removing {name} config");
+                ksu_config.retain(|v| v != value);
+            }
+        };
+
+        apply_config("no custom rc", "norc=1", no_custom_rc);
+        apply_config("allow shell", "allow_shell=1", allow_shell);
+
+        if ksu_config.is_empty() {
+            cpio.rm("ksu_config", false);
+        } else {
+            let data = ksu_config.join(" ").into_bytes();
+            cpio.add("ksu_config", CpioEntry::regular(0o644, Box::new(data)))?;
+        }
+
+        // remove legacy config file
+        cpio.rm("allow_shell", false);
+
+        if let Some(modules) = block_modules {
+            if !modules.is_empty() {
+                println!("- Blocking modules: {modules}");
+            }
             cpio.add(
-                "ksu_allow_shell",
-                CpioEntry::regular(0o644, Box::new(Vec::<u8>::new())),
+                KSU_BLOCK_MODULES_CONFIG,
+                CpioEntry::regular(0o644, Box::new(modules.into_bytes())),
             )?;
-        } else if cpio.exists("ksu_allow_shell") {
-            println!("- Removing allow shell config");
-            cpio.rm("ksu_allow_shell", false);
         }
 
         if enable_adbd || adb_debug_prop.is_some() {
@@ -911,12 +1030,4 @@ fn rebuild_without_ksu(
     let mut buf = Cursor::new(Vec::<u8>::new());
     patcher.patch(&mut buf)?;
     Ok(buf.into_inner())
-}
-fn map_file(file: &PathBuf) -> Result<Mmap> {
-    unsafe {
-        let mut file = File::open(file)?;
-        Ok(MmapOptions::new()
-            .len(file.seek(SeekFrom::End(0))? as usize)
-            .map(&file)?)
-    }
 }

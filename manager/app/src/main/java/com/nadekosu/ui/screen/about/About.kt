@@ -1,5 +1,8 @@
 package com.nadekosu.ui.screen.about
 
+import org.koin.compose.koinInject
+import com.nadekosu.ui.theme.CardConfig
+import com.nadekosu.ui.theme.ThemeConfig
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +33,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
@@ -58,17 +62,23 @@ import com.nadekosu.ui.component.settings.SettingsJumpPageWidget
 import com.nadekosu.ui.navigation.LocalNavigator
 import com.nadekosu.ui.navigation.Navigator
 import com.nadekosu.ui.navigation.Route
-import com.nadekosu.ui.theme.CardConfig
-import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurEffect
 import com.nadekosu.ui.theme.blurSource
 import com.nadekosu.ui.theme.renderBackgroundBlur
 
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AboutScreen() {
+    val themeConfig: ThemeConfig = koinInject()
+    val cardConfig: CardConfig = koinInject()
     val navigator = LocalNavigator.current
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
+        rememberTopAppBarState(
+            initialHeightOffset = -154f,
+            initialHeightOffsetLimit = -154f // from debugger
+        )
+    )
 
     Scaffold(
         topBar = {
@@ -87,15 +97,15 @@ fun AboutScreen() {
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor =
-                        if (ThemeConfig.isEnableBlur)
+                        if (themeConfig.isEnableBlur)
                             Color.Transparent
                         else
-                            MaterialTheme.colorScheme.surfaceContainer.copy(CardConfig.cardAlpha),
+                            MaterialTheme.colorScheme.surfaceContainer.copy(cardConfig.cardAlpha),
                     scrolledContainerColor =
-                        if (ThemeConfig.isEnableBlur)
+                        if (themeConfig.isEnableBlur)
                             Color.Transparent
                         else
-                            MaterialTheme.colorScheme.surfaceContainer.copy(CardConfig.cardAlpha),
+                            MaterialTheme.colorScheme.surfaceContainer.copy(cardConfig.cardAlpha),
                 ),
             )
         },
@@ -130,7 +140,7 @@ fun AboutScreen() {
                         .padding(horizontal = 16.dp)
                         .padding(top = 8.dp, bottom = 12.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(
-                        alpha = CardConfig.cardAlpha
+                        alpha = cardConfig.cardAlpha
                     ),
                     message = AnnotatedString.fromHtml(
                         htmlString = stringResource(
@@ -178,7 +188,7 @@ fun AboutScreen() {
                             icon = Icons.TwoTone.Group,
                             title = stringResource(R.string.join_telegram_group),
                             description = stringResource(R.string.join_telegram_group_detail),
-                            onClick = { uriHandler.openUri("https://t.me/dre698trashes") }
+                            onClick = { uriHandler.openUri("https://t.me/NadekoSU") }
                         )
                     }
                     item {
@@ -217,15 +227,17 @@ fun AboutScreenPreview() {
 
 @Composable
 private fun StatusCard() {
+    val themeConfig: ThemeConfig = koinInject()
+    val cardConfig: CardConfig = koinInject()
     Surface(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
             .renderBackgroundBlur(),
         color =
-            if (ThemeConfig.isEnableBlurExp)
+            if (themeConfig.isEnableBlurExp)
                 Color.Transparent
             else
-                MaterialTheme.colorScheme.primaryContainer.copy(CardConfig.cardAlpha),
+                MaterialTheme.colorScheme.primaryContainer.copy(cardConfig.cardAlpha),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(

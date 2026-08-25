@@ -1,34 +1,13 @@
 package com.nadekosu.ui.component
 
 import androidx.compose.runtime.Composable
-import com.nadekosu.Natives
-import com.nadekosu.ui.util.rootAvailable
+import com.nadekosu.domain.model.KernelStatus
 
 @Composable
 inline fun KsuIsValid(
+    status: KernelStatus,
     content: @Composable () -> Unit
 ) {
-    if (ksuIsValid())
+    if (status.isValid)
         content()
-}
-
-private var tested = false
-private var ksuIsValid = false
-
-/**
- * Check the manager is valid or not
- *
- * true = ksu valid
- * false = ksu invalid
- *
- * invalid = not is manager
- */
-fun ksuIsValid() : Boolean {
-    if (tested) return ksuIsValid
-
-    val isManager = Natives.isManager
-    ksuIsValid = isManager && !Natives.requireNewKernel() && rootAvailable()
-    tested = true
-
-    return ksuIsValid
 }

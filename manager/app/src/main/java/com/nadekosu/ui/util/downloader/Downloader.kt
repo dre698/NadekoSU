@@ -5,9 +5,13 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import androidx.core.net.toUri
 import com.nadekosu.R
-import com.nadekosu.data.update.ManagerUpdateInfo
-import com.nadekosu.ksuApp
+import com.nadekosu.domain.model.DownloadStatus
+import com.nadekosu.domain.model.ManagerUpdateInfo
+import com.nadekosu.domain.usecase.EnqueueDownloadUseCase
+import com.nadekosu.domain.usecase.EnqueueManagerUpdateUseCase
+import com.nadekosu.domain.usecase.ObserveDownloadUseCase
 import com.nadekosu.ui.activity.PermissionRequestInterface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +27,8 @@ fun download(
     permissionRequestInterface: PermissionRequestInterface,
     url: String,
     fileName: String,
+    enqueueDownload: EnqueueDownloadUseCase,
+    observeDownload: ObserveDownloadUseCase,
     onDownloaded: (Uri) -> Unit = {},
     onDownloading: () -> Unit = {},
     onProgress: (Int) -> Unit = {}
@@ -36,20 +42,16 @@ fun download(
     ) {
         onDownloading()
 
-        val downloadId = DownloadManager.enqueue(
-            context = ksuApp,
-            url = url,
-            fileName = fileName,
-            onCompleted = onDownloaded,
-        )
+        val downloadId = enqueueDownload(url, fileName)
 
         CoroutineScope(Dispatchers.Main).launch {
-            DownloadManager.downloads.collect { map ->
-                val state = map[downloadId] ?: return@collect
+            observeDownload(downloadId).collect { state ->
+                state ?: return@collect
                 onProgress(state.progress)
-                if (state.status == DownloadManager.Status.COMPLETED ||
-                    state.status == DownloadManager.Status.FAILED
+                if (state.status == DownloadStatus.COMPLETED ||
+                    state.status == DownloadStatus.FAILED
                 ) {
+                    state.resultUri?.let { onDownloaded(it.toUri()) }
                     cancel()
                 }
             }
@@ -71,9 +73,10 @@ fun downloadManagerUpdate(
     context: Context,
     permissionRequestInterface: PermissionRequestInterface,
     update: ManagerUpdateInfo,
+    enqueueManagerUpdate: EnqueueManagerUpdateUseCase,
 ) {
     requestDownloadPermissions(context, permissionRequestInterface) {
-        DownloadManager.enqueueManagerUpdate(context, update)
+        enqueueManagerUpdate(update)
     }
 }
 

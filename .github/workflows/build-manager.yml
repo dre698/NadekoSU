@@ -3,7 +3,6 @@ name: Build Manager
 on:
   workflow_dispatch:
   push:
-    branches: [ "main", "dev", "ci", "sync-upstream" ]
     paths:
       - '.github/workflows/build-manager.yml'
       - '.github/workflows/build-lkm.yml'
@@ -83,6 +82,24 @@ jobs:
   build-ksuinit:
     uses: ./.github/workflows/ksuinit.yml
 
+  set-manager-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+      manager_types: ${{ steps.set.outputs.manager_types }}
+    steps:
+      - name: Set matrix
+        id: set
+        run: |
+          if [ "${{ github.event_name }}" == "push" ]; then
+            # On push, only build the normal universal-release manager: no debug, no spoofed, no per-arch APKs.
+            echo 'matrix={"include":[{"manager_type":"normal","build_type":"release"}]}' >> $GITHUB_OUTPUT
+            echo 'manager_types=["normal"]' >> $GITHUB_OUTPUT
+          else
+            echo 'matrix={"include":[{"manager_type":"spoofed","build_type":"release"},{"manager_type":"normal","build_type":"release"},{"manager_type":"normal","build_type":"debug"}]}' >> $GITHUB_OUTPUT
+            echo 'manager_types=["spoofed","normal"]' >> $GITHUB_OUTPUT
+          fi
+
   build-ksud:
     needs: [build-lkm, build-ksuinit]
     strategy:
@@ -100,20 +117,12 @@ jobs:
       os: ${{ matrix.os }}
 
   build-manager:
-    needs: [generate-key]
+    needs: [generate-key, set-manager-matrix]
     runs-on: ubuntu-latest
     if: always() && needs.generate-key.result == 'success'
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - manager_type: "spoofed"
-            build_type: "release"
-
-          - manager_type: "normal"
-            build_type: "release"
-          - manager_type: "normal"
-            build_type: "debug"
+      matrix: ${{ fromJson(needs.set-manager-matrix.outputs.matrix) }}
     defaults:
       run:
         working-directory: ./manager
@@ -196,6 +205,11 @@ jobs:
             ./gradlew assemble${{ matrix.build_type }} -Pcommit=${{ steps.commit.outputs.COMMIT_SHA }}
           fi
 
+      - name: Keep universal APK only (push builds)
+        if: github.event_name == 'push'
+        run: |
+          find app/build/outputs/apk/${{ matrix.build_type }} -type f -name "*.apk" ! -name "*universal*" -print -delete
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
@@ -213,18 +227,11 @@ jobs:
 
   repack-manager:
     if: always() && needs.build-manager.result == 'success' && needs.build-ksud.result == 'success'
-    needs: [build-manager, build-ksud, generate-key]
+    needs: [build-manager, build-ksud, generate-key, set-manager-matrix]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - manager_type: "spoofed"
-            build_type: "release"
-          - manager_type: "normal"
-            build_type: "release"
-          - manager_type: "normal"
-            build_type: "debug"
+      matrix: ${{ fromJson(needs.set-manager-matrix.outputs.matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -286,7 +293,6 @@ jobs:
           cp -f "$X86_64_KSUD" target/x86_64-linux-android/release/ksud
 
       - name: Prepare signing inputs
-        if: ${{ github.event_name == 'pull_request' || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/ci' || github.ref == 'refs/heads/sync-upstream')) || github.ref_type == 'tag' }}
         env:
           PR_KEYSTORE: ${{ needs.generate-key.outputs.keystore }}
           PR_KEYSTORE_PASSWORD: ${{ needs.generate-key.outputs.keystore_password }}
@@ -312,7 +318,6 @@ jobs:
           fi
 
       - name: Repack and resign
-        if: ${{ github.event_name == 'pull_request' || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/ci' || github.ref == 'refs/heads/sync-upstream')) || github.ref_type == 'tag' }}
         run: |
           python3 repack_apk_multi.py repack \
             -b ${{ matrix.build_type }} \
@@ -332,19 +337,18 @@ jobs:
           name: ${{ steps.determine.outputs.title }}-gradle-${{ matrix.build_type }}
         
       - name: Upload build artifact
-        if: ${{ github.event_name == 'pull_request' || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/ci' || github.ref == 'refs/heads/sync-upstream')) || github.ref_type == 'tag' }}
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.determine.outputs.title }}-${{ matrix.build_type }}
           path: dist/*.apk
 
   upload-telegram:
-    needs: repack-manager
-    if: github.event_name != 'pull_request' 
+    needs: [repack-manager, set-manager-matrix]
+    if: github.event_name != 'pull_request' && github.event_name != 'workflow_call'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        manager_type: [ "spoofed", "normal" ]
+        manager_type: ${{ fromJson(needs.set-manager-matrix.outputs.manager_types) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -373,13 +377,6 @@ jobs:
           if [[ "${{ github.ref }}" != "refs/heads/main" && "${{ github.ref_type }}" != "tag" ]]; then
             echo "topicid=${{ vars.MESSAGE_DEVELOPING_MANAGER_THREAD_ID }}" >> $GITHUB_OUTPUT
           fi
-        
-      - name: Download Debug artifact
-        if: ${{ matrix.manager_type != 'spoofed' }}
-        uses: actions/download-artifact@v8
-        with:
-          name: ${{ steps.determine.outputs.title }}-debug
-          path: ./apk/debug
 
       - name: Download Release artifact
         uses: actions/download-artifact@v8
@@ -400,10 +397,5 @@ jobs:
         run: |
           pip3 install python-telegram-bot
           export VERSION=$(git rev-list --count HEAD)
-          if [ ! "${{ matrix.manager_type }}" == "spoofed" ]; then
-            APK_DEBUG=apk/debug/*.apk
-          else
-            APK_DEBUG=""
-          fi
           APK_RELEASE=apk/release/*.apk
-          python3 $GITHUB_WORKSPACE/scripts/ksubot.py $APK_DEBUG $APK_RELEASE
+          python3 $GITHUB_WORKSPACE/scripts/ksubot.py $APK_RELEASE

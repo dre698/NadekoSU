@@ -21,7 +21,7 @@ find . -depth -type d -name 'io' -execdir mv {} "$word4" \;
 find . -type f -exec sed -i \
     -e "s/com\.nadekosu\.nadekosu/$word1.$word2.$word3/g" \
     -e "s/io\.nadekosu\.nadekosu/$word4.$word2.$word3/g" \
-    -e "s/com\.nadekosu\.zako/$word1.$word2.zako/g" \
+    -e "s/com\.nadekosu\.rootService/$word1.$word2.rootService/g" \
     -e "s/com\/nadekosu\/nadekosu/$word1\/$word2\/$word3/g" \
     -e "s/io\/nadekosu\/nadekosu/$word4\/$word2\/$word3/g" \
     -e "s/io_nadekosu_nadekosu/${word4}_${word2}_${word3}/g" \

@@ -23,9 +23,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import com.nadekosu.R
-import com.nadekosu.data.susfs.OpenRedirectItem
-import com.nadekosu.data.susfs.SuSFSConfigHelper
-import com.nadekosu.data.susfs.UidScheme
+import com.nadekosu.domain.model.OpenRedirectItem
+import com.nadekosu.domain.model.UidScheme
 import com.nadekosu.ui.component.settings.SettingsDropdownWidget
 import com.nadekosu.ui.component.settings.SettingsJumpPageWidget
 import com.nadekosu.ui.component.settings.SettingsTextFieldWidget
@@ -36,7 +35,13 @@ import com.nadekosu.ui.screen.susfs.component.ManualAddDialog
 import com.nadekosu.ui.screen.susfs.component.SuSFSDescriptionCard
 import com.nadekosu.ui.screen.susfs.component.susfsEntryList
 import com.nadekosu.ui.util.LocalSnackbarHost
+import com.nadekosu.ui.util.showReplacingSnackbar
+import com.nadekosu.ui.viewmodel.SuSFSUiAction
+import com.nadekosu.ui.viewmodel.SuSFSViewModel
+import com.nadekosu.ui.viewmodel.awaitSuSFSBoolean
+import com.nadekosu.ui.viewmodel.awaitSuSFSConfig
 import kotlinx.coroutines.launch
+import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +50,7 @@ fun OpenRedirectTab(
     innerPadding: PaddingValues,
     onRegisterRefresh: SuSFSRefreshRegistrar,
 ) {
+    val configHelper = koinViewModel<SuSFSViewModel>()
     val snackbarHost = LocalSnackbarHost.current
     val scope = rememberCoroutineScope()
 
@@ -154,12 +160,16 @@ fun OpenRedirectTab(
             if (target.isEmpty() || redirected.isEmpty()) return@ManualAddDialog
             scope.launch {
                 isLoading = true
-                val ok = SuSFSConfigHelper.addOpenRedirect(target, redirected, manualUidScheme)
+                val ok = awaitSuSFSBoolean(configHelper) { reply ->
+                    SuSFSUiAction.AddOpenRedirect(target, redirected, manualUidScheme, reply)
+                }
                 if (ok) {
-                    entries = SuSFSConfigHelper.refreshConfig().open_redirect
+                    entries = awaitSuSFSConfig(configHelper) { reply ->
+                        SuSFSUiAction.Refresh(reply)
+                    }?.open_redirect.orEmpty()
                     showManualAdd = false
                 } else {
-                    snackbarHost.showSnackbar(operationFailedMsg)
+                    snackbarHost.showReplacingSnackbar(operationFailedMsg)
                 }
                 isLoading = false
             }
@@ -193,6 +203,7 @@ fun OpenRedirectTab(
                     choice = uidSchemeOptions.indexOfFirst { it.first == manualUidScheme }
                         .coerceAtLeast(0),
                     data = uidSchemeOptions.map { it.second },
+                    renderBackgroundBlur = false,
                     onChoiceChange = { index -> manualUidScheme = uidSchemeOptions[index].first },
                 )
             }
@@ -212,12 +223,16 @@ fun OpenRedirectTab(
             onDelete = {
                 scope.launch {
                     isLoading = true
-                    val ok = SuSFSConfigHelper.removeOpenRedirect(item.target_path)
+                    val ok = awaitSuSFSBoolean(configHelper) { reply ->
+                        SuSFSUiAction.RemoveOpenRedirect(item.target_path, reply)
+                    }
                     if (ok) {
-                        entries = SuSFSConfigHelper.refreshConfig().open_redirect
+                        entries = awaitSuSFSConfig(configHelper) { reply ->
+                            SuSFSUiAction.Refresh(reply)
+                        }?.open_redirect.orEmpty()
                         detailItem = null
                     } else {
-                        snackbarHost.showSnackbar(operationFailedMsg)
+                        snackbarHost.showReplacingSnackbar(operationFailedMsg)
                     }
                     isLoading = false
                 }

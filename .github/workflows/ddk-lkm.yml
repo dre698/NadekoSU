@@ -43,7 +43,8 @@ jobs:
 
     - name: Add Safe Directory
       run: |
-        git config --global --add safe.directory /__w/dre698/NadekoSU
+        git config --global --add safe.directory /__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
     - name: Build kernelsu.ko
       if: ${{ inputs.arch == 'arm64' }}

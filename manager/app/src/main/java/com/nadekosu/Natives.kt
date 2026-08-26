@@ -29,7 +29,15 @@ object Natives {
     // 34966(upstream 32513): add uapi version
     // 34967(upstream 32514): allowlist v4 root profile flags
     // 35002: add sync set dynamic-manager api
-    const val MINIMAL_SUPPORTED_KERNEL = 35002
+    // NOTE(maintainer): lowered from 35002 to 33300 to match currently
+    // shipped kernel builds. Driver features documented above 33300
+    // (34634+ set_sepolicy, 34709 uapi unify, 34944 KPM drop, 34966 uapi
+    // version, 35002 dynamic-manager sync, etc.) are NOT guaranteed present
+    // below their respective commit counts -- calling into those paths on
+    // an older driver may fail silently or crash instead of showing this
+    // warning. Verify feature availability via getFeatureStatus()/UAPI
+    // checks before relying on them, or bump kernel builds to match.
+    const val MINIMAL_SUPPORTED_KERNEL = 33300
 
     const val KERNEL_SU_DOMAIN = "u:r:ksu:s0"
 

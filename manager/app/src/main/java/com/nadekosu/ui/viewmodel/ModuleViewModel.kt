@@ -1,223 +1,533 @@
 package com.nadekosu.ui.viewmodel
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.os.SystemClock
+import android.util.Log
+import androidx.compose.runtime.Stable
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.nadekosu.data.module.ModulePreferencesRepository
-import com.nadekosu.domain.model.InstalledModule
-import com.nadekosu.domain.model.MetaModuleStatus
-import com.nadekosu.domain.usecase.CalculateInstalledModuleSizeUseCase
-import com.nadekosu.domain.usecase.GetBooleanPreferenceUseCase
-import com.nadekosu.domain.usecase.ObserveInstalledModulesUseCase
-import com.nadekosu.domain.usecase.RebootUseCase
-import com.nadekosu.domain.usecase.RefreshInstalledModulesUseCase
-import com.nadekosu.domain.usecase.SetModuleEnabledUseCase
-import com.nadekosu.domain.usecase.SetModuleRemovedUseCase
-import com.nadekosu.domain.usecase.TransliterateTextUseCase
-import com.nadekosu.domain.usecase.UpdateCachedModuleEnabledUseCase
-import kotlinx.coroutines.flow.MutableSharedFlow
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import com.nadekosu.data.appPreferences
+import com.nadekosu.ksuApp
+import com.nadekosu.ui.util.HanziToPinyin
+import com.nadekosu.ui.util.getRootShell
+import com.nadekosu.ui.util.listModules
+import com.topjohnwu.superuser.io.SuFile
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 import java.text.Collator
 import java.util.Locale
 
 data class ModuleUiState(
-    val moduleList: List<InstalledModule> = emptyList(),
+    val moduleList: List<ModuleViewModel.ModuleInfo> = emptyList(),
     val moduleSizes: Map<String, String> = emptyMap(),
+    val moduleBanners: Map<String, ImageBitmap?> = emptyMap(),
+    val isBackupRestoreRunning: Boolean = false,
+    val backupRestoreResult: String? = null,
     val isRefreshing: Boolean = false,
     val search: String = "",
     val sortEnabledFirst: Boolean = false,
     val sortActionFirst: Boolean = false,
     val hasModuleRequireMount: Boolean = false,
-    val hasMagisk: Boolean = false,
-    val metaModuleStatus: MetaModuleStatus = MetaModuleStatus.MISSING,
     val isNeedRefresh: Boolean = false,
     val showMoreModuleInfo: Boolean = false,
+    val isHideTagRow: Boolean = false
 )
 
-sealed interface ModuleUiAction {
-    data class Refresh(val manual: Boolean = false) : ModuleUiAction
-    data object ReloadSettings : ModuleUiAction
-    data class Search(val query: String) : ModuleUiAction
-    data class Sort(val enabledFirst: Boolean, val actionFirst: Boolean) : ModuleUiAction
-    data class SetShowMoreInfo(val enabled: Boolean) : ModuleUiAction
-    data class LoadSize(val moduleId: String) : ModuleUiAction
-    data object MarkNeedRefresh : ModuleUiAction
-    data class UpdateCachedEnabled(val moduleId: String, val enabled: Boolean) : ModuleUiAction
-    data class SetEnabled(val moduleId: String, val enabled: Boolean) : ModuleUiAction
-    data class SetRemoved(val moduleId: String, val removed: Boolean) : ModuleUiAction
-    data object Reboot : ModuleUiAction
-}
+class ModuleViewModel : ViewModel() {
 
-sealed interface ModuleUiEvent {
-    data class Error(val message: String) : ModuleUiEvent
-    data object RefreshCompleted : ModuleUiEvent
-    data class EnabledChanged(
-        val moduleId: String,
-        val enabled: Boolean,
-        val successful: Boolean,
-    ) : ModuleUiEvent
+    companion object {
+        private const val TAG = "ModuleViewModel"
+    }
 
-    data class RemovedChanged(
-        val moduleId: String,
-        val removed: Boolean,
-        val successful: Boolean,
-    ) : ModuleUiEvent
-}
+    private var modules: List<ModuleInfo> = emptyList()
+    private val _uiState = MutableStateFlow(ModuleUiState())
+    val uiState: StateFlow<ModuleUiState> = _uiState.asStateFlow()
 
-private data class ModuleControls(
-    val search: String = "",
-    val isNeedRefresh: Boolean = false,
-    val moduleSizes: Map<String, String> = emptyMap(),
-)
+    fun loadSize(dirId: String) = viewModelScope.launch(Dispatchers.IO) {
+        val size = formatFileSize(
+            try {
+                val shell = getRootShell()
+                val command = "/data/adb/ksu/bin/busybox du -sb /data/adb/modules/$dirId"
+                val result = shell.newJob().add(command).to(ArrayList(), null).exec()
 
-class ModuleViewModel(
-    observeInstalledModules: ObserveInstalledModulesUseCase,
-    private val modulePreferences: ModulePreferencesRepository,
-    private val refreshInstalledModules: RefreshInstalledModulesUseCase,
-    private val calculateModuleSize: CalculateInstalledModuleSizeUseCase,
-    private val updateCachedModuleEnabledUseCase: UpdateCachedModuleEnabledUseCase,
-    private val getBooleanPreference: GetBooleanPreferenceUseCase,
-    private val transliterateText: TransliterateTextUseCase,
-    private val setModuleEnabled: SetModuleEnabledUseCase,
-    private val setModuleRemoved: SetModuleRemovedUseCase,
-    private val reboot: RebootUseCase,
-) : ViewModel() {
-    private val controls = MutableStateFlow(ModuleControls())
-    private val mutableEvents = MutableSharedFlow<ModuleUiEvent>(extraBufferCapacity = 1)
-    val events: SharedFlow<ModuleUiEvent> = mutableEvents.asSharedFlow()
-
-    val state: StateFlow<ModuleUiState> = combine(
-        observeInstalledModules(),
-        controls,
-        modulePreferences.preferences,
-    ) { source, local, preferences ->
-        ModuleUiState(
-            moduleList = buildModuleList(
-                modules = source.modules,
-                search = local.search,
-                sortEnabledFirst = preferences.sortEnabledFirst,
-                sortActionFirst = preferences.sortActionFirst,
-            ),
-            moduleSizes = local.moduleSizes,
-            isRefreshing = source.refreshing,
-            search = local.search,
-            sortEnabledFirst = preferences.sortEnabledFirst,
-            sortActionFirst = preferences.sortActionFirst,
-            hasModuleRequireMount = source.hasModuleRequireMount,
-            hasMagisk = source.hasMagisk,
-            metaModuleStatus = source.metaModuleStatus,
-            isNeedRefresh = local.isNeedRefresh,
-            showMoreModuleInfo = preferences.showMoreModuleInfo,
-        )
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, ModuleUiState())
-    val uiState: StateFlow<ModuleUiState> = state
-
-    fun dispatch(action: ModuleUiAction) {
-        when (action) {
-            is ModuleUiAction.Refresh -> refresh(action.manual)
-            ModuleUiAction.ReloadSettings -> modulePreferences.reload()
-            is ModuleUiAction.Search -> controls.update { it.copy(search = action.query) }
-            is ModuleUiAction.Sort -> {
-                modulePreferences.setSort(action.enabledFirst, action.actionFirst)
-            }
-
-            is ModuleUiAction.SetShowMoreInfo -> {
-                modulePreferences.setShowMoreInfo(action.enabled)
-            }
-
-            is ModuleUiAction.LoadSize -> viewModelScope.launch {
-                val size = formatFileSize(calculateModuleSize(action.moduleId))
-                controls.update { current ->
-                    current.copy(moduleSizes = current.moduleSizes + (action.moduleId to size))
+                if (result.isSuccess && result.out.isNotEmpty()) {
+                    val sizeStr = result.out.firstOrNull()?.split("\t")?.firstOrNull()
+                    sizeStr?.toLongOrNull() ?: 0L
+                } else {
+                    0L
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "calculate module size failed $dirId: ${e.message}")
+                0L
             }
-
-            ModuleUiAction.MarkNeedRefresh -> controls.update { it.copy(isNeedRefresh = true) }
-            is ModuleUiAction.UpdateCachedEnabled ->
-                updateCachedModuleEnabledUseCase(action.moduleId, action.enabled)
-
-            is ModuleUiAction.SetEnabled -> viewModelScope.launch {
-                val successful = setModuleEnabled(action.moduleId, action.enabled).isSuccess
-                mutableEvents.emit(
-                    ModuleUiEvent.EnabledChanged(action.moduleId, action.enabled, successful)
-                )
-            }
-
-            is ModuleUiAction.SetRemoved -> viewModelScope.launch {
-                val successful = setModuleRemoved(action.moduleId, action.removed).isSuccess
-                mutableEvents.emit(
-                    ModuleUiEvent.RemovedChanged(action.moduleId, action.removed, successful)
-                )
-            }
-
-            ModuleUiAction.Reboot -> viewModelScope.launch {
-                reboot().onFailure { mutableEvents.tryEmit(ModuleUiEvent.Error(it.message.orEmpty())) }
-            }
+        )
+        _uiState.update { state ->
+            state.copy(moduleSizes = state.moduleSizes + (dirId to size))
         }
     }
-    private fun refresh(manual: Boolean) {
-        viewModelScope.launch { refreshNow(manual) }
+
+    fun loadBanner(dirId: String) = viewModelScope.launch(Dispatchers.IO) {
+        // Sudah pernah dicoba (baik ketemu maupun tidak) - jangan ulangi terus
+        if (_uiState.value.moduleBanners.containsKey(dirId)) return@launch
+
+        val decoded: ImageBitmap? = try {
+            val propBannerName = try {
+                val propFile = SuFile.open("/data/adb/modules/$dirId/module.prop")
+                if (propFile.exists()) {
+                    propFile.newInputStream().bufferedReader().useLines { lines ->
+                        lines.firstOrNull { it.trim().startsWith("banner=") }
+                            ?.substringAfter("banner=")
+                            ?.trim()
+                    }
+                } else null
+            } catch (e: Exception) {
+                null
+            }
+
+            val candidates = buildList {
+                if (!propBannerName.isNullOrBlank() && !propBannerName.startsWith("http", true)) {
+                    add(propBannerName)
+                }
+                addAll(listOf("banner.webp", "banner.png", "banner.jpg", "banner.jpeg", "banner"))
+            }.distinct()
+
+            var rawBytes: ByteArray? = null
+            for (name in candidates) {
+                val file = SuFile.open("/data/adb/modules/$dirId/$name")
+                if (file.exists() && file.isFile) {
+                    rawBytes = file.newInputStream().use { it.readBytes() }
+                    break
+                }
+            }
+            rawBytes?.let { decodeSampledBitmap(it, targetWidthPx = 720) }?.asImageBitmap()
+        } catch (e: Exception) {
+            Log.e(TAG, "load module banner failed $dirId: ${e.message}")
+            null
+        }
+
+        _uiState.update { state ->
+            state.copy(moduleBanners = state.moduleBanners + (dirId to decoded))
+        }
     }
 
-    private suspend fun refreshNow(manual: Boolean) {
-        val checkUpdates = getBooleanPreference(
-            PREF_CHECK_MODULE_UPDATE,
-            getBooleanPreference(PREF_CHECK_UPDATE, true),
-        )
-        refreshInstalledModules(manual, checkUpdates)
-            .onSuccess {
-                controls.update { it.copy(isNeedRefresh = false) }
-                mutableEvents.tryEmit(ModuleUiEvent.RefreshCompleted)
+    /**
+     * Backup semua module yang ter-install (/data/adb/modules) jadi satu file
+     * .tar.gz di folder Download, biar bisa dipindah/disimpan manual oleh user.
+     */
+    fun backupModules(context: Context) = viewModelScope.launch(Dispatchers.IO) {
+        _uiState.update { it.copy(isBackupRestoreRunning = true, backupRestoreResult = null) }
+
+        val message = try {
+            val downloadDir = File("/sdcard/Download")
+            if (!downloadDir.exists()) downloadDir.mkdirs()
+
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val backupPath = "/sdcard/Download/NadekoSU_modules_backup_$timestamp.tar.gz"
+
+            val shell = getRootShell()
+            val command = "busybox tar -czf \"$backupPath\" -C /data/adb modules"
+            val result = shell.newJob().add(command).to(ArrayList(), ArrayList()).exec()
+
+            if (result.isSuccess && File(backupPath).exists()) {
+                "Backup berhasil disimpan di: $backupPath"
+            } else {
+                "Backup gagal: ${result.err.joinToString("\n").ifBlank { "unknown error" }}"
             }
-            .onFailure { error ->
-                mutableEvents.tryEmit(ModuleUiEvent.Error(error.message.orEmpty()))
+        } catch (e: Exception) {
+            Log.e(TAG, "backupModules failed: ${e.message}")
+            "Backup gagal: ${e.message}"
+        }
+
+        _uiState.update { it.copy(isBackupRestoreRunning = false, backupRestoreResult = message) }
+    }
+
+    /**
+     * Restore module dari file backup .tar.gz yang dipilih user lewat file picker.
+     * Butuh reboot manual setelah restore biar module-nya ke-mount ulang.
+     */
+    fun restoreModules(context: Context, uri: Uri) = viewModelScope.launch(Dispatchers.IO) {
+        _uiState.update { it.copy(isBackupRestoreRunning = true, backupRestoreResult = null) }
+
+        val message = try {
+            val cacheFile = File(context.cacheDir, "nadekosu_restore_temp.tar.gz")
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                cacheFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            } ?: throw IllegalStateException("Gagal membaca file yang dipilih")
+
+            val shell = getRootShell()
+            val command = "busybox tar -xzf \"${cacheFile.absolutePath}\" -C /data/adb"
+            val result = shell.newJob().add(command).to(ArrayList(), ArrayList()).exec()
+
+            cacheFile.delete()
+
+            if (result.isSuccess) {
+                "Restore berhasil. Reboot device supaya module ter-load ulang."
+            } else {
+                "Restore gagal: ${result.err.joinToString("\n").ifBlank { "unknown error" }}"
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "restoreModules failed: ${e.message}")
+            "Restore gagal: ${e.message}"
+        }
+
+        _uiState.update { it.copy(isBackupRestoreRunning = false, backupRestoreResult = message) }
+    }
+
+    fun clearBackupRestoreResult() {
+        _uiState.update { it.copy(backupRestoreResult = null) }
+    }
+
+    /** Decode gambar dengan downsampling, biar gak nge-load bitmap ukuran penuh yang berat di memori/CPU. */
+    private fun decodeSampledBitmap(bytes: ByteArray, targetWidthPx: Int): Bitmap? {
+        val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOptions)
+
+        var sampleSize = 1
+        val width = boundsOptions.outWidth
+        while (width / (sampleSize * 2) >= targetWidthPx) {
+            sampleSize *= 2
+        }
+
+        val decodeOptions = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOptions)
+    }
+
+    private fun updateBooleanPref(
+        context: Context,
+        key: String,
+        value: Boolean,
+        reducer: (ModuleUiState) -> ModuleUiState,
+    ) {
+        context.appPreferences.putBoolean(key, value)
+        _uiState.update(reducer)
+    }
+
+    fun handleHideTagRowChange(context: Context, newValue: Boolean) {
+        updateBooleanPref(context, "is_hide_tag_row", newValue) { it.copy(isHideTagRow = newValue) }
+    }
+
+    fun handleHideTagRowChange(newValue: Boolean) {
+        handleHideTagRowChange(ksuApp, newValue)
+    }
+
+    fun handleShowMoreModuleInfoChange(context: Context, newValue: Boolean) {
+        updateBooleanPref(context, "show_more_module_info", newValue) {
+            it.copy(showMoreModuleInfo = newValue)
+        }
+    }
+
+    data class ModuleUpdateInfo(
+        val zipUrl: String,
+        val version: String,
+        val changelog: String
+    )
+
+    @Stable
+    data class ModuleInfo(
+        val id: String,
+        val name: String,
+        val author: String,
+        val version: String,
+        val versionCode: Int,
+        val description: String,
+        val enabled: Boolean,
+        val update: Boolean,
+        val remove: Boolean,
+        val updateJson: String,
+        val hasWebUi: Boolean,
+        val hasActionScript: Boolean,
+        val metamodule: Boolean,
+        val actionIconPath: String?,
+        val webUiIconPath: String?,
+        val dirId: String,
+        val moduleUpdate: ModuleUpdateInfo?
+    )
+
+    fun updateSearch(search: String) {
+        _uiState.update { state ->
+            state.copy(
+                search = search,
+                moduleList = buildModuleList(
+                    search = search,
+                    sortEnabledFirst = state.sortEnabledFirst,
+                    sortActionFirst = state.sortActionFirst,
+                )
+            )
+        }
+    }
+
+    fun setSortEnabledFirst(enabled: Boolean) {
+        _uiState.update { state ->
+            state.copy(
+                sortEnabledFirst = enabled,
+                moduleList = buildModuleList(
+                    search = state.search,
+                    sortEnabledFirst = enabled,
+                    sortActionFirst = state.sortActionFirst,
+                )
+            )
+        }
+    }
+
+    fun setSortActionFirst(enabled: Boolean) {
+        _uiState.update { state ->
+            state.copy(
+                sortActionFirst = enabled,
+                moduleList = buildModuleList(
+                    search = state.search,
+                    sortEnabledFirst = state.sortEnabledFirst,
+                    sortActionFirst = enabled,
+                )
+            )
+        }
+    }
+
+    fun setSortOptions(sortEnabledFirst: Boolean, sortActionFirst: Boolean) {
+        _uiState.update { state ->
+            state.copy(
+                sortEnabledFirst = sortEnabledFirst,
+                sortActionFirst = sortActionFirst,
+                moduleList = buildModuleList(
+                    search = state.search,
+                    sortEnabledFirst = sortEnabledFirst,
+                    sortActionFirst = sortActionFirst,
+                )
+            )
+        }
+    }
+
+    fun markNeedRefresh() {
+        _uiState.update { it.copy(isNeedRefresh = true) }
+    }
+
+    fun fetchModuleList(
+        manualRefresh: Boolean = false,
+        callBack: () -> Unit = {},
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { it.copy(isRefreshing = true) }
+
+            val oldModuleList = modules
+            val start = SystemClock.elapsedRealtime()
+
+            runCatching {
+                val result = listModules()
+                Log.i(TAG, "result: $result")
+
+                val moduleVersionKeys = mutableListOf<String>()
+                if (!manualRefresh) {
+                    oldModuleList.forEach { module ->
+                        moduleVersionKeys.add(module.id + module.versionCode)
+                    }
+                }
+
+                val array = JSONArray(result)
+                modules = (0 until array.length())
+                    .asSequence()
+                    .map { array.getJSONObject(it) }
+                    .map { obj ->
+                        val moduleId = obj.getString("id")
+                        val moduleVersionCode = obj.getIntCompat("versionCode", 0)
+                        val enabled = obj.getBooleanCompat("enabled")
+                        val update = obj.getBooleanCompat("update")
+                        val remove = obj.getBooleanCompat("remove")
+                        val updateJson = obj.optString("updateJson")
+
+                        ModuleInfo(
+                            id = moduleId,
+                            name = obj.optString("name"),
+                            author = obj.optString("author", "Unknown"),
+                            version = obj.optString("version", "Unknown"),
+                            versionCode = moduleVersionCode,
+                            description = obj.optString("description"),
+                            enabled = enabled,
+                            update = update,
+                            remove = remove,
+                            updateJson = updateJson,
+                            hasWebUi = obj.getBooleanCompat("web"),
+                            hasActionScript = obj.getBooleanCompat("action"),
+                            metamodule = obj.getBooleanCompat("metamodule"),
+                            actionIconPath = obj.optString("actionIcon").takeIf { it.isNotBlank() },
+                            webUiIconPath = obj.optString("webuiIcon").takeIf { it.isNotBlank() },
+                            dirId = obj.optString("dir_id", obj.getString("id")),
+                            moduleUpdate = null,
+                        )
+                    }.toList()
+
+                val hasModuleRequireMount = modules.map { module ->
+                    async(Dispatchers.IO) {
+                        SuFile.open("/data/adb/modules/${module.id}/system").exists()
+                                && !SuFile.open("/data/adb/modules/${module.id}/skip_mount")
+                            .exists()
+                                && !SuFile.open("/data/adb/modules/${module.id}/disable").exists()
+                                && !SuFile.open("/data/adb/modules/${module.id}/remove").exists()
+                    }
+                }.awaitAll().any { it }
+
+                modules = modules.map { module ->
+                    async(Dispatchers.IO) {
+                        module.copy(
+                            moduleUpdate = if (
+                                !moduleVersionKeys.contains(module.id + module.versionCode) ||
+                                module.updateJson.isEmpty() ||
+                                module.remove ||
+                                module.update ||
+                                !module.enabled
+                            ) {
+                                checkUpdate(module.updateJson, module.versionCode)
+                            } else {
+                                null
+                            }
+                        )
+                    }
+                }.awaitAll()
+
+                _uiState.update { state ->
+                    state.copy(
+                        moduleList = buildModuleList(
+                            search = state.search,
+                            sortEnabledFirst = state.sortEnabledFirst,
+                            sortActionFirst = state.sortActionFirst,
+                        ),
+                        hasModuleRequireMount = hasModuleRequireMount,
+                        isNeedRefresh = false,
+                        isRefreshing = false,
+                    )
+                }
+            }.onFailure { e ->
+                Log.e(TAG, "fetchModuleList: ", e)
+                _uiState.update { it.copy(isRefreshing = false) }
+            }
+
+            if (oldModuleList === modules) {
+                _uiState.update { it.copy(isRefreshing = false) }
+            }
+
+            Log.i(TAG, "load cost: ${SystemClock.elapsedRealtime() - start}, modules: $modules")
+            callBack()
+        }
     }
 
     private fun buildModuleList(
-        modules: List<InstalledModule>,
         search: String,
         sortEnabledFirst: Boolean,
         sortActionFirst: Boolean,
-    ): List<InstalledModule> {
-        val comparator = compareBy<InstalledModule>(
-            {
-                val executable = it.hasWebUi || it.hasActionScript
-                when {
-                    it.metamodule && it.enabled -> 0
-                    sortEnabledFirst && sortActionFirst -> when {
-                        it.enabled && executable -> 1
-                        it.enabled -> 2
-                        executable -> 3
-                        else -> 4
+    ): List<ModuleInfo> {
+        val comparator =
+            compareBy<ModuleInfo>(
+                {
+                    val executable = it.hasWebUi || it.hasActionScript
+                    when {
+                        it.metamodule && it.enabled -> 0
+                        sortEnabledFirst && sortActionFirst -> when {
+                            it.enabled && executable -> 1
+                            it.enabled -> 2
+                            executable -> 3
+                            else -> 4
+                        }
+
+                        sortEnabledFirst && !sortActionFirst -> if (it.enabled) 1 else 2
+                        !sortEnabledFirst && sortActionFirst -> if (executable) 1 else 2
+                        else -> 1
                     }
+                },
+                { if (sortEnabledFirst) !it.enabled else false },
+                { if (sortActionFirst) !(it.hasWebUi || it.hasActionScript) else false },
+            ).thenBy(Collator.getInstance(Locale.getDefault()), ModuleInfo::id)
 
-                    sortEnabledFirst -> if (it.enabled) 1 else 2
-                    sortActionFirst -> if (executable) 1 else 2
-                    else -> 1
-                }
-            },
-            { if (sortEnabledFirst) !it.enabled else false },
-            { if (sortActionFirst) !(it.hasWebUi || it.hasActionScript) else false },
-        ).thenBy(Collator.getInstance(Locale.getDefault()), InstalledModule::id)
-
-        return modules.filter { module ->
-            module.id.contains(search, ignoreCase = true) ||
-                    module.name.contains(search, ignoreCase = true) ||
-                    transliterateText(module.name).contains(search, ignoreCase = true)
+        return modules.filter {
+            it.id.contains(search, true) ||
+                    it.name.contains(search, true) ||
+                    HanziToPinyin.getInstance().toPinyinString(it.name)
+                        ?.contains(search, true) == true
         }.sortedWith(comparator)
     }
 
-    private companion object {
-        const val PREF_CHECK_MODULE_UPDATE = "check_module_update"
-        const val PREF_CHECK_UPDATE = "check_update"
+    private fun sanitizeVersionString(version: String): String {
+        return version.replace(Regex("[^a-zA-Z0-9.\\-_]"), "_")
+    }
+
+    fun checkUpdate(updateUrl: String, versionCode: Int): ModuleUpdateInfo? {
+        val isCheckUpdateEnabled =
+            ksuApp.ensurePreferencesRepository().getBoolean("check_update", true)
+        if (!isCheckUpdateEnabled) {
+            return null
+        }
+
+        val result = runCatching {
+            Log.i(TAG, "checkUpdate url: $updateUrl")
+            val request = okhttp3.Request.Builder()
+                .url(updateUrl)
+                .build()
+            val response = ksuApp.okhttpClient.newCall(request).execute()
+            Log.d(TAG, "checkUpdate code: ${response.code}")
+            if (response.isSuccessful) {
+                response.body?.string() ?: ""
+            } else {
+                Log.d(TAG, "checkUpdate failed: ${response.message}")
+                ""
+            }
+        }.getOrElse { e ->
+            Log.e(TAG, "checkUpdate exception", e)
+            ""
+        }
+
+        Log.i(TAG, "checkUpdate result: $result")
+
+        if (result.isEmpty()) {
+            return null
+        }
+
+        val updateJson = runCatching { JSONObject(result) }.getOrNull() ?: return null
+        val version = sanitizeVersionString(updateJson.optString("version", ""))
+        val onlineVersionCode = updateJson.optInt("versionCode", 0)
+        val zipUrl = updateJson.optString("zipUrl", "")
+        val changelog = updateJson.optString("changelog", "")
+        if (onlineVersionCode <= versionCode || zipUrl.isEmpty()) {
+            return null
+        }
+
+        return ModuleUpdateInfo(zipUrl, version, changelog)
+    }
+}
+
+private fun JSONObject.getBooleanCompat(key: String, default: Boolean = false): Boolean {
+    if (!has(key)) return default
+    return when (val value = opt(key)) {
+        null -> default
+        is Boolean -> value
+        is String -> value.equals("true", ignoreCase = true) || value == "1"
+        is Number -> value.toInt() != 0
+        else -> default
+    }
+}
+
+private fun JSONObject.getIntCompat(key: String, default: Int = 0): Int {
+    if (!has(key)) return default
+    return when (val value = opt(key)) {
+        null -> default
+        is Int -> value
+        is Number -> value.toInt()
+        is String -> value.toIntOrNull() ?: default
+        else -> default
     }
 }
 
@@ -226,6 +536,7 @@ fun formatFileSize(bytes: Long): String {
     val mb = kb * 1024
     val gb = mb * 1024
     val tb = gb * 1024
+
     return when {
         bytes >= tb -> "%.2f TB".format(bytes / tb)
         bytes >= gb -> "%.2f GB".format(bytes / gb)

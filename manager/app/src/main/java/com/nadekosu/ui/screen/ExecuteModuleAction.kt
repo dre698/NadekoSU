@@ -1,6 +1,7 @@
 package com.nadekosu.ui.screen
 
 import android.annotation.SuppressLint
+import android.os.Environment
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
@@ -30,7 +31,11 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
@@ -38,39 +43,38 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nadekosu.R
 import com.nadekosu.ui.component.KeyEventBlocker
 import com.nadekosu.ui.component.SwipeableSnackbarHost
 import com.nadekosu.ui.component.settings.AppBackButton
 import com.nadekosu.ui.navigation.LocalNavigator
 import com.nadekosu.ui.theme.CardConfig
-import com.nadekosu.ui.theme.MonospaceFontFamily
 import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurEffect
 import com.nadekosu.ui.theme.blurSource
 import com.nadekosu.ui.util.LocalSnackbarHost
-import com.nadekosu.ui.util.showReplacingSnackbar
-import com.nadekosu.ui.viewmodel.ExecuteModuleActionUiAction
-import com.nadekosu.ui.viewmodel.ExecuteModuleActionUiEvent
-import com.nadekosu.ui.viewmodel.ExecuteModuleActionViewModel
-import kotlinx.coroutines.flow.collectLatest
-import org.koin.compose.koinInject
-import org.koin.compose.viewmodel.koinViewModel
-import org.koin.core.parameter.parametersOf
-
+import com.nadekosu.ui.util.runModuleAction
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("LocalContextGetResourceValueCall")
 @Composable
 fun ExecuteModuleActionScreen(moduleId: String) {
-    val viewModel = koinViewModel<ExecuteModuleActionViewModel>(
-        parameters = { parametersOf(moduleId) },
-    )
-    val moduleActionState by viewModel.state.collectAsStateWithLifecycle()
+    var text by rememberSaveable { mutableStateOf("") }
+    var tempText : String
+    val logContent = remember { StringBuilder() }
     val snackBarHost = LocalSnackbarHost.current
+    val scope = rememberCoroutineScope()
     val state = rememberLazyListState()
+    var isActionRunning by rememberSaveable { mutableStateOf(true) }
     val context = LocalContext.current
     val activity = LocalActivity.current
     val navigator = LocalNavigator.current
@@ -80,7 +84,7 @@ fun ExecuteModuleActionScreen(moduleId: String) {
         scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
     }
 
-    BackHandler(enabled = moduleActionState.running) {
+    BackHandler(enabled = isActionRunning) {
         // Disable back button if action is running
     }
 
@@ -89,46 +93,68 @@ fun ExecuteModuleActionScreen(moduleId: String) {
         intent?.getStringExtra("shortcut_type") == "module_action"
     }
 
-    LaunchedEffect(viewModel, fromShortcut) {
-        viewModel.events.collectLatest { event ->
-            when (event) {
-                is ExecuteModuleActionUiEvent.Completed -> {
-                    if (event.successful && fromShortcut) {
+    LaunchedEffect(Unit) {
+        if (text.isNotEmpty()) {
+            return@LaunchedEffect
+        }
+        withContext(Dispatchers.IO) {
+            runModuleAction(
+                moduleId = moduleId,
+                onStdout = {
+                    tempText = "$it\n"
+                    if (tempText.startsWith("[H[J")) { // clear command
+                        text = tempText.substring(6)
+                    } else {
+                        text += tempText
+                    }
+                    logContent.append(it).append("\n")
+                },
+                onStderr = {
+                    logContent.append(it).append("\n")
+                }
+            ).let { actionResult ->
+                if (actionResult && fromShortcut) {
+                    withContext(Dispatchers.Main) {
                         Toast.makeText(
                             context,
                             context.getString(R.string.module_action_success),
-                            Toast.LENGTH_SHORT,
+                            Toast.LENGTH_SHORT
                         ).show()
+
                         activity?.finishAndRemoveTask()
                     }
                 }
-
-                is ExecuteModuleActionUiEvent.LogSaved -> {
-                    snackBarHost.showReplacingSnackbar("Log saved to ${event.path}")
-                }
-
-                is ExecuteModuleActionUiEvent.Error -> {
-                    snackBarHost.showReplacingSnackbar(event.message)
-                }
             }
         }
+        isActionRunning = false
     }
 
     Scaffold(
         topBar = {
             TopBar(
-                isActionRunning = moduleActionState.running,
+                isActionRunning = isActionRunning,
                 onBack = {
                     navigator.pop()
                 },
                 onSave = {
-                    viewModel.dispatch(ExecuteModuleActionUiAction.SaveLog)
+                    if (!isActionRunning) {
+                        scope.launch {
+                            val format = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.getDefault())
+                            val date = format.format(Date())
+                            val file = File(
+                                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                                "KernelSU_module_action_log_${date}.log"
+                            )
+                            file.writeText(logContent.toString())
+                            snackBarHost.showSnackbar("Log saved to ${file.absolutePath}")
+                        }
+                    }
                 },
                 scrollBehavior = scrollBehavior,
             )
         },
         floatingActionButton = {
-            if (!moduleActionState.running) {
+            if (!isActionRunning) {
                 val navigator = LocalNavigator.current
                 ExtendedFloatingActionButton(
                     text = { Text(text = stringResource(R.string.close)) },
@@ -147,7 +173,7 @@ fun ExecuteModuleActionScreen(moduleId: String) {
         KeyEventBlocker {
             it.key == Key.VolumeDown || it.key == Key.VolumeUp
         }
-        LaunchedEffect(moduleActionState.output) {
+        LaunchedEffect(text) {
             state.animateScrollToItem(2) // Spacer(bottom)
         }
         LazyColumn(
@@ -162,9 +188,9 @@ fun ExecuteModuleActionScreen(moduleId: String) {
             item {
                 Text(
                     modifier = Modifier.padding(8.dp),
-                    text = moduleActionState.output,
+                    text = text,
                     fontSize = MaterialTheme.typography.bodySmall.fontSize,
-                    fontFamily = MonospaceFontFamily(),
+                    fontFamily = FontFamily.Monospace,
                     lineHeight = MaterialTheme.typography.bodySmall.lineHeight,
                 )
             }
@@ -183,8 +209,6 @@ private fun TopBar(
     onSave: () -> Unit = {},
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
-    val themeConfig: ThemeConfig = koinInject()
-    val cardConfig: CardConfig = koinInject()
     LargeFlexibleTopAppBar(
         modifier = Modifier.blurEffect(
         ),
@@ -208,15 +232,15 @@ private fun TopBar(
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor =
-                if (themeConfig.isEnableBlur)
+                if (ThemeConfig.isEnableBlur)
                     Color.Transparent
                 else
-                    MaterialTheme.colorScheme.surfaceContainer.copy(cardConfig.cardAlpha),
+                    MaterialTheme.colorScheme.surfaceContainer.copy(CardConfig.cardAlpha),
             scrolledContainerColor =
-                if (themeConfig.isEnableBlur)
+                if (ThemeConfig.isEnableBlur)
                     Color.Transparent
                 else
-                    MaterialTheme.colorScheme.surfaceContainer.copy(cardConfig.cardAlpha),
+                    MaterialTheme.colorScheme.surfaceContainer.copy(CardConfig.cardAlpha),
         ),
         windowInsets = TopAppBarDefaults.windowInsets.add(WindowInsets(left = 12.dp))
     )

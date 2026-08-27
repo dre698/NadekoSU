@@ -18,18 +18,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.nadekosu.data.AppSettingsRepository
-import com.nadekosu.data.packageinfo.AppIconDataSource
-import com.nadekosu.data.packageinfo.InstalledPackageRepository
-import com.nadekosu.data.webui.WebUiRepository
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nadekosu.ksuApp
 import com.nadekosu.ui.theme.KernelSUTheme
 import com.nadekosu.ui.viewmodel.ModuleViewModel
-import com.nadekosu.ui.viewmodel.SuperUserViewModel
-import org.koin.compose.koinInject
-import org.koin.compose.viewmodel.koinViewModel
 
 @SuppressLint("SetJavaScriptEnabled")
 class WebUIActivity : ComponentActivity() {
@@ -58,33 +52,16 @@ class WebUIActivity : ComponentActivity() {
 private fun MainContent(activity: ComponentActivity, onFinish: () -> Unit) {
     val moduleId = remember { activity.intent.getStringExtra("id") }
     val webUIState = remember { WebUIState() }
-    val moduleViewModel = koinViewModel<ModuleViewModel>()
-    val superUserViewModel = koinViewModel<SuperUserViewModel>()
-    val settingsRepository = koinInject<AppSettingsRepository>()
-    val packageRepository = koinInject<InstalledPackageRepository>()
-    val appIconDataSource = koinInject<AppIconDataSource>()
-    val webUiRepository = koinInject<WebUiRepository>()
-    val monetColorsProvider = koinInject<MonetColorsProvider>()
-    val colorsCss = monetColorsProvider.getColorsCss()
-    val currentColorsCss = rememberUpdatedState(colorsCss)
+    val moduleViewModel = viewModel<ModuleViewModel>(
+        viewModelStoreOwner = ksuApp
+    )
 
     LaunchedEffect(moduleId) {
         if (moduleId == null) {
             onFinish()
             return@LaunchedEffect
         }
-        prepareWebView(
-            activity,
-            moduleId,
-            webUIState,
-            moduleViewModel,
-            superUserViewModel,
-            settingsRepository,
-            packageRepository,
-            appIconDataSource,
-            webUiRepository,
-            { currentColorsCss.value },
-        )
+        prepareWebView(activity, moduleId, webUIState, moduleViewModel)
     }
 
     DisposableEffect(Unit) {

@@ -29,26 +29,12 @@ object Natives {
     // 34966(upstream 32513): add uapi version
     // 34967(upstream 32514): allowlist v4 root profile flags
     // 35002: add sync set dynamic-manager api
-    // NOTE(maintainer): lowered from 35002 to 33300 to match currently
-    // shipped kernel builds. Driver features documented above 33300
-    // (34634+ set_sepolicy, 34709 uapi unify, 34944 KPM drop, 34966 uapi
-    // version, 35002 dynamic-manager sync, etc.) are NOT guaranteed present
-    // below their respective commit counts -- calling into those paths on
-    // an older driver may fail silently or crash instead of showing this
-    // warning. Verify feature availability via getFeatureStatus()/UAPI
-    // checks before relying on them, or bump kernel builds to match.
     const val MINIMAL_SUPPORTED_KERNEL = 33300
 
     const val KERNEL_SU_DOMAIN = "u:r:ksu:s0"
 
     const val ROOT_UID = 0
     const val ROOT_GID = 0
-
-    const val ALLOWLIST_RESTORE_SUCCESS = 0
-    const val ALLOWLIST_RESTORE_INVALID_FILE = 1
-    const val ALLOWLIST_RESTORE_UNSUPPORTED_VERSION = 2
-    const val ALLOWLIST_RESTORE_IO_ERROR = 3
-    const val ALLOWLIST_RESTORE_PROFILE_ERROR = 4
 
     external fun getFullVersion(): String
 
@@ -74,11 +60,11 @@ object Natives {
     val isPrBuild: Boolean
         external get
 
-    enum class KernelPatchImplementation {
+    enum class KernelPatchImplement {
         /**
          * Kernel Patch was not found in this kernel
          */
-        NONE,
+        NO_KERNEL_PATCH_SUPPORT,
 
         /**
          * Detected Kernel Patch official in this kernel
@@ -87,7 +73,7 @@ object Natives {
          *
          * @see <a href="https://github.com/bmax121/KernelPatch">https://github.com/bmax121/KernelPatch</a>
          */
-        OFFICIAL,
+        KERNEL_PATCH_OFFICIAL,
 
         /**
          * Detected Rifsxd's Kernel Patch fork in this kernel
@@ -105,15 +91,15 @@ object Natives {
          *
          * @see <a href="https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch">https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch</a>
          */
-        SUKISU,
+        SUKISU_KERNEL_PATCH_PATCH
     }
 
     /**
-     * Get Kernel Patch implementation
+     * Get Kernel Patch Implement
      * @return type
-     * @throws IllegalStateException when can't access KernelPatchImplementation enum
+     * @throws IllegalStateException when can't access KernelPatchImplement enum
      */
-    external fun getKernelPatchImplementation(): KernelPatchImplementation
+    external fun getKernelPatchImplement(): KernelPatchImplement
 
     external fun uidShouldUmount(uid: Int): Boolean
 
@@ -124,12 +110,6 @@ object Natives {
      */
     external fun getAppProfile(key: String?, uid: Int): Profile
     external fun setAppProfile(profile: Profile?): Boolean
-
-    /**
-     * Parse an allowlist backup from [fd] and submit every profile to the kernel.
-     * [failedUid] receives the UID whose profile could not be submitted.
-     */
-    external fun restoreAllowlistFromFd(fd: Int, failedUid: IntArray): Int
 
     /**
      * `su` compat mode can be disabled temporarily.
@@ -164,10 +144,25 @@ object Natives {
     external fun getHookType(): String
 
     /**
+     * Set dynamic managerature configuration
+     * @param size APK signature size
+     * @param hash APK signature hash (64 character hex string)
+     * @return true if successful, false otherwise
+     */
+    external fun setDynamicManager(size: Int, hash: String): Boolean
+
+
+    /**
      * Get current dynamic manager configuration
      * @return DynamicManagerConfig object containing current configuration, or null if not set
      */
     external fun getDynamicManager(): DynamicManagerConfig?
+
+    /**
+     * Clear dynamic manager configuration
+     * @return true if successful, false otherwise
+     */
+    external fun clearDynamicManager(): Boolean
 
     /**
      * Get active managers list
@@ -295,6 +290,9 @@ object Natives {
 
 fun List<RootProfileFlag>.toRawFlags(): Long =
     fold(0L) { acc, flag -> acc.or(1L.shl(flag.ordinal)) }
+
+fun List<RootProfileFlag>.toOrdinalList(): List<Int> =
+    map { it.ordinal }
 
 fun Long.toRootProfileFlags(): List<RootProfileFlag> =
     RootProfileFlag.entries.filter { 1L.shl(it.ordinal).and(this) != 0L }.toList()

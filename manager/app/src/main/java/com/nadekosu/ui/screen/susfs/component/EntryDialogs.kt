@@ -31,7 +31,6 @@ import com.nadekosu.ui.component.settings.SegmentedColumnScope
 import com.nadekosu.ui.component.settings.SettingsDropdownWidget
 import com.nadekosu.ui.component.settings.SettingsJumpPageWidget
 import com.nadekosu.ui.util.LocalSnackbarHost
-import com.nadekosu.ui.util.showReplacingSnackbar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -152,7 +151,7 @@ fun ManualAddDialog(
 
                 val error = decodedContent.exceptionOrNull()
                 if (error != null) {
-                    snackbarHost.showReplacingSnackbar(
+                    snackbarHost.showSnackbar(
                         if (error is CharacterCodingException) fileNotTextMsg else fileReadFailedMsg
                     )
                     return@launch
@@ -184,7 +183,6 @@ fun ManualAddDialog(
                                     iconPlaceholder = false,
                                     choice = subtypes.indexOf(selectedSubtype).coerceAtLeast(0),
                                     data = subtypes,
-                                    renderBackgroundBlur = false,
                                     onChoiceChange = { index -> onSubtypeChange(subtypes[index]) }
                                 )
                             }
@@ -196,7 +194,6 @@ fun ManualAddDialog(
                                     icon = Icons.Default.UploadFile,
                                     title = importFromFileLabel,
                                     description = stringResource(R.string.susfs_entry_import_hint),
-                                    renderBackgroundBlur = false,
                                     onClick = { pickFileLauncher.launch(arrayOf("*/*")) },
                                 )
                             }

@@ -8,7 +8,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,7 +28,6 @@ import androidx.compose.material.icons.twotone.AccountCircle
 import androidx.compose.material.icons.twotone.Android
 import androidx.compose.material.icons.twotone.Edit
 import androidx.compose.material.icons.twotone.Security
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
@@ -52,21 +50,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.nadekosu.Natives
 import com.nadekosu.R
-import com.nadekosu.domain.model.AppControlAction
-import com.nadekosu.domain.model.AppProfile
-import com.nadekosu.domain.model.InstalledApp
-import com.nadekosu.domain.model.InstalledAppGroup
-import com.nadekosu.ui.component.PackageIcon
 import com.nadekosu.ui.component.SwipeableSnackbarHost
 import com.nadekosu.ui.component.profile.AppProfileConfig
 import com.nadekosu.ui.component.profile.RootProfileConfig
@@ -77,83 +72,53 @@ import com.nadekosu.ui.component.settings.SettingsBaseWidget
 import com.nadekosu.ui.component.settings.SettingsDropdownWidget
 import com.nadekosu.ui.component.settings.SettingsJumpPageWidget
 import com.nadekosu.ui.component.settings.SettingsSwitchWidget
-import com.nadekosu.ui.component.settings.lazySegmentColumn
 import com.nadekosu.ui.navigation.LocalNavigator
 import com.nadekosu.ui.navigation.Route
 import com.nadekosu.ui.theme.CardConfig
-import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurEffect
 import com.nadekosu.ui.theme.blurSource
-import com.nadekosu.ui.theme.renderBackgroundBlur
-import com.nadekosu.ui.util.ActivityResumeEffect
 import com.nadekosu.ui.util.LocalSnackbarHost
-import com.nadekosu.ui.util.showReplacingSnackbar
-import com.nadekosu.ui.viewmodel.AppProfileUiAction
-import com.nadekosu.ui.viewmodel.AppProfileUiEvent
-import com.nadekosu.ui.viewmodel.AppProfileViewModel
-import kotlinx.coroutines.flow.collectLatest
+import com.nadekosu.ui.util.forceStopApp
+import com.nadekosu.ui.util.getSepolicy
+import com.nadekosu.ui.util.launchApp
+import com.nadekosu.ui.util.restartApp
+import com.nadekosu.ui.util.setSepolicy
+import com.nadekosu.ui.viewmodel.SuperUserViewModel
+import com.nadekosu.ui.viewmodel.getTemplateInfoById
 import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
-import org.koin.compose.viewmodel.koinViewModel
-import org.koin.core.parameter.parametersOf
 
 /**
  * @author weishu
  * @date 2023/5/16.
  */
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppProfileScreen(
-    uid: Int,
-    packageName: String,
+    appGroup: SuperUserViewModel.AppGroup,
 ) {
-    val cardConfig: CardConfig = koinInject()
     val navigator = LocalNavigator.current
+    val context = LocalContext.current
     val snackBarHost = LocalSnackbarHost.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scope = rememberCoroutineScope()
-    val viewModel =
-        koinViewModel<AppProfileViewModel>(parameters = { parametersOf(uid, packageName) })
-    val uiState by viewModel.state.collectAsStateWithLifecycle()
-    val appGroup = uiState.appGroup
-    val appLabel = appGroup?.mainApp?.label ?: packageName
     val failToUpdateAppProfile = stringResource(R.string.failed_to_update_app_profile).format(
-        appLabel
+        appGroup.mainApp.label
     )
     val failToUpdateSepolicy =
-        stringResource(R.string.failed_to_update_sepolicy).format(appLabel)
-    val suNotAllowed = stringResource(R.string.su_not_allowed).format(appLabel)
+        stringResource(R.string.failed_to_update_sepolicy).format(appGroup.mainApp.label)
+    val suNotAllowed = stringResource(R.string.su_not_allowed).format(appGroup.mainApp.label)
 
-    LaunchedEffect(viewModel) {
-        viewModel.events.collectLatest { event ->
-            when (event) {
-                is AppProfileUiEvent.Error -> snackBarHost.showReplacingSnackbar(
-                    failToUpdateAppProfile
-                )
-
-                AppProfileUiEvent.SepolicyUpdateFailed ->
-                    snackBarHost.showReplacingSnackbar(failToUpdateSepolicy)
-
-                AppProfileUiEvent.Saved -> Unit
-            }
-        }
+    val packageName = appGroup.mainApp.packageName
+    val initialProfile = Natives.getAppProfile(packageName, appGroup.uid)
+    if (initialProfile.allowSu) {
+        initialProfile.rules = getSepolicy(packageName)
     }
-
-    ActivityResumeEffect(packageName, uid) {
-        viewModel.dispatch(AppProfileUiAction.Load)
-    }
-
-    val profile = uiState.profile
-    if (appGroup == null || profile == null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
-        return
+    var profile by rememberSaveable {
+        mutableStateOf(initialProfile)
     }
 
     val colorScheme = MaterialTheme.colorScheme
-    val cardColor = if (cardConfig.isCustomBackgroundEnabled) {
+    val cardColor = if (CardConfig.isCustomBackgroundEnabled) {
         Color.Transparent
     } else {
         colorScheme.surfaceContainer
@@ -189,23 +154,21 @@ fun AppProfileScreen(
             topPadding = paddingValues.calculateTopPadding(),
             appGroup = appGroup,
             appIcon = {
-                PackageIcon(
-                    packageName = appGroup.mainApp.packageName,
+                AsyncImage(
+                    model = ImageRequest.Builder(context).data(appGroup.mainApp.packageInfo)
+                        .crossfade(true).build(),
                     contentDescription = appGroup.mainApp.label,
                     modifier = Modifier
                         .padding(4.dp)
                         .width(48.dp)
-                        .height(48.dp),
+                        .height(48.dp)
                 )
             },
             profile = profile,
-            defaultUmountModules = uiState.defaultUmountModules,
-            sepolicyValid = uiState.sepolicyValid,
-            onValidateSepolicy = {
-                viewModel.dispatch(AppProfileUiAction.ValidateSepolicy(it))
-            },
             onViewTemplate = {
-                navigator.push(Route.TemplateEditor(it, true))
+                getTemplateInfoById(it)?.let { info ->
+                    navigator.push(Route.TemplateEditor(info, true))
+                }
             },
             onManageTemplate = {
                 navigator.push(Route.AppProfileTemplate)
@@ -214,15 +177,22 @@ fun AppProfileScreen(
                 scope.launch {
                     if (it.allowSu) {
                         // sync with allowlist.c - forbid_system_uid
-                        if (uid < 2000 && uid != 1000) {
-                            snackBarHost.showReplacingSnackbar(suNotAllowed)
+                        if (appGroup.uid < 2000 && appGroup.uid != 1000) {
+                            snackBarHost.showSnackbar(suNotAllowed)
+                            return@launch
+                        }
+                        if (!it.rootUseDefault && it.rules.isNotEmpty() && !setSepolicy(profile.name, it.rules)) {
+                            snackBarHost.showSnackbar(failToUpdateSepolicy)
                             return@launch
                         }
                     }
-                    viewModel.dispatch(AppProfileUiAction.Save(it))
+                    if (!Natives.setAppProfile(it)) {
+                        snackBarHost.showSnackbar(failToUpdateAppProfile.format(appGroup.uid))
+                    } else {
+                        profile = it
+                    }
                 }
             },
-            onControlApp = { viewModel.dispatch(AppProfileUiAction.ControlApp(it)) },
         )
     }
 }
@@ -232,21 +202,14 @@ fun AppProfileScreen(
 private fun AppProfileInner(
     modifier: Modifier = Modifier,
     topPadding: Dp,
-    appGroup: InstalledAppGroup,
+    appGroup: SuperUserViewModel.AppGroup,
     appIcon: @Composable () -> Unit,
-    profile: AppProfile,
-    defaultUmountModules: Boolean = profile.umountModules,
-    sepolicyValid: Boolean = true,
-    onValidateSepolicy: (String) -> Unit = {},
+    profile: Natives.Profile,
     onViewTemplate: (id: String) -> Unit = {},
     onManageTemplate: () -> Unit = {},
-    onControlApp: (AppControlAction) -> Unit,
-    onProfileChange: (AppProfile) -> Unit,
+    onProfileChange: (Natives.Profile) -> Unit,
 ) {
-    val cardConfig: CardConfig = koinInject()
-    val themeConfig: ThemeConfig = koinInject()
     val isRootGranted = profile.allowSu
-    val affectedApplicationsTitle = stringResource(R.string.affected_applications)
 
     LazyColumn(modifier = modifier) {
         item {
@@ -270,9 +233,9 @@ private fun AppProfileInner(
                 )
             ) { choice ->
                 when (choice) {
-                    0 -> onControlApp(AppControlAction.LAUNCH)
-                    1 -> onControlApp(AppControlAction.FORCE_STOP)
-                    2 -> onControlApp(AppControlAction.RESTART)
+                    0 -> launchApp(appGroup.mainApp.packageName)
+                    1 -> forceStopApp(appGroup.mainApp.packageName)
+                    2 -> restartApp(appGroup.mainApp.packageName)
                     else -> throw IllegalStateException("Illegal choice: $choice")
                 }
             }
@@ -285,7 +248,7 @@ private fun AppProfileInner(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surfaceBright.copy(
-                    alpha = cardConfig.cardAlpha
+                    alpha = CardConfig.cardAlpha
                 ),
                 contentColor = MaterialTheme.colorScheme.onSurface,
             )
@@ -322,15 +285,11 @@ private fun AppProfileInner(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
-                                .padding(top = 8.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .renderBackgroundBlur(MaterialTheme.colorScheme.surfaceBright),
+                                .padding(top = 8.dp),
                             shape = RoundedCornerShape(16.dp),
-                            color = if (themeConfig.isEnableBlurExp) Color.Transparent else {
-                                MaterialTheme.colorScheme.surfaceBright.copy(
-                                    alpha = cardConfig.cardAlpha
-                                )
-                            },
+                            color = MaterialTheme.colorScheme.surfaceBright.copy(
+                                alpha = CardConfig.cardAlpha
+                            ),
                             contentColor = MaterialTheme.colorScheme.onSurface,
                         ) {
                             ProfileBox(mode, true) {
@@ -383,8 +342,6 @@ private fun AppProfileInner(
                                     Mode.Custom -> {
                                         RootProfileConfig(
                                             profile = profile,
-                                            sepolicyValid = sepolicyValid,
-                                            onValidateSepolicy = onValidateSepolicy,
                                             onProfileChange = onProfileChange
                                         )
                                     }
@@ -400,15 +357,11 @@ private fun AppProfileInner(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
-                                .padding(top = 8.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .renderBackgroundBlur(MaterialTheme.colorScheme.surfaceBright),
+                                .padding(top = 8.dp),
                             shape = RoundedCornerShape(16.dp),
-                            color = if (themeConfig.isEnableBlurExp) Color.Transparent else {
-                                MaterialTheme.colorScheme.surfaceBright.copy(
-                                    alpha = cardConfig.cardAlpha
-                                )
-                            },
+                            color = MaterialTheme.colorScheme.surfaceBright.copy(
+                                alpha = CardConfig.cardAlpha
+                            ),
                             contentColor = MaterialTheme.colorScheme.onSurface,
                         ) {
                             ProfileBox(mode, false) {
@@ -428,14 +381,13 @@ private fun AppProfileInner(
                                     .padding(top = 8.dp),
                                 shape = RoundedCornerShape(16.dp),
                                 color = MaterialTheme.colorScheme.surfaceBright.copy(
-                                    alpha = cardConfig.cardAlpha
+                                    alpha = CardConfig.cardAlpha
                                 ),
                                 contentColor = MaterialTheme.colorScheme.onSurface,
                             ) {
                                 AppProfileConfig(
                                     enabled = mode == Mode.Custom,
                                     profile = profile,
-                                    defaultUmountModules = defaultUmountModules,
                                     onProfileChange = onProfileChange
                                 )
                             }
@@ -446,27 +398,35 @@ private fun AppProfileInner(
         }
 
         if (appGroup.apps.size > 1) {
-            lazySegmentColumn(
-                items = appGroup.apps,
-                title = affectedApplicationsTitle,
-                key = { _, app -> app.packageName },
-            ) { _, app ->
-                SettingsBaseWidget(
-                    title = app.label,
-                    description = app.packageName,
-                    enabled = false,
-                    iconPlaceholder = false,
-                    leadingContent = {
-                        PackageIcon(
-                            packageName = app.packageName,
-                            contentDescription = app.label,
-                            modifier = Modifier
-                                .padding(4.dp)
-                                .width(48.dp)
-                                .height(48.dp),
-                        )
-                    },
-                ) {}
+            item {
+                SegmentedColumn(
+                    title = stringResource(R.string.affected_applications)
+                ) {
+                    appGroup.apps.forEach { app ->
+                        item {
+                            val context = LocalContext.current
+
+                            SettingsBaseWidget(
+                                modifier = Modifier.padding(vertical = 5.dp),
+                                title = app.label,
+                                description = app.packageName,
+                                enabled = false,
+                                iconPlaceholder = false,
+                                leadingContent = {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(context).data(app.packageInfo)
+                                            .crossfade(true).build(),
+                                        contentDescription = app.label,
+                                        modifier = Modifier
+                                            .padding(4.dp)
+                                            .width(48.dp)
+                                            .height(48.dp)
+                                    )
+                                },
+                            ) {}
+                        }
+                    }
+                }
             }
         }
 
@@ -527,8 +487,6 @@ private fun ProfileBox(
             icon = Icons.TwoTone.AccountCircle,
             title = stringResource(R.string.profile),
             description = mode.text,
-            isOnBackground = false,
-            containerColor = Color.Transparent,
         )
 
         Row(
@@ -581,18 +539,13 @@ private fun ProfileBox(
 @Preview
 @Composable
 private fun AppProfilePreview() {
-    val cardConfig: CardConfig = koinInject()
-    var profile by remember { mutableStateOf(AppProfile("")) }
+    var profile by remember { mutableStateOf(Natives.Profile("")) }
 
     Surface(
-        color = if (cardConfig.isCustomBackgroundEnabled) Color.Transparent else MaterialTheme.colorScheme.surfaceBright
+        color = if (CardConfig.isCustomBackgroundEnabled) Color.Transparent else MaterialTheme.colorScheme.surfaceBright
     ) {
         AppProfileInner(
-            appGroup = InstalledAppGroup(
-                uid = 0,
-                primaryPackageName = "preview",
-                apps = listOf(InstalledApp("preview", "Preview", 0)),
-            ),
+            appGroup = SuperUserViewModel.AppGroup(0, emptyList(), null),
             appIcon = {
                 Icon(
                     imageVector = Icons.TwoTone.Android,
@@ -601,7 +554,6 @@ private fun AppProfilePreview() {
             },
             profile = profile,
             topPadding = 0.dp,
-            onControlApp = {},
             onProfileChange = {
                 profile = it
             },

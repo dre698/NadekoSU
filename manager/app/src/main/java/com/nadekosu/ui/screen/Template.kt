@@ -1,8 +1,5 @@
 package com.nadekosu.ui.screen
 
-import org.koin.compose.koinInject
-import com.nadekosu.ui.theme.CardConfig
-import com.nadekosu.ui.theme.ThemeConfig
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.widget.Toast
@@ -67,22 +64,20 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.getSystemService
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
-import org.koin.compose.viewmodel.koinViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nadekosu.R
-import com.nadekosu.domain.model.ProfileTemplate
-import com.nadekosu.ui.component.NetworkRefreshContent
 import com.nadekosu.ui.component.settings.AppBackButton
 import com.nadekosu.ui.component.settings.SettingsJumpPageWidget
 import com.nadekosu.ui.component.settings.lazySegmentColumn
 import com.nadekosu.ui.navigation.LocalNavigator
 import com.nadekosu.ui.navigation.Navigator
 import com.nadekosu.ui.navigation.Route
+import com.nadekosu.ui.theme.CardConfig
+import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurEffect
 import com.nadekosu.ui.theme.blurSource
-import com.nadekosu.ui.util.ActivityResumeEffect
-import com.nadekosu.ui.viewmodel.TemplateUiEvent
 import com.nadekosu.ui.viewmodel.TemplateViewModel
-import com.nadekosu.ui.viewmodel.TemplateUiAction
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
@@ -90,95 +85,79 @@ import kotlinx.coroutines.launch
  * @date 2023/10/20.
  */
 
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AppProfileTemplateScreen() {
     val pullRefreshState = rememberPullToRefreshState()
-    val viewModel = koinViewModel<TemplateViewModel>()
+    val viewModel = viewModel<TemplateViewModel>()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    var isUserRefreshing by remember { mutableStateOf(false) }
     val scrollBehavior =
         TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     val navigator = LocalNavigator.current
-    val context = LocalContext.current
-    val clipboardManager = context.getSystemService<ClipboardManager>()
-    val appProfileTemplateImportEmpty =
-        stringResource(R.string.app_profile_template_import_empty)
-    val appProfileTemplateImportSuccess =
-        stringResource(R.string.app_profile_template_import_success)
-    val appProfileTemplateExportEmpty =
-        stringResource(R.string.app_profile_template_export_empty)
-
-    LaunchedEffect(viewModel, clipboardManager) {
-        viewModel.events.collect { event ->
-            when (event) {
-                TemplateUiEvent.ImportCompleted -> {
-                    Toast.makeText(
-                        context,
-                        appProfileTemplateImportSuccess,
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                    viewModel.dispatch(TemplateUiAction.Refresh())
-                }
-
-                is TemplateUiEvent.Exported -> {
-                    clipboardManager?.setPrimaryClip(ClipData.newPlainText("", event.json))
-                }
-
-                TemplateUiEvent.ExportEmpty -> {
-                    Toast.makeText(
-                        context,
-                        appProfileTemplateExportEmpty,
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                }
-
-                is TemplateUiEvent.Error -> if (event.message.isNotBlank()) {
-                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
 
     LaunchedEffect(Unit) {
         scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
 
+        if (uiState.templateList.isEmpty()) {
+            viewModel.fetchTemplates()
+        }
+
         navigator.observeResult<Boolean>("template_edit").collect { success ->
             if (success) {
                 navigator.clearResult("template_edit")
-                scope.launch { viewModel.dispatch(TemplateUiAction.Refresh()) }
+                scope.launch { viewModel.fetchTemplates() }
             }
         }
     }
 
-    ActivityResumeEffect {
-        viewModel.dispatch(TemplateUiAction.Refresh())
-    }
-
     Scaffold(
         topBar = {
+            val context = LocalContext.current
+            val clipboardManager = context.getSystemService<ClipboardManager>()
+            val showToast = fun(msg: String) {
+                scope.launch(Dispatchers.Main) {
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                }
+            }
+            val appProfileTemplateImportEmpty =
+                stringResource(R.string.app_profile_template_import_empty)
+            val appProfileTemplateImportSuccess =
+                stringResource(R.string.app_profile_template_import_success)
+            val appProfileTemplateExportEmpty =
+                stringResource(R.string.app_profile_template_export_empty)
             TopBar(
                 onBack = dropUnlessResumed { navigator.pop() },
                 onSync = {
-                    viewModel.dispatch(TemplateUiAction.Refresh(synchronize = true))
+                    scope.launch { viewModel.fetchTemplates(true) }
                 },
                 onImport = {
-                    val clipboardText =
-                        clipboardManager?.primaryClip?.getItemAt(0)?.text?.toString()
-                    if (clipboardText.isNullOrEmpty()) {
-                        Toast.makeText(
-                            context,
-                            appProfileTemplateImportEmpty,
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                    } else {
-                        viewModel.dispatch(TemplateUiAction.Import(clipboardText))
+                    scope.launch {
+                        val clipboardText = clipboardManager?.primaryClip?.getItemAt(0)?.text?.toString()
+                        if (clipboardText.isNullOrEmpty()) {
+                            showToast(appProfileTemplateImportEmpty)
+                            return@launch
+                        }
+                        viewModel.importTemplates(
+                            clipboardText,
+                            {
+                                showToast(appProfileTemplateImportSuccess)
+                                viewModel.fetchTemplates(false)
+                            },
+                            showToast
+                        )
                     }
                 },
                 onExport = {
-                    viewModel.dispatch(TemplateUiAction.Export)
+                    scope.launch {
+                        viewModel.exportTemplates(
+                            {
+                                showToast(appProfileTemplateExportEmpty)
+                            }
+                        ) { text ->
+                            clipboardManager?.setPrimaryClip(ClipData.newPlainText("", text))
+                        }
+                    }
                 },
                 scrollBehavior = scrollBehavior,
             )
@@ -189,9 +168,8 @@ fun AppProfileTemplateScreen() {
                 onClick = {
                     navigator.navigateForResult(
                         Route.TemplateEditor(
-                            templateId = "",
-                            readOnly = false,
-                            isCreation = true,
+                            TemplateViewModel.TemplateInfo(),
+                            false
                         ),
                         "template_edit"
                     )
@@ -205,79 +183,47 @@ fun AppProfileTemplateScreen() {
         contentColor = MaterialTheme.colorScheme.onSurface,
         contentWindowInsets = WindowInsets.safeDrawing,
     ) { innerPadding ->
-        if (uiState.templateList.isEmpty()) {
+        PullToRefreshBox(
+            state = pullRefreshState,
+            modifier = Modifier
+                .nestedScroll(
+                    scrollBehavior.nestedScrollConnection
+                )
+                .blurSource(),
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = {
+                scope.launch { viewModel.fetchTemplates() }
+            },
+            indicator = {
+                PullToRefreshDefaults.LoadingIndicator(
+                    state = pullRefreshState,
+                    isRefreshing = uiState.isRefreshing,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = innerPadding.calculateTopPadding()),
+                )
+            },
+        ) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .nestedScroll(scrollBehavior.nestedScrollConnection)
-                    .blurSource()
+                    .nestedScroll(scrollBehavior.nestedScrollConnection),
+                contentPadding = remember {
+                    PaddingValues(bottom = 16.dp + 56.dp + 16.dp /* Scaffold Fab Spacing + Fab container height */)
+                }
             ) {
                 item {
                     Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding()))
                 }
-                item {
-                    NetworkRefreshContent(
-                        modifier = Modifier.fillParentMaxSize(),
-                        offline = uiState.isOffline,
-                        onRetry = {
-                            scope.launch { viewModel.dispatch(TemplateUiAction.Refresh(synchronize = true)) }
-                        },
-                    )
+
+                lazySegmentColumn(
+                    items = uiState.templateList,
+                    key = { _, app -> app.id }) { _, app ->
+                    TemplateItem(app)
                 }
+
                 item {
                     Spacer(modifier = Modifier.height(innerPadding.calculateBottomPadding()))
-                }
-            }
-        } else {
-            PullToRefreshBox(
-                state = pullRefreshState,
-                modifier = Modifier
-                    .nestedScroll(
-                        scrollBehavior.nestedScrollConnection
-                    )
-                    .blurSource(),
-                isRefreshing = isUserRefreshing,
-                onRefresh = {
-                    scope.launch {
-                        isUserRefreshing = true
-                        try {
-                            viewModel.fetchTemplates()
-                        } finally {
-                            isUserRefreshing = false
-                        }
-                    }
-                },
-                indicator = {
-                    PullToRefreshDefaults.LoadingIndicator(
-                        state = pullRefreshState,
-                        isRefreshing = isUserRefreshing,
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = innerPadding.calculateTopPadding()),
-                    )
-                },
-            ) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .nestedScroll(scrollBehavior.nestedScrollConnection),
-                    contentPadding = remember {
-                        PaddingValues(bottom = 16.dp + 56.dp + 16.dp /* Scaffold Fab Spacing + Fab container height */)
-                    }
-                ) {
-                    item {
-                        Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding()))
-                    }
-
-                    lazySegmentColumn(
-                        items = uiState.templateList,
-                        key = { _, app -> app.id }) { _, app ->
-                        TemplateItem(app)
-                    }
-
-                    item {
-                        Spacer(modifier = Modifier.height(innerPadding.calculateBottomPadding()))
-                    }
                 }
             }
         }
@@ -287,7 +233,7 @@ fun AppProfileTemplateScreen() {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TemplateItem(
-    template: ProfileTemplate
+    template: TemplateViewModel.TemplateInfo
 ) {
     val navigator = LocalNavigator.current
     SettingsJumpPageWidget(
@@ -295,7 +241,7 @@ private fun TemplateItem(
         iconPlaceholder = false,
         onClick = {
             navigator.navigateForResult(
-                Route.TemplateEditor(template.id, !template.local),
+                Route.TemplateEditor(template, !template.local),
                 "template_edit"
             )
         },
@@ -341,7 +287,7 @@ fun TemplateItemPreview() {
     CompositionLocalProvider(
         LocalNavigator provides Navigator(Route.AppProfileTemplate)
     ) {
-        TemplateItem(ProfileTemplate())
+        TemplateItem(TemplateViewModel.TemplateInfo())
     }
 }
 
@@ -354,8 +300,6 @@ private fun TopBar(
     onExport: () -> Unit = {},
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
-    val themeConfig: ThemeConfig = koinInject()
-    val cardConfig: CardConfig = koinInject()
     LargeFlexibleTopAppBar(
         modifier = Modifier.blurEffect(
         ),
@@ -364,15 +308,15 @@ private fun TopBar(
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor =
-                if (themeConfig.isEnableBlur)
+                if (ThemeConfig.isEnableBlur)
                     Color.Transparent
                 else
-                    MaterialTheme.colorScheme.surfaceContainer.copy(cardConfig.cardAlpha),
+                    MaterialTheme.colorScheme.surfaceContainer.copy(CardConfig.cardAlpha),
             scrolledContainerColor =
-                if (themeConfig.isEnableBlur)
+                if (ThemeConfig.isEnableBlur)
                     Color.Transparent
                 else
-                    MaterialTheme.colorScheme.surfaceContainer.copy(cardConfig.cardAlpha),
+                    MaterialTheme.colorScheme.surfaceContainer.copy(CardConfig.cardAlpha),
         ),
         navigationIcon = {
             AppBackButton(

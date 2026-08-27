@@ -6,15 +6,15 @@ plugins {
     alias(libs.plugins.compose.compiler) apply false
 }
 
-extra["androidMinSdkVersion"] = 26
-extra["androidTargetSdkVersion"] = 37
-extra["androidCompileSdkVersion"] = 37
-extra["androidBuildToolsVersion"] = "36.1.0"
-extra["androidCompileNdkVersion"] = libs.versions.ndk.get()
-extra["androidSourceCompatibility"] = JavaVersion.VERSION_21
-extra["androidTargetCompatibility"] = JavaVersion.VERSION_21
-extra["managerVersionCode"] = 33300 + getGitCommitCount()
-extra["managerVersionName"] = getGitDescribe()
+val androidMinSdkVersion by extra(26)
+val androidTargetSdkVersion by extra(37)
+val androidCompileSdkVersion by extra(37)
+val androidBuildToolsVersion by extra("36.1.0")
+val androidCompileNdkVersion by extra(libs.versions.ndk.get())
+val androidSourceCompatibility by extra(JavaVersion.VERSION_21)
+val androidTargetCompatibility by extra(JavaVersion.VERSION_21)
+val managerVersionCode by extra(33300 + getGitCommitCount())
+val managerVersionName by extra(getGitDescribe())
 
 fun getGitCommitCount(): Int {
     return providers.exec {

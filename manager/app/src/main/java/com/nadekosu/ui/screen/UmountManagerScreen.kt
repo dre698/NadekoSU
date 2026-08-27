@@ -53,6 +53,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nadekosu.R
 import com.nadekosu.ui.component.ConfirmResult
 import com.nadekosu.ui.component.SwipeableSnackbarHost
@@ -66,24 +67,17 @@ import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurEffect
 import com.nadekosu.ui.theme.blurSource
-import com.nadekosu.ui.util.ActivityResumeEffect
 import com.nadekosu.ui.util.LocalSnackbarHost
-import com.nadekosu.ui.util.showReplacingSnackbar
 import com.nadekosu.ui.viewmodel.UmountManagerScreenViewModel
-import com.nadekosu.ui.viewmodel.UmountManagerUiAction
-import com.nadekosu.ui.viewmodel.UmountManagerUiEvent
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
-import org.koin.compose.viewmodel.koinViewModel
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun UmountManagerScreen() {
-    val themeConfig: ThemeConfig = koinInject()
-    val cardConfig: CardConfig = koinInject()
-    val viewModel = koinViewModel<UmountManagerScreenViewModel>()
-    val uiState by viewModel.state.collectAsStateWithLifecycle()
+    val viewModel = viewModel<UmountManagerScreenViewModel>()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     val snackBarHost = LocalSnackbarHost.current
     val context = LocalContext.current
@@ -98,19 +92,7 @@ fun UmountManagerScreen() {
     LaunchedEffect(Unit) {
         scrollBehavior.state.heightOffset =
             scrollBehavior.state.heightOffsetLimit
-    }
-
-    LaunchedEffect(viewModel) {
-        viewModel.events.collectLatest { event ->
-            when (event) {
-                is UmountManagerUiEvent.Message ->
-                    snackBarHost.showReplacingSnackbar(context.getString(event.stringResource))
-            }
-        }
-    }
-
-    ActivityResumeEffect {
-        viewModel.dispatch(UmountManagerUiAction.Refresh(force = true))
+        viewModel.refreshData(context)
     }
 
     Scaffold(
@@ -131,15 +113,15 @@ fun UmountManagerScreen() {
                 scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor =
-                        if (themeConfig.isEnableBlur)
+                        if (ThemeConfig.isEnableBlur)
                             Color.Transparent
                         else
-                            MaterialTheme.colorScheme.surfaceContainer.copy(cardConfig.cardAlpha),
+                            MaterialTheme.colorScheme.surfaceContainer.copy(CardConfig.cardAlpha),
                     scrolledContainerColor =
-                        if (themeConfig.isEnableBlur)
+                        if (ThemeConfig.isEnableBlur)
                             Color.Transparent
                         else
-                            MaterialTheme.colorScheme.surfaceContainer.copy(cardConfig.cardAlpha),
+                            MaterialTheme.colorScheme.surfaceContainer.copy(CardConfig.cardAlpha),
                 )
             )
         },
@@ -169,7 +151,8 @@ fun UmountManagerScreen() {
                 state = pullToRefreshState,
                 isRefreshing = uiState.isRefreshing,
                 onRefresh = {
-                    viewModel.dispatch(UmountManagerUiAction.Refresh())
+                    viewModel.markUmountPathDirty()
+                    viewModel.refreshData(context)
                 },
                 indicator = {
                     PullToRefreshDefaults.LoadingIndicator(
@@ -239,7 +222,7 @@ fun UmountManagerScreen() {
                                         }
                                     )
                                     LabelText(
-                                        label = entry.flags.toUmountFlagName(),
+                                        label = entry.flagName,
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                     )
                                 }
@@ -258,7 +241,9 @@ fun UmountManagerScreen() {
                                         )
                                         if (confirmResult != ConfirmResult.Confirmed)
                                             return@launch
-                                        viewModel.dispatch(UmountManagerUiAction.Remove(entry))
+                                        withContext(Dispatchers.IO) {
+                                            viewModel.removePath(entry, snackBarHost, context)
+                                        }
                                     }
                                 }
                             ) {
@@ -281,25 +266,23 @@ fun UmountManagerScreen() {
                     showAddDialog = false
 
                     uiState.umountPaths.filter { it.path == path }.forEach {
-                        viewModel.dispatch(UmountManagerUiAction.Remove(it))
+                        viewModel.removePath(
+                            entry = it,
+                            snackBarHost = null,
+                            context = null,
+                        )
                     }
 
-                    viewModel.dispatch(UmountManagerUiAction.Add(path, flags))
+                    viewModel.addPath(
+                        path = path,
+                        flags = flags,
+                        snackBarHost = snackBarHost,
+                        context = context
+                    )
                 }
             )
         }
     }
-}
-
-@Composable
-private fun Int.toUmountFlagName(): String = when (this) {
-    -1 -> stringResource(R.string.unknown)
-    0 -> "UMOUNT_UNUSED"
-    1 -> "MNT_FORCE"
-    2 -> "MNT_DETACH"
-    4 -> "MNT_EXPIRE"
-    8 -> "UMOUNT_NOFOLLOW"
-    else -> toString()
 }
 
 @Composable

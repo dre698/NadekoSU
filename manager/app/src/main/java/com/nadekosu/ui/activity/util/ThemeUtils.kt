@@ -3,13 +3,10 @@ package com.nadekosu.ui.activity.util
 import android.database.ContentObserver
 import android.os.Handler
 import android.provider.Settings
-import com.nadekosu.data.AppSettingsRepository
-import com.nadekosu.data.theme.ThemeRepository
+import com.nadekosu.data.appPreferences
 import com.nadekosu.ui.MainActivity
-import com.nadekosu.ui.theme.BackgroundManager
 import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.ThemeConfig
-import com.nadekosu.ui.viewmodel.SettingsUiAction
 import com.nadekosu.ui.viewmodel.SettingsViewModel
 
 class ThemeChangeContentObserver(
@@ -22,26 +19,24 @@ class ThemeChangeContentObserver(
     }
 }
 
-class ThemeUtils(
-    private val settings: AppSettingsRepository,
-    private val themeConfig: ThemeConfig,
-    private val themeRepository: ThemeRepository,
-    private val cardConfig: CardConfig,
-    private val backgroundManager: BackgroundManager,
-) {
+object ThemeUtils {
 
     fun initializeThemeSettings(activity: MainActivity, settingsViewModel: SettingsViewModel) {
-        settingsViewModel.dispatch(SettingsUiAction.InitializeFirstRun)
-        loadThemeSettings(activity)
-        settingsViewModel.dispatch(SettingsUiAction.Initialize)
+        settingsViewModel.initialize(activity)
+        settingsViewModel.initializeFirstRunSettings(activity)
+
+        loadThemeMode()
+        loadThemeSeedColor()
+        loadDynamicColorState()
+        CardConfig.load(activity.applicationContext)
     }
 
     fun registerThemeChangeObserver(activity: MainActivity): ThemeChangeContentObserver {
         val contentObserver = ThemeChangeContentObserver(Handler(activity.mainLooper)) {
             activity.runOnUiThread {
-                if (!themeConfig.preventBackgroundRefresh) {
-                    themeConfig.backgroundImageLoaded = false
-                    backgroundManager.loadCustomBackground()
+                if (!ThemeConfig.preventBackgroundRefresh) {
+                    ThemeConfig.backgroundImageLoaded = false
+                    loadCustomBackground()
                 }
             }
         }
@@ -59,27 +54,27 @@ class ThemeUtils(
         activity.contentResolver.unregisterContentObserver(observer)
     }
 
-    fun onActivityPause() {
-        cardConfig.save()
-        settings.putBoolean("prevent_background_refresh", true)
-        themeConfig.preventBackgroundRefresh = true
+    fun onActivityPause(activity: MainActivity) {
+        CardConfig.save(activity.applicationContext)
+        activity.appPreferences.putBoolean("prevent_background_refresh", true)
+        ThemeConfig.preventBackgroundRefresh = true
     }
 
-    fun onActivityResume(activity: MainActivity) {
-        settings.putBoolean("prevent_background_refresh", false)
-        themeConfig.preventBackgroundRefresh = false
-        loadThemeSettings(activity)
+    fun onActivityResume() {
+        if (!ThemeConfig.backgroundImageLoaded && !ThemeConfig.preventBackgroundRefresh) {
+            loadCustomBackground()
+        }
     }
 
-    private fun loadThemeSettings(activity: MainActivity) {
-        themeConfig.forceDarkMode = themeRepository.loadThemeMode()
-        themeConfig.seedColor = themeRepository.loadSeedColor()
-        themeConfig.useDynamicColor = themeRepository.loadDynamicColorState()
-        themeConfig.dynamicColorSpec = themeRepository.loadDynamicColorSpec()
-        themeConfig.dynamicPaletteStyle = themeRepository.loadDynamicPaletteStyle(
-            themeConfig.dynamicColorSpec,
-        )
-        cardConfig.load()
-        backgroundManager.loadCustomBackground()
+    private fun loadThemeMode() {
+    }
+
+    private fun loadThemeSeedColor() {
+    }
+
+    private fun loadDynamicColorState() {
+    }
+
+    private fun loadCustomBackground() {
     }
 }

@@ -1,12 +1,9 @@
 package com.nadekosu.ui.screen.main
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Scaffold
@@ -14,22 +11,20 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nadekosu.ui.activity.component.NavigationBar
 import com.nadekosu.ui.rememberMaterial3BlurBackdrop
 import com.nadekosu.ui.screen.BottomBarDestination
@@ -37,24 +32,25 @@ import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurSource
 import com.nadekosu.ui.util.LocalBlurState
 import com.nadekosu.ui.util.LocalHandlePageChange
-import com.nadekosu.ui.util.LocalPagerPage
 import com.nadekosu.ui.util.LocalPagerState
 import com.nadekosu.ui.util.LocalSelectedPage
 import com.nadekosu.ui.util.LocalSnackbarHost
-import com.nadekosu.ui.viewmodel.HomeViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
-import org.koin.compose.viewmodel.koinViewModel
-
+import kotlinx.coroutines.withContext
 
 @Composable
 fun MainScreen() {
-    val themeConfig: ThemeConfig = koinInject()
-    val homeViewModel = koinViewModel<HomeViewModel>()
-    val homeState by homeViewModel.state.collectAsStateWithLifecycle()
-    val pages = remember(homeState.systemStatus.isValid) {
-        BottomBarDestination.getPages(homeState.systemStatus.isValid)
+    var savedPages by rememberSaveable<MutableState<List<BottomBarDestination>>> {
+        mutableStateOf(emptyList())
+    }
+
+    val pages by produceState(initialValue = savedPages) {
+        value = withContext(Dispatchers.IO) {
+            savedPages = BottomBarDestination.getPages()
+            return@withContext savedPages
+        }
     }
 
     val coroutineScope = rememberCoroutineScope()
@@ -126,7 +122,8 @@ fun MainScreen() {
             val content = @Composable { paddingBottom: Dp ->
                 HorizontalPager(
                     modifier = Modifier
-                        .fillMaxSize(),
+                        .fillMaxSize()
+                        .blurSource(),
                     state = pagerState,
                     userScrollEnabled = userScrollEnabled,
                     beyondViewportPageCount = 1,
@@ -136,12 +133,7 @@ fun MainScreen() {
                     val snackBarHostState = remember { SnackbarHostState() }
                     CompositionLocalProvider(
                         LocalSnackbarHost provides snackBarHostState,
-                        LocalPagerPage provides pageIndex,
-                        LocalBlurState provides rememberMaterial3BlurBackdrop(
-                            enableBlur = themeConfig.isEnableBlur,
-                            pagerState = pagerState,
-                            pagerPage = pageIndex,
-                        ),
+                        LocalBlurState provides rememberMaterial3BlurBackdrop(ThemeConfig.isEnableBlur),
                     ) {
                         val destination = pages[pageIndex]
                         destination.direction(paddingBottom)
@@ -160,44 +152,15 @@ fun MainScreen() {
                     },
                     containerColor = Color.Transparent,
                 ) { innerPadding ->
-                    Box(
-                        modifier = Modifier.blurSource()
-                    ) {
-                        content(innerPadding.calculateBottomPadding())
-                    }
+                    content(innerPadding.calculateBottomPadding())
                 }
             } else {
-                var navWidth by remember { mutableIntStateOf(0) }
-                val density = LocalDensity.current
-
-                Box(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .blurSource()
-                    ) {
-                        Spacer(
-                            modifier = Modifier.width(
-                                with(density) { navWidth.toDp() }
-                            )
-                        )
-
-                        Box(Modifier.weight(1f)) {
-                            content(0.dp)
-                        }
-                    }
-
+                Row(modifier = Modifier.fillMaxSize()) {
                     NavigationBar(
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .onSizeChanged {
-                                navWidth = it.width
-                            },
                         destinations = pages,
                         isBottomBar = false,
                     )
+                    content(0.dp)
                 }
             }
         }

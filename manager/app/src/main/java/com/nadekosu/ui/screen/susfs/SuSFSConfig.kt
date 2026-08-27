@@ -47,6 +47,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.nadekosu.R
+import com.nadekosu.data.susfs.SuSFSConfigHelper
 import com.nadekosu.ui.component.SwipeableSnackbarHost
 import com.nadekosu.ui.component.settings.AppBackButton
 import com.nadekosu.ui.navigation.LocalNavigator
@@ -60,18 +61,8 @@ import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurEffect
 import com.nadekosu.ui.theme.blurSource
-import com.nadekosu.ui.util.ActivityResumeEffect
 import com.nadekosu.ui.util.LocalSnackbarHost
-import com.nadekosu.ui.util.showReplacingSnackbar
-import com.nadekosu.ui.viewmodel.SuSFSUiAction
-import com.nadekosu.ui.viewmodel.SuSFSUiEvent
-import com.nadekosu.ui.viewmodel.SuSFSViewModel
-import com.nadekosu.ui.viewmodel.awaitSuSFSBoolean
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
-import org.koin.compose.viewmodel.koinViewModel
-
 
 private class SuSFSConfigSubpage(
     val requirePersist: Boolean,
@@ -82,9 +73,6 @@ private class SuSFSConfigSubpage(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SuSFSConfigScreen() {
-    val themeConfig: ThemeConfig = koinInject()
-    val cardConfig: CardConfig = koinInject()
-    val configHelper = koinViewModel<SuSFSViewModel>()
     val navigator = LocalNavigator.current
     val snackBarHost = LocalSnackbarHost.current
     val topAppBarState = rememberTopAppBarState()
@@ -94,21 +82,11 @@ fun SuSFSConfigScreen() {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(topAppBarState)
     val operationFailedMsg = stringResource(R.string.susfs_operation_failed)
     val pullRefreshState = rememberPullToRefreshState()
-    val refreshCoordinator = remember(coroutineScope, configHelper) {
-        SuSFSRefreshCoordinator(coroutineScope, configHelper)
+    val refreshCoordinator = remember(coroutineScope) {
+        SuSFSRefreshCoordinator(coroutineScope)
     }
     val onRegisterRefresh: SuSFSRefreshRegistrar = remember(refreshCoordinator) {
         refreshCoordinator::register
-    }
-
-    LaunchedEffect(configHelper) {
-        configHelper.events.collectLatest { event ->
-            when (event) {
-                is SuSFSUiEvent.Error -> if (event.message.isNotBlank()) {
-                    snackBarHost.showReplacingSnackbar(event.message)
-                }
-            }
-        }
     }
 
     fun requestRefresh() {
@@ -127,12 +105,10 @@ fun SuSFSConfigScreen() {
 
     val handleConfigEnabledChange: (Boolean) -> Unit = { newValue ->
         coroutineScope.launch {
-            if (awaitSuSFSBoolean(configHelper) { reply ->
-                    SuSFSUiAction.SetEnabled(newValue, reply)
-                }) {
+            if (SuSFSConfigHelper.setConfigEnabled(newValue)) {
                 configEnabled = newValue
             } else {
-                snackBarHost.showReplacingSnackbar(operationFailedMsg)
+                snackBarHost.showSnackbar(operationFailedMsg)
             }
         }
     }
@@ -219,8 +195,8 @@ fun SuSFSConfigScreen() {
         scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
     }
 
-    ActivityResumeEffect(refreshCoordinator) {
-        refreshCoordinator.refresh(forceRefresh = true) { config ->
+    LaunchedEffect(refreshCoordinator) {
+        refreshCoordinator.refresh(forceRefresh = false) { config ->
             configEnabled = config.enabled
         }
     }
@@ -246,15 +222,15 @@ fun SuSFSConfigScreen() {
                     },
                     colors = TopAppBarDefaults.topAppBarColors().copy(
                         containerColor =
-                            if (themeConfig.isEnableBlur)
+                            if (ThemeConfig.isEnableBlur)
                                 Color.Transparent
                             else
-                                MaterialTheme.colorScheme.surfaceContainer.copy(cardConfig.cardAlpha),
+                                MaterialTheme.colorScheme.surfaceContainer.copy(CardConfig.cardAlpha),
                         scrolledContainerColor =
-                            if (themeConfig.isEnableBlur)
+                            if (ThemeConfig.isEnableBlur)
                                 Color.Transparent
                             else
-                                MaterialTheme.colorScheme.surfaceContainer.copy(cardConfig.cardAlpha)
+                                MaterialTheme.colorScheme.surfaceContainer.copy(CardConfig.cardAlpha)
                     ),
                     windowInsets = TopAppBarDefaults.windowInsets.add(WindowInsets(left = 12.dp)),
                 )
@@ -262,10 +238,10 @@ fun SuSFSConfigScreen() {
                 PrimaryScrollableTabRow(
                     selectedTabIndex = selectedTabIndex,
                     containerColor =
-                        if (themeConfig.isEnableBlur)
+                        if (ThemeConfig.isEnableBlur)
                             Color.Transparent
                         else
-                            MaterialTheme.colorScheme.surfaceContainer.copy(cardConfig.cardAlpha),
+                            MaterialTheme.colorScheme.surfaceContainer.copy(CardConfig.cardAlpha),
                     edgePadding = 0.dp,
                     minTabWidth = 0.dp,
                     modifier = Modifier.fillMaxWidth()

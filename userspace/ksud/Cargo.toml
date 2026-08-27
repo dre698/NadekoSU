@@ -73,6 +73,7 @@ strip = true
 opt-level = "z"
 lto = true
 codegen-units = 1
+panic = "abort"
 
 [build-dependencies]
 bindgen = "0.72.1"

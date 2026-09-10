@@ -225,7 +225,9 @@ private fun FloatingBottomBar(
             contentAlignment = Alignment.Center
         ) {
             Surface(
-                modifier = Modifier.wrapContentWidth(),
+                modifier = Modifier
+                    .wrapContentWidth()
+                    .blurEffect(),
                 shape = RoundedCornerShape(24.dp),
                 color =
                     if (ThemeConfig.isEnableBlur)

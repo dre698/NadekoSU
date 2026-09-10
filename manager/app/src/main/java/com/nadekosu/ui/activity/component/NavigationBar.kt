@@ -227,8 +227,8 @@ private fun FloatingBottomBar(
             Surface(
                 modifier = Modifier
                     .wrapContentWidth()
-                    .blurEffect()
-                    .clip(RoundedCornerShape(24.dp)),
+                    .clip(RoundedCornerShape(24.dp))
+                    .blurEffect(),
                 shape = RoundedCornerShape(24.dp),
                 color =
                     if (ThemeConfig.isEnableBlur)

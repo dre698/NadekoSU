@@ -932,6 +932,38 @@ private fun SegmentedColumnScope.backgroundAdjustmentControls(
         )
     }
 
+    item(
+        visible = ThemeConfig.isFloatingNavBar,
+        topPadding = 1.dp
+    ) {
+        val context = LocalContext.current
+        SettingsSwitchWidget(
+            icon = Icons.TwoTone.Palette,
+            title = stringResource(id = R.string.settings_miuix_nav_bar),
+            description = stringResource(id = R.string.settings_miuix_nav_bar_summary),
+            checked = ThemeConfig.isMiuixNavBar,
+            onCheckedChange = { isChecked ->
+                BackgroundManager.saveMiuixNavBar(context, isChecked)
+            }
+        )
+    }
+
+    item(
+        visible = ThemeConfig.isFloatingNavBar && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
+        topPadding = 1.dp
+    ) {
+        val context = LocalContext.current
+        SettingsSwitchWidget(
+            icon = Icons.TwoTone.BlurOn,
+            title = stringResource(id = R.string.settings_liquid_glass_nav_bar),
+            description = stringResource(id = R.string.settings_liquid_glass_nav_bar_summary),
+            checked = ThemeConfig.isLiquidGlassNavBar,
+            onCheckedChange = { isChecked ->
+                BackgroundManager.saveLiquidGlassNavBar(context, isChecked)
+            }
+        )
+    }
+
     expandableItem(
         animatedVisibility = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
         expanded = ThemeConfig.isEnableBlur,

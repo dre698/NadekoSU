@@ -120,7 +120,9 @@ object ThemeConfig {
     var isEnableBlur by mutableStateOf(false)
     var isEnableBlurExp by mutableStateOf(false)
     var isUseBackgroundSeedColor by mutableStateOf(false)
-    var isFloatingNavBar by mutableStateOf(false)
+    var isFloatingNavBar by mutableStateOf(true)
+    var isMiuixNavBar by mutableStateOf(false)
+    var isLiquidGlassNavBar by mutableStateOf(false)
 
     // 主题变化检测
     private var lastDarkModeState: Boolean? = null
@@ -274,6 +276,16 @@ object BackgroundManager {
         context.appPreferences.putBoolean("floating_nav_bar", enable)
     }
 
+    fun saveMiuixNavBar(context: Context, enable: Boolean) {
+        ThemeConfig.isMiuixNavBar = enable
+        context.appPreferences.putBoolean("miuix_nav_bar", enable)
+    }
+
+    fun saveLiquidGlassNavBar(context: Context, enable: Boolean) {
+        ThemeConfig.isLiquidGlassNavBar = enable
+        context.appPreferences.putBoolean("liquid_glass_nav_bar", enable)
+    }
+
     fun saveUseBackgroundSeedColor(context: Context, enable: Boolean) {
         ThemeConfig.isUseBackgroundSeedColor = enable
         context.appPreferences.putBoolean("use_background_seed_color", enable)
@@ -331,7 +343,9 @@ object BackgroundManager {
         ThemeConfig.isEnableBlurExp = prefs.getBoolean("enable_blur_exp", false)
         ThemeConfig.isUseBackgroundSeedColor = prefs.getBoolean("use_background_seed_color", false)
         ThemeConfig.isHighContrastMode = prefs.getBoolean("high_contrast_mode", false)
-        ThemeConfig.isFloatingNavBar = prefs.getBoolean("floating_nav_bar", false)
+        ThemeConfig.isFloatingNavBar = prefs.getBoolean("floating_nav_bar", true)
+        ThemeConfig.isMiuixNavBar = prefs.getBoolean("miuix_nav_bar", false)
+        ThemeConfig.isLiquidGlassNavBar = prefs.getBoolean("liquid_glass_nav_bar", false)
     }
 
     private fun saveBackgroundUri(context: Context, uri: Uri?) {

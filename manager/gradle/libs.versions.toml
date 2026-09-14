@@ -88,6 +88,7 @@ me-zhanghai-android-appiconloader-coil = { group = "me.zhanghai.android.appiconl
 androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "navigation3" }
 miuix-navigation = { group = "top.yukonga.miuix.kmp", name = "miuix-navigation3-ui-android", version.ref = "miuix" }
 miuix-blur = { group = "top.yukonga.miuix.kmp", name = "miuix-blur-android", version.ref = "miuix" }
+miuix-ui = { group = "top.yukonga.miuix.kmp", name = "miuix-ui-android", version.ref = "miuix" }
 androidx-navigationevent = { module = "androidx.navigationevent:navigationevent", version.ref = "navigationevent" }
 
 markdown = { group = "io.noties.markwon", name = "core", version.ref = "markdown" }

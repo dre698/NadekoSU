@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -56,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -68,6 +70,7 @@ import com.nadekosu.ui.screen.BottomBarDestination
 import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurEffect
+import com.nadekosu.ui.theme.liquidGlassEffect
 import com.nadekosu.ui.util.LocalHandlePageChange
 import com.nadekosu.ui.util.LocalSelectedPage
 import com.nadekosu.ui.util.getModuleCount
@@ -75,6 +78,8 @@ import com.nadekosu.ui.util.getSuperuserCount
 import com.nadekosu.ui.viewmodel.HomeViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 
 // TODO Add FloatingBottomBar as an choice to user
 @SuppressLint("ContextCastToActivity")
@@ -112,6 +117,17 @@ fun NavigationBar(
 
     if (isBottomBar) {
         if (ThemeConfig.isFloatingNavBar) {
+            if (ThemeConfig.isMiuixNavBar) {
+                FloatingBottomBarMiuix(
+                    destinations = destinations,
+                    selectedIndex = page,
+                    onSelect = { handlePageChange(it) },
+                    superuserCount = superuserCount,
+                    moduleCount = moduleCount,
+                    isHideOtherInfo = isHideOtherInfo,
+                )
+                return
+            }
             FloatingBottomBar(
                 destinations = destinations,
                 selectedIndex = page,
@@ -192,12 +208,21 @@ private fun FloatingBottomBar(
     moduleCount: Int,
     isHideOtherInfo: Boolean,
 ) {
+    // Drag state, mirrors KernelSU-Next's floating pill: dragging the selected pill
+    // between icons previews the target before committing on release.
+    var isDraggingPill by remember { mutableStateOf(false) }
+    var dragTargetIndex by remember { mutableStateOf(selectedIndex) }
+
     val animatedSelectedIndex by animateFloatAsState(
-        targetValue = selectedIndex.toFloat(),
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        targetValue = (if (isDraggingPill) dragTargetIndex else selectedIndex).toFloat(),
+        animationSpec = if (isDraggingPill) {
+            spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
+        } else {
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        },
         label = "floatingNavSelectedIndex"
     )
 
@@ -228,7 +253,10 @@ private fun FloatingBottomBar(
                 modifier = Modifier
                     .wrapContentWidth()
                     .clip(RoundedCornerShape(24.dp))
-                    .blurEffect(),
+                    .blurEffect()
+                    .let {
+                        if (ThemeConfig.isLiquidGlassNavBar) it.liquidGlassEffect(cornerRadius = 24.dp) else it
+                    },
                 shape = RoundedCornerShape(24.dp),
                 color =
                     if (ThemeConfig.isEnableBlur)
@@ -246,14 +274,48 @@ private fun FloatingBottomBar(
                         (itemSpacing * (destinations.size - 1)) +
                         (containerPadding * 2)
 
-                val density = LocalDensity.current
                 val itemSizePx = with(density) { itemSize.toPx() }
                 val itemSpacingPx = with(density) { itemSpacing.toPx() }
+                val containerPaddingPx = with(density) { containerPadding.toPx() }
 
                 Box(
                     modifier = Modifier
                         .width(navBarWidth)
                         .height(72.dp)
+                        .pointerInput(destinations, selectedIndex) {
+                            detectDragGestures(
+                                onDragStart = { offset ->
+                                    val extraTouchArea = with(density) { 20.dp.toPx() }
+                                    val pillLeft = containerPaddingPx +
+                                            selectedIndex * (itemSizePx + itemSpacingPx) - extraTouchArea
+                                    val pillRight = pillLeft + itemSizePx + (extraTouchArea * 2)
+
+                                    if (offset.x in pillLeft..pillRight) {
+                                        isDraggingPill = true
+                                        dragTargetIndex = selectedIndex
+                                    }
+                                },
+                                onDragEnd = {
+                                    if (isDraggingPill) {
+                                        if (dragTargetIndex != selectedIndex) onSelect(dragTargetIndex)
+                                        isDraggingPill = false
+                                    }
+                                },
+                                onDragCancel = {
+                                    isDraggingPill = false
+                                },
+                                onDrag = { change, _ ->
+                                    if (isDraggingPill) {
+                                        change.consume()
+                                        val index = ((change.position.x - containerPaddingPx) /
+                                                (itemSizePx + itemSpacingPx))
+                                            .toInt()
+                                            .coerceIn(0, destinations.lastIndex)
+                                        dragTargetIndex = index
+                                    }
+                                }
+                            )
+                        }
                 ) {
                     var totalWidth by remember { mutableStateOf(0) }
 
@@ -273,7 +335,12 @@ private fun FloatingBottomBar(
                                     .offset {
                                         IntOffset(x = indicatorOffset.toInt(), y = 0)
                                     }
-                                    .width(itemSize),
+                                    .width(itemSize)
+                                    // Subtle scale-up while dragging, like iOS
+                                    .graphicsLayer {
+                                        scaleX = if (isDraggingPill) 1.1f else 1f
+                                        scaleY = if (isDraggingPill) 1.1f else 1f
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Box(
@@ -293,14 +360,15 @@ private fun FloatingBottomBar(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             destinations.forEachIndexed { index, destination ->
-                                val isSelected = index == selectedIndex
+                                val isSelected = index == (if (isDraggingPill) dragTargetIndex else selectedIndex)
 
                                 Box(
                                     modifier = Modifier
                                         .size(itemSize)
                                         .clip(RoundedCornerShape(16.dp))
                                         .clickable {
-                                            if (!isSelected) onSelect(index)
+                                            if (destination.let { destinations.indexOf(it) } == selectedIndex) return@clickable
+                                            onSelect(index)
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -321,6 +389,201 @@ private fun FloatingBottomBar(
                                                 MaterialTheme.colorScheme.primary
                                             } else {
                                                 MaterialTheme.colorScheme.onSurfaceVariant
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FloatingBottomBarMiuix(
+    destinations: List<BottomBarDestination>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    superuserCount: Int,
+    moduleCount: Int,
+    isHideOtherInfo: Boolean,
+) {
+    var isDraggingPill by remember { mutableStateOf(false) }
+    var dragTargetIndex by remember { mutableStateOf(selectedIndex) }
+
+    val animatedSelectedIndex by animateFloatAsState(
+        targetValue = (if (isDraggingPill) dragTargetIndex else selectedIndex).toFloat(),
+        animationSpec = if (isDraggingPill) {
+            spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
+        } else {
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        },
+        label = "floatingNavSelectedIndexMiuix"
+    )
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(
+                WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
+            )
+    ) {
+        val density = LocalDensity.current
+        val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(density).toDp() }
+        val screenWidth = maxWidth
+        val horizontalScreenPadding = when {
+            screenWidth > 600.dp -> 32.dp
+            screenWidth > 400.dp -> 24.dp
+            else -> 16.dp
+        }
+
+        // Miuix leans on a rounder, more pronounced "squircle" pill than Material's 24dp
+        val miuixCornerRadius = 28.dp
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = horizontalScreenPadding, vertical = 14.dp)
+                .padding(bottom = bottomInset),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .wrapContentWidth()
+                    .clip(RoundedCornerShape(miuixCornerRadius))
+                    .background(
+                        if (ThemeConfig.isEnableBlur) Color.Transparent
+                        else MiuixTheme.colorScheme.surfaceContainer
+                    )
+                    .blurEffect()
+                    .let {
+                        if (ThemeConfig.isLiquidGlassNavBar) it.liquidGlassEffect(cornerRadius = miuixCornerRadius) else it
+                    }
+            ) {
+                val itemSize = 56.dp
+                val itemSpacing = 4.dp
+                val containerPadding = 7.dp
+
+                val navBarWidth = (itemSize * destinations.size) +
+                        (itemSpacing * (destinations.size - 1)) +
+                        (containerPadding * 2)
+
+                val itemSizePx = with(density) { itemSize.toPx() }
+                val itemSpacingPx = with(density) { itemSpacing.toPx() }
+                val containerPaddingPx = with(density) { containerPadding.toPx() }
+
+                Box(
+                    modifier = Modifier
+                        .width(navBarWidth)
+                        .height(72.dp)
+                        .pointerInput(destinations, selectedIndex) {
+                            detectDragGestures(
+                                onDragStart = { offset ->
+                                    val extraTouchArea = with(density) { 20.dp.toPx() }
+                                    val pillLeft = containerPaddingPx +
+                                            selectedIndex * (itemSizePx + itemSpacingPx) - extraTouchArea
+                                    val pillRight = pillLeft + itemSizePx + (extraTouchArea * 2)
+
+                                    if (offset.x in pillLeft..pillRight) {
+                                        isDraggingPill = true
+                                        dragTargetIndex = selectedIndex
+                                    }
+                                },
+                                onDragEnd = {
+                                    if (isDraggingPill) {
+                                        if (dragTargetIndex != selectedIndex) onSelect(dragTargetIndex)
+                                        isDraggingPill = false
+                                    }
+                                },
+                                onDragCancel = { isDraggingPill = false },
+                                onDrag = { change, _ ->
+                                    if (isDraggingPill) {
+                                        change.consume()
+                                        val index = ((change.position.x - containerPaddingPx) /
+                                                (itemSizePx + itemSpacingPx))
+                                            .toInt()
+                                            .coerceIn(0, destinations.lastIndex)
+                                        dragTargetIndex = index
+                                    }
+                                }
+                            )
+                        }
+                ) {
+                    var totalWidth by remember { mutableStateOf(0) }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = containerPadding)
+                            .onSizeChanged { totalWidth = it.width }
+                    ) {
+                        if (totalWidth > 0 && destinations.isNotEmpty()) {
+                            val indicatorOffset = (itemSizePx + itemSpacingPx) * animatedSelectedIndex
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .padding(vertical = 8.dp)
+                                    .offset { IntOffset(x = indicatorOffset.toInt(), y = 0) }
+                                    .width(itemSize)
+                                    .graphicsLayer {
+                                        scaleX = if (isDraggingPill) 1.1f else 1f
+                                        scaleY = if (isDraggingPill) 1.1f else 1f
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(itemSize)
+                                        .background(
+                                            color = MiuixTheme.colorScheme.secondaryContainer,
+                                            shape = RoundedCornerShape(18.dp)
+                                        )
+                                )
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.spacedBy(itemSpacing),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            destinations.forEachIndexed { index, destination ->
+                                val isSelected = index == (if (isDraggingPill) dragTargetIndex else selectedIndex)
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(itemSize)
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .clickable {
+                                            if (index == selectedIndex) return@clickable
+                                            onSelect(index)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    BadgedBox(
+                                        badge = {
+                                            DestinationBadge(
+                                                dest = destination,
+                                                superUser = superuserCount,
+                                                module = moduleCount,
+                                                isHideOtherInfo = isHideOtherInfo,
+                                            )
+                                        }
+                                    ) {
+                                        MiuixIcon(
+                                            if (isSelected) destination.iconSelected else destination.iconNotSelected,
+                                            stringResource(destination.label),
+                                            tint = if (isSelected) {
+                                                MiuixTheme.colorScheme.primary
+                                            } else {
+                                                MiuixTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                             }
                                         )
                                     }

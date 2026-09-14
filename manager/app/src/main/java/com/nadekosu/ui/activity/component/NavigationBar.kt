@@ -80,7 +80,12 @@ import com.nadekosu.ui.util.getSuperuserCount
 import com.nadekosu.ui.viewmodel.HomeViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.isSystemInDarkTheme
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.theme.ThemeColorSpec
+import top.yukonga.miuix.kmp.theme.ThemeController
+import top.yukonga.miuix.kmp.theme.ThemePaletteStyle
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 
 // TODO Add FloatingBottomBar as an choice to user
@@ -413,6 +418,16 @@ private fun FloatingBottomBarMiuix(
     moduleCount: Int,
     isHideOtherInfo: Boolean,
 ) {
+    val darkTheme = isSystemInDarkTheme()
+    val miuixController = ThemeController(
+        mode = ColorSchemeMode.System,
+        keyColor = null,
+        isDark = darkTheme,
+        paletteStyle = ThemePaletteStyle.TonalSpot,
+        colorSpec = ThemeColorSpec.Spec2021,
+    )
+
+    MiuixTheme(controller = miuixController) {
     var isDraggingPill by remember { mutableStateOf(false) }
     var dragTargetIndex by remember { mutableStateOf(selectedIndex) }
 
@@ -596,6 +611,7 @@ private fun FloatingBottomBarMiuix(
                 }
             }
         }
+    }
     }
 }
 

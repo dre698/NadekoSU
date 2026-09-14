@@ -229,8 +229,9 @@
     <string name="settings_config_enable_blur">Enable Blur</string>
     <string name="settings_floating_nav_bar">Floating Navigation Bar</string>
     <string name="settings_floating_nav_bar_summary">Gaya navigasi bar mengambang seperti pill, terinspirasi dari KernelSU-Next</string>
-    <string name="settings_miuix_nav_bar">Miuix Style</string>
-    <string name="settings_miuix_nav_bar_summary">Gaya navigasi bar Miuix, terinspirasi dari KernelSU</string>
+    <string name="settings_ui_style">UI Style</string>
+    <string name="settings_ui_style_material">Material</string>
+    <string name="settings_ui_style_miuix">Miuix</string>
     <string name="settings_liquid_glass_nav_bar">Liquid Glass</string>
     <string name="settings_liquid_glass_nav_bar_summary">Efek kaca cair pada navigasi bar, butuh Android 12+ (efek penuh di Android 13+)</string>
     <string name="settings_config_enable_blur_summary">Enable blur process for this app</string>

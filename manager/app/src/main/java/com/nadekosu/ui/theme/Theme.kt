@@ -81,6 +81,8 @@ import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.quantize.QuantizerCelebi
 import com.materialkolor.score.Score
 import com.nadekosu.data.appPreferences
+import com.nadekosu.ui.LocalUiMode
+import com.nadekosu.ui.UiMode
 import com.nadekosu.ui.util.LocalBackgroundBlurAnchor
 import com.nadekosu.ui.util.LocalBlurState
 import com.nadekosu.ui.webui.MonetColorsProvider
@@ -121,7 +123,7 @@ object ThemeConfig {
     var isEnableBlurExp by mutableStateOf(false)
     var isUseBackgroundSeedColor by mutableStateOf(false)
     var isFloatingNavBar by mutableStateOf(true)
-    var isMiuixNavBar by mutableStateOf(false)
+    var uiMode by mutableStateOf(UiMode.Material)
     var isLiquidGlassNavBar by mutableStateOf(false)
 
     // 主题变化检测
@@ -276,9 +278,9 @@ object BackgroundManager {
         context.appPreferences.putBoolean("floating_nav_bar", enable)
     }
 
-    fun saveMiuixNavBar(context: Context, enable: Boolean) {
-        ThemeConfig.isMiuixNavBar = enable
-        context.appPreferences.putBoolean("miuix_nav_bar", enable)
+    fun saveUiMode(context: Context, mode: UiMode) {
+        ThemeConfig.uiMode = mode
+        context.appPreferences.putString("ui_mode", mode.value)
     }
 
     fun saveLiquidGlassNavBar(context: Context, enable: Boolean) {
@@ -344,7 +346,7 @@ object BackgroundManager {
         ThemeConfig.isUseBackgroundSeedColor = prefs.getBoolean("use_background_seed_color", false)
         ThemeConfig.isHighContrastMode = prefs.getBoolean("high_contrast_mode", false)
         ThemeConfig.isFloatingNavBar = prefs.getBoolean("floating_nav_bar", true)
-        ThemeConfig.isMiuixNavBar = prefs.getBoolean("miuix_nav_bar", false)
+        ThemeConfig.uiMode = UiMode.fromValue(prefs.getString("ui_mode", UiMode.DEFAULT_VALUE) ?: UiMode.DEFAULT_VALUE)
         ThemeConfig.isLiquidGlassNavBar = prefs.getBoolean("liquid_glass_nav_bar", false)
     }
 
@@ -425,7 +427,8 @@ fun KernelSUTheme(
     }
 
     CompositionLocalProvider(
-        LocalDensity provides density
+        LocalDensity provides density,
+        LocalUiMode provides ThemeConfig.uiMode,
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorScheme,

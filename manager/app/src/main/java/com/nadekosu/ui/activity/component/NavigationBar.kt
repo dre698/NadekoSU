@@ -66,6 +66,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nadekosu.ksuApp
+import com.nadekosu.ui.LocalUiMode
+import com.nadekosu.ui.UiMode
 import com.nadekosu.ui.screen.BottomBarDestination
 import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.ThemeConfig
@@ -117,7 +119,7 @@ fun NavigationBar(
 
     if (isBottomBar) {
         if (ThemeConfig.isFloatingNavBar) {
-            if (ThemeConfig.isMiuixNavBar) {
+            if (LocalUiMode.current == UiMode.Miuix) {
                 FloatingBottomBarMiuix(
                     destinations = destinations,
                     selectedIndex = page,

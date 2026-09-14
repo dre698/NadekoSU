@@ -90,6 +90,7 @@ import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.nadekosu.R
 import com.nadekosu.ksuApp
+import com.nadekosu.ui.UiMode
 import com.nadekosu.ui.component.ConfirmResult
 import com.nadekosu.ui.component.KeyPointSlider
 import com.nadekosu.ui.component.rememberConfirmDialog
@@ -595,6 +596,55 @@ private fun AppearanceSettings(
             }
         }
 
+        item(
+            topPadding = 1.dp
+        ) {
+            val context = LocalContext.current
+            SettingsChooseWidget(
+                icon = Icons.TwoTone.Palette,
+                title = stringResource(id = R.string.settings_ui_style),
+                items = listOf(
+                    stringResource(id = R.string.settings_ui_style_material),
+                    stringResource(id = R.string.settings_ui_style_miuix),
+                ),
+                selectedIndex = UiMode.entries.indexOf(ThemeConfig.uiMode).coerceAtLeast(0),
+                onSelectedIndexChange = { index ->
+                    BackgroundManager.saveUiMode(context, UiMode.entries.getOrElse(index) { UiMode.Material })
+                }
+            )
+        }
+
+        item(
+            topPadding = 1.dp
+        ) {
+            val context = LocalContext.current
+            SettingsSwitchWidget(
+                icon = Icons.TwoTone.Dock,
+                title = stringResource(id = R.string.settings_floating_nav_bar),
+                description = stringResource(id = R.string.settings_floating_nav_bar_summary),
+                checked = ThemeConfig.isFloatingNavBar,
+                onCheckedChange = { isChecked ->
+                    BackgroundManager.saveFloatingNavBar(context, isChecked)
+                }
+            )
+        }
+
+        item(
+            visible = ThemeConfig.isFloatingNavBar && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
+            topPadding = 1.dp
+        ) {
+            val context = LocalContext.current
+            SettingsSwitchWidget(
+                icon = Icons.TwoTone.BlurOn,
+                title = stringResource(id = R.string.settings_liquid_glass_nav_bar),
+                description = stringResource(id = R.string.settings_liquid_glass_nav_bar_summary),
+                checked = ThemeConfig.isLiquidGlassNavBar,
+                onCheckedChange = { isChecked ->
+                    BackgroundManager.saveLiquidGlassNavBar(context, isChecked)
+                }
+            )
+        }
+
         expandableItem(
             expanded = ThemeConfig.customBackgroundUri != null,
             topContent = {
@@ -914,53 +964,6 @@ private fun SegmentedColumnScope.backgroundAdjustmentControls(
             state = state,
             viewModel = viewModel,
             coroutineScope = coroutineScope
-        )
-    }
-
-    item(
-        topPadding = 1.dp
-    ) {
-        val context = LocalContext.current
-        SettingsSwitchWidget(
-            icon = Icons.TwoTone.Dock,
-            title = stringResource(id = R.string.settings_floating_nav_bar),
-            description = stringResource(id = R.string.settings_floating_nav_bar_summary),
-            checked = ThemeConfig.isFloatingNavBar,
-            onCheckedChange = { isChecked ->
-                BackgroundManager.saveFloatingNavBar(context, isChecked)
-            }
-        )
-    }
-
-    item(
-        visible = ThemeConfig.isFloatingNavBar,
-        topPadding = 1.dp
-    ) {
-        val context = LocalContext.current
-        SettingsSwitchWidget(
-            icon = Icons.TwoTone.Palette,
-            title = stringResource(id = R.string.settings_miuix_nav_bar),
-            description = stringResource(id = R.string.settings_miuix_nav_bar_summary),
-            checked = ThemeConfig.isMiuixNavBar,
-            onCheckedChange = { isChecked ->
-                BackgroundManager.saveMiuixNavBar(context, isChecked)
-            }
-        )
-    }
-
-    item(
-        visible = ThemeConfig.isFloatingNavBar && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
-        topPadding = 1.dp
-    ) {
-        val context = LocalContext.current
-        SettingsSwitchWidget(
-            icon = Icons.TwoTone.BlurOn,
-            title = stringResource(id = R.string.settings_liquid_glass_nav_bar),
-            description = stringResource(id = R.string.settings_liquid_glass_nav_bar_summary),
-            checked = ThemeConfig.isLiquidGlassNavBar,
-            onCheckedChange = { isChecked ->
-                BackgroundManager.saveLiquidGlassNavBar(context, isChecked)
-            }
         )
     }
 

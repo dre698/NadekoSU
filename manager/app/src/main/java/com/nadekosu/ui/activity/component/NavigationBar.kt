@@ -420,7 +420,7 @@ private fun FloatingBottomBarMiuix(
 ) {
     val darkTheme = isSystemInDarkTheme()
     val miuixController = ThemeController(
-        mode = ColorSchemeMode.System,
+        ColorSchemeMode.System,
         keyColor = null,
         isDark = darkTheme,
         paletteStyle = ThemePaletteStyle.TonalSpot,

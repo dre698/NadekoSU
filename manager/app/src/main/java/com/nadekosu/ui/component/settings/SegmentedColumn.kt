@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,7 +42,14 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 import androidx.compose.ui.zIndex
+import com.nadekosu.ui.LocalUiMode
+import com.nadekosu.ui.UiMode
 import kotlin.math.roundToInt
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import top.yukonga.miuix.kmp.basic.Text as MiuixText
 
 private const val PADDING_HORIZONTAL = 16
 private const val PADDING_VERTICAL = 8
@@ -150,6 +158,11 @@ fun SegmentedColumn(
     val allItems = scope.items
 
     if (allItems.isEmpty()) return
+
+    if (LocalUiMode.current == UiMode.Miuix) {
+        SegmentedColumnMiuix(modifier = modifier, title = title, contentPadding = contentPadding, allItems = allItems)
+        return
+    }
 
     Column(modifier = modifier.padding(contentPadding)) {
         if (title.isNotEmpty()) {
@@ -288,6 +301,54 @@ fun SegmentedColumn(
             layout(constraints.maxWidth, currentY.roundToInt().coerceAtLeast(0)) {
                 placeables.forEachIndexed { index, placeable ->
                     placeable.placeRelative(x = 0, y = positions[index])
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Miuix-styled equivalent of [SegmentedColumn]. Skips the Material version's per-item corner
+ * morphing entirely - Miuix's own [Card] already reads as a single grouped surface, so visible
+ * items are simply stacked inside it with normal spacing, the way KernelSU's own Miuix screens
+ * group their [top.yukonga.miuix.kmp.basic.ArrowPreference]/[top.yukonga.miuix.kmp.basic.BasicComponent]
+ * rows.
+ */
+@Composable
+private fun SegmentedColumnMiuix(
+    modifier: Modifier,
+    title: String,
+    contentPadding: PaddingValues,
+    allItems: List<SegmentedItemData>,
+) {
+    val visibleItems = allItems.filter { it.visible }
+    if (visibleItems.isEmpty()) return
+
+    val flatShape = RoundedCornerShape(0.dp)
+
+    MiuixTheme(controller = rememberMiuixController()) {
+        Column(modifier = modifier.padding(contentPadding)) {
+            if (title.isNotEmpty()) {
+                MiuixText(
+                    text = title,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MiuixTheme.colorScheme.primary,
+                    modifier = Modifier.padding(
+                        start = PADDING_HORIZONTAL.dp,
+                        top = PADDING_VERTICAL.dp,
+                        bottom = 8.dp
+                    )
+                )
+            }
+
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    visibleItems.forEachIndexed { index, itemData ->
+                        key(itemData.key ?: index) {
+                            itemData.content(flatShape)
+                        }
+                    }
                 }
             }
         }

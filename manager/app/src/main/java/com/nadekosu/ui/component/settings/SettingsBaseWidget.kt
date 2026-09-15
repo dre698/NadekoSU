@@ -2,6 +2,7 @@ package com.nadekosu.ui.component.settings
 
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.FocusInteraction
 import androidx.compose.foundation.interaction.HoverInteraction
@@ -62,10 +63,21 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.clickable
+import com.nadekosu.ui.LocalUiMode
+import com.nadekosu.ui.UiMode
 import com.nadekosu.ui.component.settings.material3internal.rememberAnimatedShape
 import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.renderBackgroundBlur
+import top.yukonga.miuix.kmp.basic.ArrowPreference
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.theme.ThemeColorSpec
+import top.yukonga.miuix.kmp.theme.ThemeController
+import top.yukonga.miuix.kmp.theme.ThemePaletteStyle
+import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 
 /**
  * A [CompositionLocal] that provides the dynamically calculated [Shape] for items
@@ -131,6 +143,23 @@ fun SettingsBaseWidget(
     containerColor: Color? = null,
     trailingContent: (@Composable BoxScope.(interactionSource: MutableInteractionSource) -> Unit)? = null,
 ) {
+    if (LocalUiMode.current == UiMode.Miuix) {
+        SettingsBaseWidgetMiuix(
+            modifier = modifier,
+            icon = icon,
+            iconColor = iconColor,
+            title = title,
+            description = description,
+            enabled = enabled,
+            isError = isError,
+            fillMaxWidth = fillMaxWidth,
+            onClick = onClick,
+            trailingContent = trailingContent,
+            descriptionColumnContent = descriptionColumnContent,
+        )
+        return
+    }
+
     val hapticFeedback = LocalHapticFeedback.current
     val alpha = if (enabled) 1f else 0.38f
 
@@ -493,6 +522,110 @@ internal fun ListItemShapes.shapeForInteraction(
     }
 
     return shape
+}
+
+/**
+ * Builds a [ThemeController] following the system's current dark/light state. Shared by every
+ * Miuix-branch composable in this file so they all agree on the same palette.
+ */
+@Composable
+internal fun rememberMiuixController(): ThemeController {
+    val darkTheme = isSystemInDarkTheme()
+    return remember(darkTheme) {
+        ThemeController(
+            ColorSchemeMode.System,
+            keyColor = null,
+            isDark = darkTheme,
+            paletteStyle = ThemePaletteStyle.TonalSpot,
+            colorSpec = ThemeColorSpec.Spec2021,
+        )
+    }
+}
+
+/**
+ * Miuix-styled equivalent of [SettingsBaseWidget]. Deliberately narrower than the Material
+ * version - it maps onto Miuix's own [ArrowPreference] (clickable, chevron) / [BasicComponent]
+ * (static) rows, which already carry MIUI's row styling, spacing and press feedback, so most of
+ * the Material version's per-interaction shape-morphing machinery has no equivalent need here.
+ */
+@Composable
+private fun SettingsBaseWidgetMiuix(
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    iconColor: Color? = null,
+    title: String?,
+    description: String? = null,
+    enabled: Boolean = true,
+    isError: Boolean = false,
+    fillMaxWidth: Boolean = true,
+    onClick: ((Offset) -> Unit)? = null,
+    trailingContent: (@Composable BoxScope.(interactionSource: MutableInteractionSource) -> Unit)? = null,
+    descriptionColumnContent: (@Composable ColumnScope.() -> Unit)? = null,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val itemModifier = if (fillMaxWidth) modifier.fillMaxWidth() else modifier
+
+    val startAction: (@Composable () -> Unit)? = icon?.let {
+        {
+            MiuixIcon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconColor ?: MiuixTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(end = 12.dp)
+            )
+        }
+    }
+
+    val endActions: (@Composable RowScope.() -> Unit)? = trailingContent?.let { trailing ->
+        {
+            Box(contentAlignment = Alignment.Center) {
+                trailing(interactionSource)
+            }
+        }
+    }
+
+    MiuixTheme(controller = rememberMiuixController()) {
+        Column(modifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier) {
+            if (trailingContent == null && onClick != null) {
+                // Pure navigational row (opens a screen/dialog, no custom trailing content of
+                // its own) - Miuix's chevron affordance fits naturally here.
+                ArrowPreference(
+                    modifier = itemModifier,
+                    title = title.orEmpty(),
+                    summary = description,
+                    enabled = enabled,
+                    startAction = startAction,
+                    onClick = { onClick(Offset.Zero) },
+                )
+            } else {
+                // Anything with its own trailing content (a Switch, a chevron Icon the caller
+                // supplied itself, or an explicitly empty {} like SettingsChooseWidget's row) -
+                // let that content decide what shows on the right, same as the Material version
+                // does. onClick still applies to the row's tap target either way, via a plain
+                // clickable modifier since BasicComponent itself has no onClick of its own
+                // (KernelSU always wraps a clickable Card around it too when it needs one).
+                BasicComponent(
+                    modifier = if (onClick != null && enabled) {
+                        itemModifier.clickable { onClick(Offset.Zero) }
+                    } else {
+                        itemModifier
+                    },
+                    title = title.orEmpty(),
+                    summary = description,
+                    enabled = enabled,
+                    startAction = startAction,
+                    endActions = endActions,
+                )
+            }
+
+            // Extra content below the row itself (e.g. SettingsChooseWidget's currently-selected
+            // value, or SettingsTextFieldWidget's entire input area). Miuix's ArrowPreference /
+            // BasicComponent have no equivalent slot for this, so it's rendered underneath using
+            // whatever styling the caller already built for it (mostly Material-flavoured, since
+            // this content is shared with the Material path) rather than dropping it silently.
+            descriptionColumnContent?.invoke(this)
+        }
+    }
 }
 
 @Preview

@@ -19,6 +19,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import com.nadekosu.ui.LocalUiMode
+import com.nadekosu.ui.UiMode
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Text as MiuixText
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -62,37 +80,66 @@ fun SettingsDropdownWidget(
             iconPlaceholder = iconPlaceholder,
         ) {}
 
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .offset(offsetX, offsetY)
-        ) {
-            // Use DropdownMenuPopup to provide the foundation for building a custom menu
-            DropdownMenuPopup(
-                expanded = expanded,
+        if (expanded && LocalUiMode.current == UiMode.Miuix) {
+            Popup(
                 onDismissRequest = { expanded = false },
+                properties = PopupProperties(focusable = true),
             ) {
-                // Use DropdownMenuGroup to create a visually distinct group
-                DropdownMenuGroup(
-                    shapes = MenuDefaults.groupShapes()
+                MiuixTheme(controller = rememberMiuixController()) {
+                    Card(modifier = Modifier.widthIn(min = 120.dp)) {
+                        Column {
+                            data.forEachIndexed { index, item ->
+                                val isSelected = index == choice
+                                MiuixText(
+                                    text = item,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onChoiceChange(index)
+                                            expanded = false
+                                        }
+                                        .padding(horizontal = 20.dp, vertical = 14.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset(offsetX, offsetY)
+            ) {
+                // Use DropdownMenuPopup to provide the foundation for building a custom menu
+                DropdownMenuPopup(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
                 ) {
-                    data.forEachIndexed { index, item ->
-                        val isSelected = index == choice
+                    // Use DropdownMenuGroup to create a visually distinct group
+                    DropdownMenuGroup(
+                        shapes = MenuDefaults.groupShapes()
+                    ) {
+                        data.forEachIndexed { index, item ->
+                            val isSelected = index == choice
 
-                        // Utilize the selectable variation of DropdownMenuItem
-                        // MenuDefaults.itemShape(index, count) automatically handles the shapes
-                        DropdownMenuItem(
-                            selected = isSelected,
-                            onClick = {
-                                onChoiceChange(index)
-                                expanded = false
-                            },
-                            text = { Text(text = item) },
-                            shapes = MenuDefaults.itemShape(
-                                index = index,
-                                count = data.size
+                            // Utilize the selectable variation of DropdownMenuItem
+                            // MenuDefaults.itemShape(index, count) automatically handles the shapes
+                            DropdownMenuItem(
+                                selected = isSelected,
+                                onClick = {
+                                    onChoiceChange(index)
+                                    expanded = false
+                                },
+                                text = { Text(text = item) },
+                                shapes = MenuDefaults.itemShape(
+                                    index = index,
+                                    count = data.size
+                                )
                             )
-                        )
+                        }
                     }
                 }
             }

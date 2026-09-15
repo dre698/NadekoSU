@@ -9,11 +9,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -43,6 +46,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.nadekosu.ui.LocalUiMode
+import com.nadekosu.ui.UiMode
+import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
+import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.preference.CheckboxLocation
+import top.yukonga.miuix.kmp.preference.CheckboxPreference
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -116,6 +127,23 @@ fun SettingsChooseWidget(
     ) {}
 
     if (showDialog && itemsNotEmpty) {
+        if (LocalUiMode.current == UiMode.Miuix) {
+            SettingsChooseDialogMiuix(
+                title = title,
+                items = displayItems,
+                itemDescriptions = itemDescriptions,
+                selectedIndices = setOf(currentIndex),
+                singleSelect = true,
+                maxSelected = 1,
+                onDismiss = { dismiss() },
+                onConfirm = { indices ->
+                    indices.firstOrNull()?.let { onSelectedIndexChange(it) }
+                    dismiss(resetSelection = false)
+                }
+            )
+            return
+        }
+
         Dialog(
             onDismissRequest = { dismiss() },
             properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -169,6 +197,23 @@ fun SettingsChooseDialog(
     if (!show || items.isEmpty()) return
 
     var currentIndex by remember(show, selectedIndex) { mutableIntStateOf(selectedIndex) }
+
+    if (LocalUiMode.current == UiMode.Miuix) {
+        SettingsChooseDialogMiuix(
+            title = title,
+            items = items,
+            itemDescriptions = itemDescriptions,
+            selectedIndices = setOf(currentIndex),
+            singleSelect = true,
+            maxSelected = 1,
+            onDismiss = onDismiss,
+            onConfirm = { indices ->
+                indices.firstOrNull()?.let { onSelectedIndexChange(it) }
+                onDismiss()
+            }
+        )
+        return
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -263,6 +308,23 @@ fun SettingsChooseWidget(
     ) {}
 
     if (showDialog && itemsNotEmpty) {
+        if (LocalUiMode.current == UiMode.Miuix) {
+            SettingsChooseDialogMiuix(
+                title = title,
+                items = items,
+                itemDescriptions = itemDescriptions,
+                selectedIndices = currentSelection.toSet(),
+                singleSelect = false,
+                maxSelected = maxSelected,
+                onDismiss = { dismiss() },
+                onConfirm = { indices ->
+                    onSelectedIndicesChange(indices)
+                    dismiss(resetSelection = false)
+                }
+            )
+            return
+        }
+
         Dialog(
             onDismissRequest = { dismiss() },
             properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -385,6 +447,77 @@ private fun SettingsChooseDialogFrame(
                 }
                 TextButton(onClick = onConfirm) {
                     Text(text = stringResource(id = R.string.ok))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Miuix-styled equivalent covering both the single-select and multi-select dialog flows above.
+ * Mirrors KernelSU's own [top.yukonga.miuix.kmp.overlay.OverlayDialog] +
+ * [top.yukonga.miuix.kmp.preference.CheckboxPreference] pattern (used even for KernelSU's
+ * single-select KMI picker) rather than trying to source a genuine Miuix radio-button
+ * component.
+ */
+@Composable
+private fun SettingsChooseDialogMiuix(
+    title: String,
+    items: List<String>,
+    itemDescriptions: List<String?>,
+    selectedIndices: Set<Int>,
+    singleSelect: Boolean,
+    maxSelected: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Set<Int>) -> Unit,
+) {
+    var currentSelection by remember(selectedIndices) { mutableStateOf(selectedIndices) }
+
+    MiuixTheme(controller = rememberMiuixController()) {
+        OverlayDialog(
+            show = true,
+            title = title,
+            onDismissRequest = onDismiss,
+        ) {
+            Column(modifier = Modifier.heightIn(max = 400.dp)) {
+                LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
+                    itemsIndexed(items) { index, item ->
+                        val isSelected = index in currentSelection
+                        CheckboxPreference(
+                            title = item,
+                            summary = itemDescriptions.getOrNull(index),
+                            checkboxLocation = CheckboxLocation.End,
+                            checked = isSelected,
+                            holdDownState = isSelected,
+                            onCheckedChange = { checked ->
+                                currentSelection = if (singleSelect) {
+                                    setOf(index)
+                                } else if (checked) {
+                                    if (currentSelection.size < maxSelected) currentSelection + index else currentSelection
+                                } else {
+                                    currentSelection - index
+                                }
+                            }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    MiuixTextButton(
+                        onClick = onDismiss,
+                        text = stringResource(id = R.string.cancel),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(modifier = Modifier.width(20.dp))
+                    MiuixTextButton(
+                        onClick = { onConfirm(currentSelection) },
+                        text = stringResource(id = R.string.ok),
+                        modifier = Modifier.weight(1f),
+                        colors = MiuixButtonDefaults.textButtonColorsPrimary()
+                    )
                 }
             }
         }

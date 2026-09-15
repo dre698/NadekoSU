@@ -21,6 +21,9 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
+import com.nadekosu.ui.LocalUiMode
+import com.nadekosu.ui.UiMode
+import top.yukonga.miuix.kmp.basic.Switch as MiuixSwitch
 
 /**
  * A setting widget with a [Switch] trailing content.
@@ -83,24 +86,32 @@ fun SettingsSwitchWidget(
         descriptionColumnContent = descriptionColumnContent,
         containerColor = containerColor
     ) { interactionSource ->
-        Switch(
-            modifier = Modifier.clearAndSetSemantics {},
-            enabled = enabled,
-            checked = checked,
-            interactionSource = interactionSource,
-            colors = SwitchDefaults.colors(
-                checkedIconColor = MaterialTheme.colorScheme.primary,
-                uncheckedIconColor = MaterialTheme.colorScheme.surfaceBright
-            ),
-            thumbContent = {
-                Icon(
-                    imageVector = if (checked) Icons.TwoTone.Check else Icons.TwoTone.Close,
-                    contentDescription = null,
-                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                )
-            },
-            // Pass null to disable internal touch handling and let BaseWidget calculate the exact ripple coordinates
-            onCheckedChange = null
-        )
+        if (LocalUiMode.current == UiMode.Miuix) {
+            MiuixSwitch(
+                enabled = enabled,
+                checked = checked,
+                onCheckedChange = null,
+            )
+        } else {
+            Switch(
+                modifier = Modifier.clearAndSetSemantics {},
+                enabled = enabled,
+                checked = checked,
+                interactionSource = interactionSource,
+                colors = SwitchDefaults.colors(
+                    checkedIconColor = MaterialTheme.colorScheme.primary,
+                    uncheckedIconColor = MaterialTheme.colorScheme.surfaceBright
+                ),
+                thumbContent = {
+                    Icon(
+                        imageVector = if (checked) Icons.TwoTone.Check else Icons.TwoTone.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                    )
+                },
+                // Pass null to disable internal touch handling and let BaseWidget calculate the exact ripple coordinates
+                onCheckedChange = null
+            )
+        }
     }
 }

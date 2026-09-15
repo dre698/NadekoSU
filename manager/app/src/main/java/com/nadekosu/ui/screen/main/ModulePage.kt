@@ -146,6 +146,9 @@ import com.nadekosu.ui.component.settings.SegmentedColumn
 import com.nadekosu.ui.component.settings.SettingsBaseWidget
 import com.nadekosu.ui.component.settings.SettingsJumpPageWidget
 import com.nadekosu.ui.component.settings.SettingsTextFieldWidget
+import com.nadekosu.ui.component.settings.rememberMiuixController
+import com.nadekosu.ui.LocalUiMode
+import com.nadekosu.ui.UiMode
 import com.nadekosu.ui.navigation.LocalNavigator
 import com.nadekosu.ui.navigation.Route
 import com.nadekosu.ui.screen.FlashIt
@@ -167,6 +170,12 @@ import com.nadekosu.ui.util.uninstallModule
 import com.nadekosu.ui.viewmodel.ModuleUiState
 import com.nadekosu.ui.viewmodel.ModuleViewModel
 import com.nadekosu.ui.webui.WebUIActivity
+import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
+import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
+import top.yukonga.miuix.kmp.basic.Switch as MiuixSwitch
+import top.yukonga.miuix.kmp.basic.Text as MiuixText
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.topjohnwu.superuser.io.SuFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -1347,6 +1356,24 @@ fun ModuleItem(
 
     val bannerBitmap: ImageBitmap? = moduleBanners[module.dirId]
 
+    if (LocalUiMode.current == UiMode.Miuix) {
+        ModuleItemMiuix(
+            viewModel = viewModel,
+            module = module,
+            sizeStr = moduleSizes[module.dirId],
+            bannerBitmap = bannerBitmap,
+            updateUrl = updateUrl,
+            isHideTagRow = isHideTagRow,
+            showMoreModuleInfo = showMoreModuleInfo,
+            onUninstallClicked = onUninstallClicked,
+            onCheckChanged = onCheckChanged,
+            onUpdate = onUpdate,
+            onClick = onClick,
+            onModuleAddShortcut = onModuleAddShortcut,
+        )
+        return
+    }
+
     Surface(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
@@ -1647,6 +1674,213 @@ fun ModuleItem(
                 }
             }
         }
+        }
+    }
+}
+
+@Composable
+private fun ModuleItemMiuix(
+    viewModel: ModuleViewModel,
+    module: ModuleViewModel.ModuleInfo,
+    sizeStr: String?,
+    bannerBitmap: ImageBitmap?,
+    updateUrl: String,
+    isHideTagRow: Boolean,
+    showMoreModuleInfo: Boolean,
+    onUninstallClicked: (ModuleViewModel.ModuleInfo) -> Unit,
+    onCheckChanged: (Boolean) -> Unit,
+    onUpdate: (ModuleViewModel.ModuleInfo) -> Unit,
+    onClick: (ModuleViewModel.ModuleInfo) -> Unit,
+    onModuleAddShortcut: (ModuleViewModel.ModuleInfo) -> Unit,
+) {
+    val navigator = LocalNavigator.current
+    val textDecoration = if (!module.remove) null else TextDecoration.LineThrough
+
+    LaunchedEffect(module.dirId) {
+        viewModel.loadSize(module.dirId)
+        viewModel.loadBanner(module.dirId)
+    }
+
+    MiuixTheme(controller = rememberMiuixController()) {
+        MiuixCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onLongClick = {
+                        if (module.hasActionScript || module.hasWebUi) onModuleAddShortcut(module)
+                    },
+                    onClick = {
+                        if (module.hasWebUi) onClick(module)
+                    }
+                )
+        ) {
+            Box {
+                if (bannerBitmap != null) {
+                    Box(modifier = Modifier.matchParentSize()) {
+                        Image(
+                            bitmap = bannerBitmap,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            alpha = CardConfig.moduleBannerAlpha,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            MiuixTheme.colorScheme.surface.copy(alpha = 0f),
+                                            MiuixTheme.colorScheme.surface.copy(alpha = 0.85f)
+                                        ),
+                                        startY = 0f,
+                                        endY = Float.POSITIVE_INFINITY
+                                    )
+                                )
+                        )
+                    }
+                }
+
+                Column(modifier = Modifier.padding(22.dp, 18.dp, 22.dp, 12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth(0.8f)) {
+                            MiuixText(
+                                text = module.name,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                textDecoration = textDecoration,
+                                color = MiuixTheme.colorScheme.onSurface,
+                            )
+                            MiuixText(
+                                text = "${stringResource(id = R.string.module_version)}: ${module.version}",
+                                fontSize = 12.sp,
+                                textDecoration = textDecoration,
+                                color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            )
+                            MiuixText(
+                                text = "${stringResource(id = R.string.module_author)}: ${module.author}",
+                                fontSize = 12.sp,
+                                textDecoration = textDecoration,
+                                color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            )
+                            if (showMoreModuleInfo && module.updateJson.isNotEmpty()) {
+                                MiuixText(
+                                    text = "${stringResource(id = R.string.module_update_json)}: ${module.updateJson}",
+                                    fontSize = 12.sp,
+                                    textDecoration = textDecoration,
+                                    color = MiuixTheme.colorScheme.primary,
+                                    maxLines = 5,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        MiuixSwitch(
+                            enabled = !module.update,
+                            checked = module.enabled,
+                            onCheckedChange = onCheckChanged,
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    MiuixText(
+                        text = module.description,
+                        fontSize = 12.sp,
+                        textDecoration = textDecoration,
+                        color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 4,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+
+                    if (!isHideTagRow) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            LabelText(label = module.dirId, containerColor = MiuixTheme.colorScheme.primary)
+                            if (module.metamodule) {
+                                LabelText(label = "META", containerColor = MiuixTheme.colorScheme.tertiaryContainer)
+                            }
+                            LabelText(
+                                label = sizeStr ?: "0 KB",
+                                containerColor = MiuixTheme.colorScheme.secondaryContainer
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(MiuixTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (module.hasActionScript) {
+                            // "enabled" isn't a confirmed IconButton param, so disabled-state
+                            // buttons are simply not shown here instead of guessing one.
+                            if (!module.remove && module.enabled) {
+                                MiuixIconButton(
+                                    onClick = {
+                                        navigator.push(Route.ExecuteModuleAction(module.dirId))
+                                        viewModel.markNeedRefresh()
+                                    },
+                                ) {
+                                    MiuixIcon(imageVector = Icons.TwoTone.PlayArrow, contentDescription = null)
+                                }
+                            }
+                        }
+
+                        if (module.hasWebUi) {
+                            if (!module.remove && module.enabled) {
+                                MiuixIconButton(
+                                    onClick = { onClick(module) },
+                                ) {
+                                    MiuixIcon(imageVector = Icons.AutoMirrored.TwoTone.Wysiwyg, contentDescription = null)
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.weight(1f, true))
+
+                        if (updateUrl.isNotEmpty()) {
+                            if (!module.remove) {
+                                MiuixIconButton(
+                                    onClick = { onUpdate(module) },
+                                ) {
+                                    MiuixIcon(imageVector = Icons.TwoTone.Download, contentDescription = null)
+                                }
+                            }
+                        }
+
+                        MiuixIconButton(onClick = { onUninstallClicked(module) }) {
+                            if (!module.remove) {
+                                MiuixIcon(imageVector = Icons.TwoTone.Delete, contentDescription = null)
+                            } else {
+                                MiuixIcon(
+                                    modifier = Modifier.rotate(180f),
+                                    imageVector = Icons.TwoTone.Refresh,
+                                    contentDescription = null
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -90,7 +90,6 @@ import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.nadekosu.R
 import com.nadekosu.ksuApp
-import com.nadekosu.ui.UiMode
 import com.nadekosu.ui.component.ConfirmResult
 import com.nadekosu.ui.component.KeyPointSlider
 import com.nadekosu.ui.component.rememberConfirmDialog
@@ -108,6 +107,7 @@ import com.nadekosu.ui.screen.themeSettings.component.ThemeSettingsDialogs
 import com.nadekosu.ui.screen.themeSettings.crop.BackgroundCropActivity
 import com.nadekosu.ui.screen.themeSettings.util.restartActivity
 import com.nadekosu.ui.theme.BackgroundManager
+import com.nadekosu.ui.theme.BottomBarStyle
 import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurEffect
@@ -600,47 +600,16 @@ private fun AppearanceSettings(
             topPadding = 1.dp
         ) {
             val context = LocalContext.current
-            SettingsChooseWidget(
-                icon = Icons.TwoTone.Palette,
-                title = stringResource(id = R.string.settings_ui_style),
-                items = listOf(
-                    stringResource(id = R.string.settings_ui_style_material),
-                    stringResource(id = R.string.settings_ui_style_miuix),
-                ),
-                selectedIndex = UiMode.entries.indexOf(ThemeConfig.uiMode).coerceAtLeast(0),
-                onSelectedIndexChange = { index ->
-                    BackgroundManager.saveUiMode(context, UiMode.entries.getOrElse(index) { UiMode.Material })
-                }
-            )
-        }
-
-        item(
-            topPadding = 1.dp
-        ) {
-            val context = LocalContext.current
             SettingsSwitchWidget(
                 icon = Icons.TwoTone.Dock,
                 title = stringResource(id = R.string.settings_floating_nav_bar),
                 description = stringResource(id = R.string.settings_floating_nav_bar_summary),
-                checked = ThemeConfig.isFloatingNavBar,
+                checked = ThemeConfig.bottomBarStyle == BottomBarStyle.FLOATING,
                 onCheckedChange = { isChecked ->
-                    BackgroundManager.saveFloatingNavBar(context, isChecked)
-                }
-            )
-        }
-
-        item(
-            visible = ThemeConfig.isFloatingNavBar && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
-            topPadding = 1.dp
-        ) {
-            val context = LocalContext.current
-            SettingsSwitchWidget(
-                icon = Icons.TwoTone.BlurOn,
-                title = stringResource(id = R.string.settings_liquid_glass_nav_bar),
-                description = stringResource(id = R.string.settings_liquid_glass_nav_bar_summary),
-                checked = ThemeConfig.isLiquidGlassNavBar,
-                onCheckedChange = { isChecked ->
-                    BackgroundManager.saveLiquidGlassNavBar(context, isChecked)
+                    BackgroundManager.saveBottomBarStyle(
+                        context,
+                        if (isChecked) BottomBarStyle.FLOATING else BottomBarStyle.MATERIAL3_EXPRESSIVE
+                    )
                 }
             )
         }

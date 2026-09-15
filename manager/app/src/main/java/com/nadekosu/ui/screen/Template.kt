@@ -3,9 +3,7 @@ package com.nadekosu.ui.screen
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -56,7 +54,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -64,18 +61,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.getSystemService
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nadekosu.R
-import com.nadekosu.ui.LocalUiMode
-import com.nadekosu.ui.UiMode
 import com.nadekosu.ui.component.settings.AppBackButton
 import com.nadekosu.ui.component.settings.SettingsJumpPageWidget
 import com.nadekosu.ui.component.settings.lazySegmentColumn
-import com.nadekosu.ui.component.settings.rememberMiuixController
 import com.nadekosu.ui.navigation.LocalNavigator
 import com.nadekosu.ui.navigation.Navigator
 import com.nadekosu.ui.navigation.Route
@@ -86,8 +79,6 @@ import com.nadekosu.ui.theme.blurSource
 import com.nadekosu.ui.viewmodel.TemplateViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.basic.Text as MiuixText
 
 /**
  * @author weishu
@@ -392,26 +383,6 @@ fun LabelText(
     containerColor: Color = MaterialTheme.colorScheme.primary,
     contentColor: Color = contentColorFor(containerColor)
 ) {
-    if (LocalUiMode.current == UiMode.Miuix) {
-        MiuixTheme(controller = rememberMiuixController()) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(containerColor)
-            ) {
-                MiuixText(
-                    text = label,
-                    fontSize = 10.sp,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-                    color = contentColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-        return
-    }
-
     Surface(
         shape = RoundedCornerShape(4.dp),
         color = containerColor

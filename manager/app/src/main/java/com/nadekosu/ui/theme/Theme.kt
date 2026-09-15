@@ -81,8 +81,6 @@ import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.quantize.QuantizerCelebi
 import com.materialkolor.score.Score
 import com.nadekosu.data.appPreferences
-import com.nadekosu.ui.LocalUiMode
-import com.nadekosu.ui.UiMode
 import com.nadekosu.ui.util.LocalBackgroundBlurAnchor
 import com.nadekosu.ui.util.LocalBlurState
 import com.nadekosu.ui.webui.MonetColorsProvider
@@ -122,9 +120,7 @@ object ThemeConfig {
     var isEnableBlur by mutableStateOf(false)
     var isEnableBlurExp by mutableStateOf(false)
     var isUseBackgroundSeedColor by mutableStateOf(false)
-    var isFloatingNavBar by mutableStateOf(true)
-    var uiMode by mutableStateOf(UiMode.Material)
-    var isLiquidGlassNavBar by mutableStateOf(false)
+    var bottomBarStyle by mutableStateOf(BottomBarStyle.FLOATING)
 
     // 主题变化检测
     private var lastDarkModeState: Boolean? = null
@@ -273,19 +269,9 @@ object BackgroundManager {
         context.appPreferences.putBoolean("enable_blur_exp", enable)
     }
 
-    fun saveFloatingNavBar(context: Context, enable: Boolean) {
-        ThemeConfig.isFloatingNavBar = enable
-        context.appPreferences.putBoolean("floating_nav_bar", enable)
-    }
-
-    fun saveUiMode(context: Context, mode: UiMode) {
-        ThemeConfig.uiMode = mode
-        context.appPreferences.putString("ui_mode", mode.value)
-    }
-
-    fun saveLiquidGlassNavBar(context: Context, enable: Boolean) {
-        ThemeConfig.isLiquidGlassNavBar = enable
-        context.appPreferences.putBoolean("liquid_glass_nav_bar", enable)
+    fun saveBottomBarStyle(context: Context, style: BottomBarStyle) {
+        ThemeConfig.bottomBarStyle = style
+        context.appPreferences.putInt("bottom_bar_style", style.ordinal)
     }
 
     fun saveUseBackgroundSeedColor(context: Context, enable: Boolean) {
@@ -345,9 +331,7 @@ object BackgroundManager {
         ThemeConfig.isEnableBlurExp = prefs.getBoolean("enable_blur_exp", false)
         ThemeConfig.isUseBackgroundSeedColor = prefs.getBoolean("use_background_seed_color", false)
         ThemeConfig.isHighContrastMode = prefs.getBoolean("high_contrast_mode", false)
-        ThemeConfig.isFloatingNavBar = prefs.getBoolean("floating_nav_bar", true)
-        ThemeConfig.uiMode = UiMode.fromValue(prefs.getString("ui_mode", UiMode.DEFAULT_VALUE) ?: UiMode.DEFAULT_VALUE)
-        ThemeConfig.isLiquidGlassNavBar = prefs.getBoolean("liquid_glass_nav_bar", false)
+        ThemeConfig.bottomBarStyle = BottomBarStyle.fromOrdinal(prefs.getInt("bottom_bar_style", BottomBarStyle.FLOATING.ordinal))
     }
 
     private fun saveBackgroundUri(context: Context, uri: Uri?) {
@@ -427,8 +411,7 @@ fun KernelSUTheme(
     }
 
     CompositionLocalProvider(
-        LocalDensity provides density,
-        LocalUiMode provides ThemeConfig.uiMode,
+        LocalDensity provides density
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorScheme,

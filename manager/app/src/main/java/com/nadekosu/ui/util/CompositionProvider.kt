@@ -22,6 +22,8 @@ val LocalSelectedPage = compositionLocalOf<Int> { error("No selected page") }
 
 val LocalBackgroundBlurAnchor = staticCompositionLocalOf<LayoutCoordinates?> { null }
 
+val LocalPortraitState = compositionLocalOf<Boolean> { error("No portrait state") }
+
 val LocalPermissionRequestInterface = compositionLocalOf<PermissionRequestInterface> {
     error("CompositionLocal LocalPermissionRequestInterface not present")
 }

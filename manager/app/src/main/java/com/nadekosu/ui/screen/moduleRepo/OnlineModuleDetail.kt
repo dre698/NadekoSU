@@ -62,6 +62,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -98,6 +99,7 @@ import com.nadekosu.ui.theme.blurSource
 import com.nadekosu.ui.theme.renderBackgroundBlur
 import com.nadekosu.ui.util.LocalPermissionRequestInterface
 import com.nadekosu.ui.util.LocalSnackbarHost
+import com.nadekosu.ui.util.fetchRepoModuleById
 import com.nadekosu.ui.util.module.ReleaseAssetInfo
 import com.nadekosu.ui.util.module.ReleaseInfo
 import com.nadekosu.ui.viewmodel.ModuleRepoViewModel
@@ -111,7 +113,34 @@ import kotlinx.coroutines.launch
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun OnlineModuleDetailScreen(module: ModuleRepoViewModel.RepoModule) {
+fun OnlineModuleDetailScreen(moduleId: String) {
+    val navigator = LocalNavigator.current
+    var module by rememberSaveable(moduleId) {
+        mutableStateOf<ModuleRepoViewModel.RepoModule?>(null)
+    }
+    var lookupFailed by rememberSaveable(moduleId) { mutableStateOf(false) }
+
+    LaunchedEffect(moduleId) {
+        if (module == null) {
+            val result = fetchRepoModuleById(moduleId)
+            if (result == null) {
+                lookupFailed = true
+            } else {
+                module = result
+            }
+        }
+    }
+
+    when {
+        module != null -> OnlineModuleDetailContent(module!!)
+        lookupFailed -> LaunchedEffect(Unit) { navigator.pop() }
+        else -> Unit
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun OnlineModuleDetailContent(module: ModuleRepoViewModel.RepoModule) {
     val navigator = LocalNavigator.current
     val snackBarHost = LocalSnackbarHost.current
     val topAppBarState = rememberTopAppBarState()
@@ -606,7 +635,7 @@ fun ReleaseCardPreview() {
     val fakeModule = initFakeRepoModuleForPreview()
 
     CompositionLocalProvider(
-        LocalNavigator provides Navigator(Route.ModuleRepoDetail(fakeModule)),
+        LocalNavigator provides Navigator(Route.ModuleRepoDetail(moduleId = fakeModule.moduleId)),
         LocalPermissionRequestInterface provides object : PermissionRequestInterface {
             override fun requestPermission(
                 permission: String,

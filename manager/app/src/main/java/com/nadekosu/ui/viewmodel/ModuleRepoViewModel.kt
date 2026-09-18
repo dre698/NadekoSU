@@ -138,7 +138,7 @@ class ModuleRepoViewModel : ViewModel() {
             })
     }
 
-    private suspend fun fetchModulesInternal(
+    internal suspend fun fetchModulesInternal(
         onFailure: (() -> Unit)? = null
     ): List<RepoModule> {
         return runCatching {

@@ -175,7 +175,7 @@ fun InstallScreen(
                     method.uri?.let { uri ->
                         navigator.push(
                             Route.KernelFlash(
-                                kernelUri = uri,
+                                kernelUri = uri.toString(),
                                 selectedSlot = method.slot
                             )
                         )
@@ -184,13 +184,15 @@ fun InstallScreen(
                 else -> {
                     val isOta = method is InstallMethod.DirectInstallToInactiveSlot
                     val partitionSelection = partitionsState.getOrNull(partitionSelectionIndex)
-                    val flashIt = FlashIt.FlashBoot(
-                        boot = if (method is InstallMethod.SelectFile) method.uri else null,
-                        lkm = lkmSelection,
-                        ota = isOta,
-                        partition = partitionSelection
+                    navigator.push(
+                        Route.Flash.boot(
+                            bootUri = if (method is InstallMethod.SelectFile) method.uri?.toString() else null,
+                            lkmUri = (lkmSelection as? LkmSelection.LkmUri)?.uri?.toString(),
+                            kmi = (lkmSelection as? LkmSelection.KmiString)?.value,
+                            ota = isOta,
+                            partition = partitionSelection
+                        )
                     )
-                    navigator.push(Route.Flash(flashIt))
                 }
             }
         }

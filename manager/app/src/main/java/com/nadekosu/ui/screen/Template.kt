@@ -168,8 +168,9 @@ fun AppProfileTemplateScreen() {
                 onClick = {
                     navigator.navigateForResult(
                         Route.TemplateEditor(
-                            TemplateViewModel.TemplateInfo(),
-                            false
+                            templateId = "",
+                            readOnly = false,
+                            isCreation = true,
                         ),
                         "template_edit"
                     )
@@ -241,7 +242,11 @@ private fun TemplateItem(
         iconPlaceholder = false,
         onClick = {
             navigator.navigateForResult(
-                Route.TemplateEditor(template, !template.local),
+                Route.TemplateEditor(
+                    templateId = template.id,
+                    readOnly = !template.local,
+                    isCreation = false,
+                ),
                 "template_edit"
             )
         },

@@ -458,7 +458,7 @@ fun OnlineModuleItem(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
             .clickable {
-                navigator.push(Route.ModuleRepoDetail(module))
+                navigator.push(Route.ModuleRepoDetail(moduleId = module.moduleId))
             }
             .renderBackgroundBlur(),
     ) {
@@ -576,7 +576,7 @@ fun OnlineModuleItem(
                     FilledTonalButton(
                         modifier = Modifier.defaultMinSize(minWidth = 52.dp, minHeight = 32.dp),
                         onClick = {
-                            navigator.push(Route.ModuleRepoDetail(module))
+                            navigator.push(Route.ModuleRepoDetail(moduleId = module.moduleId))
                         },
                         contentPadding = ButtonDefaults.TextButtonContentPadding,
                     ) {
@@ -653,11 +653,7 @@ fun downloadAssetAndInstall(
                 url = asset.downloadUrl,
                 fileName = asset.name,
                 onDownloaded = { uri ->
-                    navigator.push(
-                        Route.Flash(
-                            FlashIt.FlashModule(uri)
-                        )
-                    )
+                    navigator.push(Route.Flash.module(uri.toString()))
                 },
                 onDownloading = {
                     launch(Dispatchers.Main) {

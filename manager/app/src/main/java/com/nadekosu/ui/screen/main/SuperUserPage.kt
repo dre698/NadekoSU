@@ -304,7 +304,7 @@ private fun SuperUserContent(
                 AppGroupItem(
                     appGroup = appGroup
                 ) {
-                    navigator.push(Route.AppProfile(appGroup))
+                    navigator.push(Route.AppProfile(uid = appGroup.uid, packageName = appGroup.mainApp.packageName))
                 }
             }
 

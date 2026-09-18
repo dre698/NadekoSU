@@ -78,6 +78,7 @@ import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.blurEffect
 import com.nadekosu.ui.theme.blurSource
 import com.nadekosu.ui.util.LocalSnackbarHost
+import com.nadekosu.ui.util.fetchAppGroupForUid
 import com.nadekosu.ui.util.forceStopApp
 import com.nadekosu.ui.util.getSepolicy
 import com.nadekosu.ui.util.launchApp
@@ -94,6 +95,35 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppProfileScreen(
+    uid: Int,
+    packageName: String,
+) {
+    val navigator = LocalNavigator.current
+    var appGroup by rememberSaveable(uid, packageName) {
+        mutableStateOf<SuperUserViewModel.AppGroup?>(null)
+    }
+    var lookupFailed by rememberSaveable(uid, packageName) { mutableStateOf(false) }
+
+    LaunchedEffect(uid, packageName) {
+        if (appGroup == null) {
+            val result = fetchAppGroupForUid(uid, packageName)
+            if (result == null) {
+                lookupFailed = true
+            } else {
+                appGroup = result
+            }
+        }
+    }
+
+    when {
+        appGroup != null -> AppProfileContent(appGroup = appGroup!!)
+        lookupFailed -> LaunchedEffect(Unit) { navigator.pop() }
+        else -> Unit
+    }
+}
+
+@Composable
+private fun AppProfileContent(
     appGroup: SuperUserViewModel.AppGroup,
 ) {
     val navigator = LocalNavigator.current
@@ -166,8 +196,8 @@ fun AppProfileScreen(
             },
             profile = profile,
             onViewTemplate = {
-                getTemplateInfoById(it)?.let { info ->
-                    navigator.push(Route.TemplateEditor(info, true))
+                if (getTemplateInfoById(it) != null) {
+                    navigator.push(Route.TemplateEditor(templateId = it, readOnly = true, isCreation = false))
                 }
             },
             onManageTemplate = {

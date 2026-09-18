@@ -445,7 +445,7 @@ fun FlashScreen(flashIt: FlashIt) {
                     )
                     scope.launch {
                         delay(500)
-                        navigator.replace(Route.Flash(nextFlashIt))
+                        navigator.replace(Route.Flash.modules(nextFlashIt.uris.map { it.toString() }, nextFlashIt.currentIndex))
                     }
                 }
             }, onStdout = {

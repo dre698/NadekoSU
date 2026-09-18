@@ -85,7 +85,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.nadekosu.R
@@ -351,23 +350,11 @@ fun ThemeSettingsScreen() {
 
             item {
                 // Predictive Back Settings
-                val transition = LocalNavAnimatedContentScope.current.transition
-
                 SegmentedColumn(
                     title = stringResource(R.string.predictive_back_settings)
                 ) {
                     item {
                         PredictiveBackAnimationWidget(settingsState) { animation ->
-                            // Hey Google
-                            // Why you keep playing the animation even we are already play completed?
-
-                            // This is very dirty, We are using RestrictedApi, but we don't have other choice
-                            transition.setPlaytimeAfterInitialAndTargetStateEstablished(
-                                transition.targetState,
-                                transition.targetState,
-                                transition.playTimeNanos
-                            )
-
                             settingsViewModel.setPredictiveBackAnimation(context, animation)
                         }
                     }

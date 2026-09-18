@@ -211,8 +211,8 @@ fun ModulePage(bottomPadding: Dp) {
         onConfirm = { info ->
             showConfirmationDialog = false
             navigator.push(
-                Route.Flash(
-                    FlashIt.FlashModules(ArrayList(info.filter { it.type == ZipType.MODULE }.map { it.uri }))
+                Route.Flash.modules(
+                    info.filter { it.type == ZipType.MODULE }.map { it.uri.toString() }
                 )
             )
             viewModel.markNeedRefresh()
@@ -438,7 +438,7 @@ fun ModulePage(bottomPadding: Dp) {
                     listState = listState,
                     modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
                     onUpdateModule = {
-                        navigator.push(Route.Flash(FlashIt.FlashModuleUpdate(it)))
+                        navigator.push(Route.Flash.moduleUpdate(it.toString()))
                     },
                     onClickModule = { id, name, hasWebUi ->
                         val currentTime = System.currentTimeMillis()

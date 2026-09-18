@@ -61,6 +61,7 @@ import com.nadekosu.ui.util.deleteAppProfileTemplate
 import com.nadekosu.ui.util.getAppProfileTemplate
 import com.nadekosu.ui.util.setAppProfileTemplate
 import com.nadekosu.ui.viewmodel.TemplateViewModel
+import com.nadekosu.ui.viewmodel.getTemplateInfoById
 import com.nadekosu.ui.viewmodel.toJSON
 
 /**
@@ -70,11 +71,18 @@ import com.nadekosu.ui.viewmodel.toJSON
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun TemplateEditorScreen(
-    initialTemplate: TemplateViewModel.TemplateInfo,
+    templateId: String,
     readOnly: Boolean = true,
+    isCreation: Boolean = false,
 ) {
     val navigator = LocalNavigator.current
-    val isCreation = initialTemplate.id.isBlank()
+    val initialTemplate = remember(templateId, isCreation) {
+        if (isCreation) {
+            TemplateViewModel.TemplateInfo()
+        } else {
+            getTemplateInfoById(templateId) ?: TemplateViewModel.TemplateInfo()
+        }
+    }
     val autoSave = !isCreation && !readOnly
 
     var template by rememberSaveable {

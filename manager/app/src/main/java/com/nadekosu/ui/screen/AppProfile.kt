@@ -122,6 +122,7 @@ fun AppProfileScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AppProfileContent(
     appGroup: SuperUserViewModel.AppGroup,

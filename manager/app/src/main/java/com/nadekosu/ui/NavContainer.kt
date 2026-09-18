@@ -428,7 +428,7 @@ fun NavContainer(
             }
             entry<Route.ThemeSettings>(swipeDismiss = swipeBackDirection) {
                 ManagerNavEntry(interceptPredictiveBack, onBack, useBlur) {
-                    ThemeSettingsScreen(settingsViewModel = settingsViewModel)
+                    ThemeSettingsScreen()
                 }
             }
             entry<Route.SuSFSConfig>(swipeDismiss = swipeBackDirection) {

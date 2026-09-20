@@ -273,6 +273,7 @@ pub(crate) fn set_property_direct(name: &str, value: &str) -> Result<()> {
     direct_resetprop()
         .set(name, value)
         .with_context(|| format!("Failed to set {name}"))
+        .map(|_| ())
 }
 
 /// Load system.prop file using internal resetprop API.

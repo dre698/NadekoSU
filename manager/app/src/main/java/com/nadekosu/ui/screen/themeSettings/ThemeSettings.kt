@@ -602,6 +602,45 @@ private fun AppearanceSettings(
         }
 
         expandableItem(
+            animatedVisibility = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
+            expanded = ThemeConfig.isEnableBlur,
+            topPadding = 1.dp,
+            topContent = {
+                val context = LocalContext.current
+
+                SettingsSwitchWidget(
+                    icon = Icons.TwoTone.BlurOn,
+                    title = stringResource(id = R.string.settings_config_enable_blur),
+                    description = stringResource(id = R.string.settings_config_enable_blur_summary),
+                    checked = ThemeConfig.isEnableBlur,
+                    onCheckedChange = { isChecked ->
+                        BackgroundManager.saveEnableBlur(context, isChecked)
+                        if (!isChecked)
+                            BackgroundManager.saveEnableBlurExp(context, false)
+                    }
+                )
+            },
+            bottomContent = {
+                item(
+                    topPadding = 1.dp,
+                ) {
+                    val context = LocalContext.current
+
+                    SettingsSwitchWidget(
+                        icon = Icons.TwoTone.Draw,
+                        title = stringResource(id = R.string.settings_exp_draw_background_to_blur),
+                        description = stringResource(id = R.string.settings_exp_draw_background_to_blur_description),
+                        isError = true,
+                        checked = ThemeConfig.isEnableBlurExp,
+                        onCheckedChange = { isChecked ->
+                            BackgroundManager.saveEnableBlurExp(context, isChecked)
+                        }
+                    )
+                }
+            }
+        )
+
+        expandableItem(
             expanded = ThemeConfig.customBackgroundUri != null,
             topContent = {
                 CustomBackgroundSettings(
@@ -922,45 +961,6 @@ private fun SegmentedColumnScope.backgroundAdjustmentControls(
             coroutineScope = coroutineScope
         )
     }
-
-    expandableItem(
-        animatedVisibility = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
-        expanded = ThemeConfig.isEnableBlur,
-        topPadding = 1.dp,
-        topContent = {
-            val context = LocalContext.current
-
-            SettingsSwitchWidget(
-                icon = Icons.TwoTone.BlurOn,
-                title = stringResource(id = R.string.settings_config_enable_blur),
-                description = stringResource(id = R.string.settings_config_enable_blur_summary),
-                checked = ThemeConfig.isEnableBlur,
-                onCheckedChange = { isChecked ->
-                    BackgroundManager.saveEnableBlur(context, isChecked)
-                    if (!isChecked)
-                        BackgroundManager.saveEnableBlurExp(context, false)
-                }
-            )
-        },
-        bottomContent = {
-            item(
-                topPadding = 1.dp,
-            ) {
-                val context = LocalContext.current
-
-                SettingsSwitchWidget(
-                    icon = Icons.TwoTone.Draw,
-                    title = stringResource(id = R.string.settings_exp_draw_background_to_blur),
-                    description = stringResource(id = R.string.settings_exp_draw_background_to_blur_description),
-                    isError = true,
-                    checked = ThemeConfig.isEnableBlurExp,
-                    onCheckedChange = { isChecked ->
-                        BackgroundManager.saveEnableBlurExp(context, isChecked)
-                    }
-                )
-            }
-        }
-    )
 
     item(
         visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && state.useDynamicColor,

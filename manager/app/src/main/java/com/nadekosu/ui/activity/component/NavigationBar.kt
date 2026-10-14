@@ -153,7 +153,7 @@ fun NavigationBar(
                             }
                             val icon: @Composable () -> Unit = {
                                 Icon(
-                                    imageVector = destination.iconSelected,
+                                    imageVector = if (index == page) destination.iconSelected else destination.iconNotSelected,
                                     contentDescription = stringResource(destination.label),
                                     tint = contentColor
                                 )

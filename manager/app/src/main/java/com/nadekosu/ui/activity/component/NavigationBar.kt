@@ -161,7 +161,10 @@ fun NavigationBar(
                             if (count > 0 && !isHideOtherInfo) {
                                 BadgedBox(
                                     badge = {
-                                        Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.tertiary,
+                                            contentColor = MaterialTheme.colorScheme.onTertiary
+                                        ) {
                                             Text(count.toString())
                                         }
                                     }
@@ -346,7 +349,8 @@ private fun DestinationBadge(
         exit = fadeOut()
     ) {
         Badge(
-            containerColor = MaterialTheme.colorScheme.primary
+            containerColor = MaterialTheme.colorScheme.tertiary,
+            contentColor = MaterialTheme.colorScheme.onTertiary
         ) {
             Text(count.toString())
         }

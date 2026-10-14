@@ -9,6 +9,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -162,8 +163,13 @@ fun NavigationBar(
                                 BadgedBox(
                                     badge = {
                                         Badge(
-                                            containerColor = MaterialTheme.colorScheme.tertiary,
-                                            contentColor = MaterialTheme.colorScheme.onTertiary
+                                            modifier = Modifier.border(
+                                                width = 1.5.dp,
+                                                color = MaterialTheme.colorScheme.surfaceContainer,
+                                                shape = RoundedCornerShape(50)
+                                            ),
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = MaterialTheme.colorScheme.onPrimary
                                         ) {
                                             Text(count.toString())
                                         }
@@ -349,8 +355,13 @@ private fun DestinationBadge(
         exit = fadeOut()
     ) {
         Badge(
-            containerColor = MaterialTheme.colorScheme.tertiary,
-            contentColor = MaterialTheme.colorScheme.onTertiary
+            modifier = Modifier.border(
+                width = 1.5.dp,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                shape = RoundedCornerShape(50)
+            ),
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary
         ) {
             Text(count.toString())
         }

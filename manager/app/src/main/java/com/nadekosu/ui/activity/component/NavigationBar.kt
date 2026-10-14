@@ -159,7 +159,13 @@ fun NavigationBar(
                                 )
                             }
                             if (count > 0 && !isHideOtherInfo) {
-                                BadgedBox(badge = { Badge { Text(count.toString()) } }) { icon() }
+                                BadgedBox(
+                                    badge = {
+                                        Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                                            Text(count.toString())
+                                        }
+                                    }
+                                ) { icon() }
                             } else {
                                 icon()
                             }

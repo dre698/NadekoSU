@@ -35,7 +35,7 @@ object CardConfig {
         internal set
 
     // Module banner 透明度
-    private var _moduleBannerAlpha by mutableFloatStateOf(0.9f)
+    private var _moduleBannerAlpha by mutableFloatStateOf(0.75f)
 
     var moduleBannerAlpha: Float
         get() = _moduleBannerAlpha
@@ -92,7 +92,7 @@ object CardConfig {
 
     fun reset() {
         cardAlpha = 1f
-        moduleBannerAlpha = 0.9f
+        moduleBannerAlpha = 0.75f
         cardElevation = 0.dp
         isShadowEnabled = true
         isCustomBackgroundEnabled = false
@@ -125,7 +125,7 @@ object CardConfig {
     fun load(context: Context) {
         val prefs = context.appPreferences
         cardAlpha = prefs.getFloat(Keys.CARD_ALPHA, 1f).coerceIn(0f, 1f)
-        moduleBannerAlpha = prefs.getFloat(Keys.MODULE_BANNER_ALPHA, 0.9f).coerceIn(0f, 1f)
+        moduleBannerAlpha = prefs.getFloat(Keys.MODULE_BANNER_ALPHA, 0.75f).coerceIn(0f, 1f)
         isCustomBackgroundEnabled = prefs.getBoolean(Keys.CUSTOM_BACKGROUND_ENABLED, false)
         isShadowEnabled = prefs.getBoolean(Keys.IS_SHADOW_ENABLED, true)
         isCustomAlphaSet = prefs.getBoolean(Keys.IS_CUSTOM_ALPHA_SET, false)

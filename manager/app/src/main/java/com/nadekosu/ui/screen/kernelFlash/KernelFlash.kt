@@ -60,7 +60,6 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nadekosu.R
@@ -72,6 +71,7 @@ import com.nadekosu.ui.screen.kernelFlash.state.FlashState
 import com.nadekosu.ui.screen.kernelFlash.state.HorizonKernelState
 import com.nadekosu.ui.screen.kernelFlash.state.HorizonKernelWorker
 import com.nadekosu.ui.theme.CardConfig
+import com.nadekosu.ui.theme.monospaceFontFamily
 import com.nadekosu.ui.util.LocalSnackbarHost
 import com.nadekosu.ui.util.install
 import com.nadekosu.ui.util.reboot
@@ -299,7 +299,7 @@ fun KernelFlashScreen(
                     modifier = Modifier.padding(16.dp),
                     text = logText,
                     style = MaterialTheme.typography.bodyMedium,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = monospaceFontFamily(),
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }

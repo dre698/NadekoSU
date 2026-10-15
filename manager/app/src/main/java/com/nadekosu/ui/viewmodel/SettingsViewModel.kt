@@ -31,6 +31,7 @@ import com.nadekosu.ui.theme.saveDynamicColorState
 import com.nadekosu.ui.theme.saveDynamicPaletteStyle
 import com.nadekosu.ui.theme.saveThemeMode
 import com.nadekosu.ui.theme.saveThemeSeedColor
+import com.nadekosu.ui.theme.saveUseBuiltinMonoFont
 import com.nadekosu.ui.util.execKsud
 import com.nadekosu.ui.util.getFeaturePersistValue
 import com.nadekosu.ui.util.getFeatureStatus
@@ -76,8 +77,11 @@ data class SettingsUiState(
     val themeMode: Int = 0,
     val themeOptions: List<String> = emptyList(),
     val useDynamicColor: Boolean = false,
-    val dynamicColorSpec: ColorSpec.SpecVersion = ColorSpec.SpecVersion.SPEC_2021,
+    val dynamicColorSpec: ColorSpec.SpecVersion = ColorSpec.SpecVersion.SPEC_2025,
     val dynamicPaletteStyle: PaletteStyle = PaletteStyle.TonalSpot,
+    val useBuiltinMonoFont: Boolean = false,
+    val enableSwipeDismiss: Boolean = true,
+    val pagerGestureMode: Int = 0,
     val showLanguageDialog: Boolean = false,
     val currentAppLocale: Locale? = null,
     val showThemeColorDialog: Boolean = false,
@@ -85,7 +89,7 @@ data class SettingsUiState(
     val useAltIcon: Boolean = false,
 
     val cardAlpha: Float = 1f,
-    val moduleBannerAlpha: Float = 0.9f,
+    val moduleBannerAlpha: Float = 0.75f,
     val backgroundDim: Float = 0f,
     val isCustomBackgroundEnabled: Boolean = false,
 
@@ -144,6 +148,9 @@ class SettingsViewModel : ViewModel() {
                 useDynamicColor = ThemeConfig.useDynamicColor,
                 dynamicColorSpec = ThemeConfig.dynamicColorSpec,
                 dynamicPaletteStyle = ThemeConfig.dynamicPaletteStyle,
+                useBuiltinMonoFont = ThemeConfig.useBuiltinMonoFont,
+                enableSwipeDismiss = prefs.getBoolean("enable_swipe_dismiss", true),
+                pagerGestureMode = prefs.getInt("pager_gesture_mode", 0),
                 currentAppLocale = getCurrentAppLocale(context),
                 useAltIcon = prefs.getBoolean("use_alt_icon", false),
                 cardAlpha = CardConfig.cardAlpha,
@@ -445,6 +452,22 @@ class SettingsViewModel : ViewModel() {
         _uiState.update { it.copy(useAltIcon = newValue) }
         Toast.makeText(context, context.getString(R.string.icon_switched), Toast.LENGTH_SHORT)
             .show()
+    }
+
+    fun handleBuiltinMonospaceFontChange(context: Context, newValue: Boolean) {
+        context.saveUseBuiltinMonoFont(newValue)
+        _uiState.update { it.copy(useBuiltinMonoFont = newValue) }
+    }
+
+    fun handleSwipeDismissChange(context: Context, newValue: Boolean) {
+        updateBooleanPref(context, "enable_swipe_dismiss", newValue) {
+            it.copy(enableSwipeDismiss = newValue)
+        }
+    }
+
+    fun handlePagerGestureModeChange(context: Context, newValue: Int) {
+        context.appPreferences.putInt("pager_gesture_mode", newValue)
+        _uiState.update { it.copy(pagerGestureMode = newValue) }
     }
 
     fun handleCheckUpdateChange(context: Context, enabled: Boolean) {

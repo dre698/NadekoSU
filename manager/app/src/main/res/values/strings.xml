@@ -772,4 +772,16 @@ Important Note:\n
     <string name="susfs_backup_restore_default">Restore Default</string>
     <string name="susfs_backup_restore_default_desc">Delete current SuSFS config.</string>
     <string name="susfs_backup_default_filename">susfs_backup.json</string>
+    <string name="navigation_bar_badge">Navigation bar badges</string>
+    <string name="navigation_bar_badge_summary">Show superuser / module counts in the navigation bar</string>
+    <string name="home_card_icons">Show icons on home cards</string>
+    <string name="home_card_icons_summary">Add icons to the home information cards</string>
+    <string name="settings_custom_monospace_font">Use built-in monospace font</string>
+    <string name="settings_custom_monospace_font_summary">Use built-in JetBrains Mono font for log display to avoid system monospace issues</string>
+    <string name="settings_enable_swipe_dismiss">Swipe back gesture</string>
+    <string name="settings_enable_swipe_dismiss_summary">Swipe from the edge to return to the previous page.</string>
+    <string name="settings_pager_gesture_mode">Pager gesture mode</string>
+    <string name="settings_pager_gesture_native">Default</string>
+    <string name="settings_pager_gesture_cross_axis">Cross-axis</string>
+    <string name="settings_pager_gesture_ios_like">iOS-like</string>
 </resources>

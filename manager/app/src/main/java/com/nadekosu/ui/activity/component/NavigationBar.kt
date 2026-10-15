@@ -98,6 +98,7 @@ fun NavigationBar(
     val homeViewModel = viewModel<HomeViewModel>(viewModelStoreOwner = ksuApp)
     val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
     val isHideOtherInfo = uiState.isHideOtherInfo
+    val showNavigationBarBadge = uiState.showNavigationBarBadge
 
     // 翻页处理
     val page = LocalSelectedPage.current
@@ -159,7 +160,7 @@ fun NavigationBar(
                                     tint = contentColor
                                 )
                             }
-                            if (count > 0 && !isHideOtherInfo) {
+                            if (count > 0 && !isHideOtherInfo && showNavigationBarBadge) {
                                 BadgedBox(
                                     badge = {
                                         Badge(
@@ -216,6 +217,7 @@ fun NavigationBar(
                     superuserCount = superuserCount,
                     moduleCount = moduleCount,
                     isHideOtherInfo = isHideOtherInfo,
+                    showNavigationBarBadge = showNavigationBarBadge,
                 )
             }
         }
@@ -248,6 +250,7 @@ fun NavigationBar(
                     superuserCount = superuserCount,
                     moduleCount = moduleCount,
                     isHideOtherInfo = isHideOtherInfo,
+                    showNavigationBarBadge = showNavigationBarBadge,
                 )
             }
         }
@@ -261,7 +264,8 @@ private fun NavigationRailItem(
     onClick: () -> Unit,
     superuserCount: Int,
     moduleCount: Int,
-    isHideOtherInfo: Boolean
+    isHideOtherInfo: Boolean,
+    showNavigationBarBadge: Boolean
 ) {
     WideNavigationRailItem(
         railExpanded = false,
@@ -275,6 +279,7 @@ private fun NavigationRailItem(
                         superUser = superuserCount,
                         module = moduleCount,
                         isHideOtherInfo = isHideOtherInfo,
+                        showNavigationBarBadge = showNavigationBarBadge,
                     )
                 }
             ) {
@@ -302,7 +307,8 @@ private fun RowScope.BottomBarNavigationItem(
     onClick: () -> Unit,
     superuserCount: Int,
     moduleCount: Int,
-    isHideOtherInfo: Boolean
+    isHideOtherInfo: Boolean,
+    showNavigationBarBadge: Boolean
 ) {
     NavigationBarItem(
         selected = isSelected,
@@ -315,6 +321,7 @@ private fun RowScope.BottomBarNavigationItem(
                         superUser = superuserCount,
                         module = moduleCount,
                         isHideOtherInfo = isHideOtherInfo,
+                        showNavigationBarBadge = showNavigationBarBadge,
                     )
                 }
             ) {
@@ -341,7 +348,8 @@ private fun DestinationBadge(
     dest: BottomBarDestination,
     superUser: Int,
     module: Int,
-    isHideOtherInfo: Boolean
+    isHideOtherInfo: Boolean,
+    showNavigationBarBadge: Boolean
 ) {
     val count = when (dest) {
         BottomBarDestination.SuperUser -> superUser
@@ -350,7 +358,7 @@ private fun DestinationBadge(
     }
 
     AnimatedVisibility(
-        visible = count > 0 && !isHideOtherInfo,
+        visible = count > 0 && !isHideOtherInfo && showNavigationBarBadge,
         enter = fadeIn(),
         exit = fadeOut()
     ) {

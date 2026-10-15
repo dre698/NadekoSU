@@ -43,7 +43,6 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.nadekosu.R
 import com.nadekosu.ui.component.KeyEventBlocker
@@ -54,6 +53,7 @@ import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurEffect
 import com.nadekosu.ui.theme.blurSource
+import com.nadekosu.ui.theme.monospaceFontFamily
 import com.nadekosu.ui.util.LocalSnackbarHost
 import com.nadekosu.ui.util.runModuleAction
 import kotlinx.coroutines.Dispatchers
@@ -190,7 +190,7 @@ fun ExecuteModuleActionScreen(moduleId: String) {
                     modifier = Modifier.padding(8.dp),
                     text = text,
                     fontSize = MaterialTheme.typography.bodySmall.fontSize,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = monospaceFontFamily(),
                     lineHeight = MaterialTheme.typography.bodySmall.lineHeight,
                 )
             }

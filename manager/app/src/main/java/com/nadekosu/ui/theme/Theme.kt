@@ -27,6 +27,8 @@ import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -109,8 +111,9 @@ object ThemeConfig {
     var seedColor by mutableIntStateOf(ThemeSeedColors.Default.toArgb())
     var useDynamicColor by mutableStateOf(false)
     var monetCompatSeedColor by mutableIntStateOf(ThemeSeedColors.Default.toArgb())
-    var dynamicColorSpec by mutableStateOf(ColorSpec.SpecVersion.SPEC_2021)
+    var dynamicColorSpec by mutableStateOf(ColorSpec.SpecVersion.SPEC_2025)
     var dynamicPaletteStyle by mutableStateOf(PaletteStyle.TonalSpot)
+    var useBuiltinMonoFont by mutableStateOf(false)
 
     // 背景状态
     var backgroundImageLoaded by mutableStateOf(false)
@@ -154,7 +157,7 @@ object ThemeConfig {
         seedColor = ThemeSeedColors.Default.toArgb()
         useDynamicColor = false
         monetCompatSeedColor = ThemeSeedColors.Default.toArgb()
-        dynamicColorSpec = ColorSpec.SpecVersion.SPEC_2021
+        dynamicColorSpec = ColorSpec.SpecVersion.SPEC_2025
         dynamicPaletteStyle = PaletteStyle.TonalSpot
         backgroundImageLoaded = false
         isThemeChanging = false
@@ -228,11 +231,11 @@ object ThemeManager {
     fun loadDynamicColorSpec(context: Context) {
         val specName = context.appPreferences.getString(
             "dynamic_color_spec",
-            ColorSpec.SpecVersion.SPEC_2021.name
+            ColorSpec.SpecVersion.SPEC_2025.name
         )
         ThemeConfig.dynamicColorSpec = ColorSpec.SpecVersion.entries
             .find { it.name == specName }
-            ?: ColorSpec.SpecVersion.SPEC_2021
+            ?: ColorSpec.SpecVersion.SPEC_2025
     }
 
     fun saveDynamicPaletteStyle(context: Context, style: PaletteStyle) {
@@ -248,6 +251,29 @@ object ThemeManager {
         ThemeConfig.dynamicPaletteStyle = PaletteStyle.entries
             .find { it.name == styleName }
             ?: PaletteStyle.TonalSpot
+    }
+
+    fun saveUseBuiltinMonoFont(context: Context, enabled: Boolean) {
+        context.appPreferences.putBoolean("use_builtin_monospace_font", enabled)
+        ThemeConfig.useBuiltinMonoFont = enabled
+    }
+
+    fun loadUseBuiltinMonoFont(context: Context) {
+        ThemeConfig.useBuiltinMonoFont =
+            context.appPreferences.getBoolean("use_builtin_monospace_font", false)
+    }
+}
+
+private val BuiltinMonospaceFontFamily = FontFamily(
+    Font(com.nadekosu.R.font.jetbrains_mono),
+)
+
+@Composable
+fun monospaceFontFamily(): FontFamily {
+    return if (ThemeConfig.useBuiltinMonoFont) {
+        BuiltinMonospaceFontFamily
+    } else {
+        FontFamily.Monospace
     }
 }
 
@@ -458,6 +484,7 @@ private fun ThemeInitializer(context: Context, systemIsDark: Boolean) {
             ThemeManager.loadDynamicColorState(context)
             ThemeManager.loadDynamicColorSpec(context)
             ThemeManager.loadDynamicPaletteStyle(context)
+            ThemeManager.loadUseBuiltinMonoFont(context)
             CardConfig.load(context)
 
             if (!ThemeConfig.backgroundImageLoaded && !ThemeConfig.preventBackgroundRefresh) {
@@ -1435,6 +1462,10 @@ fun Context.saveDynamicColorSpec(spec: ColorSpec.SpecVersion) {
 
 fun Context.saveDynamicPaletteStyle(style: PaletteStyle) {
     ThemeManager.saveDynamicPaletteStyle(this, style)
+}
+
+fun Context.saveUseBuiltinMonoFont(enabled: Boolean) {
+    ThemeManager.saveUseBuiltinMonoFont(this, enabled)
 }
 
 @Composable

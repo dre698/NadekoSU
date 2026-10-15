@@ -67,7 +67,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -85,6 +84,7 @@ import com.nadekosu.ui.component.settings.lazySegmentColumn
 import com.nadekosu.ui.navigation.LocalNavigator
 import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.blurSource
+import com.nadekosu.ui.theme.monospaceFontFamily
 import com.nadekosu.ui.util.LocalBlurState
 import com.nadekosu.ui.util.SulogEntry
 import com.nadekosu.ui.util.SulogEventFilter
@@ -734,7 +734,7 @@ private fun SulogDetailDialog(
                 SelectionContainer {
                     Text(
                         text = sulogEntryDetailText(entry),
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = monospaceFontFamily(),
                     )
                 }
             }

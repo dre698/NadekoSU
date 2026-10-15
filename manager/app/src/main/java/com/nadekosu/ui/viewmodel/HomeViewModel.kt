@@ -47,6 +47,8 @@ data class HomeUiState(
     val isHideZygiskImplement: Boolean = false,
     val isHideMetaModuleImplement: Boolean = false,
     val isHideLinkCard: Boolean = false,
+    val showNavigationBarBadge: Boolean = true,
+    val showHomeCardIcons: Boolean = false,
     val isInitialDataLoaded: Boolean = false,
     val isCoreDataLoaded: Boolean = false,
     val isExtendedDataLoaded: Boolean = false,
@@ -349,6 +351,18 @@ class HomeViewModel : ViewModel() {
             it.copy(isHideOtherInfo = newValue)
         }
     }
+
+    fun handleNavigationBarBadgeChange(context: Context, newValue: Boolean) {
+        updateBooleanPref(context, "show_navigation_bar_badge", newValue) {
+            it.copy(showNavigationBarBadge = newValue)
+        }
+    }
+
+    fun handleHomeCardIconsChange(context: Context, newValue: Boolean) {
+        updateBooleanPref(context, "show_home_card_icons", newValue) {
+            it.copy(showHomeCardIcons = newValue)
+        }
+    }
     fun refreshData(
         context: Context,
         refreshUI: Boolean = false
@@ -405,6 +419,14 @@ class HomeViewModel : ViewModel() {
                 isHideZygiskImplement = settingsPrefs.getBoolean("is_hide_zygisk_Implement", false),
                 isHideMetaModuleImplement = settingsPrefs.getBoolean(
                     "is_hide_meta_module_Implement",
+                    false
+                ),
+                showNavigationBarBadge = settingsPrefs.getBoolean(
+                    "show_navigation_bar_badge",
+                    true
+                ),
+                showHomeCardIcons = settingsPrefs.getBoolean(
+                    "show_home_card_icons",
                     false
                 ),
             )

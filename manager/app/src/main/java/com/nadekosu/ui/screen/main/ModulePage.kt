@@ -1031,7 +1031,7 @@ private fun ModuleList(
                     start = 16.dp,
                     top = 0.dp,
                     end = 16.dp,
-                    bottom = 72.dp + 5.dp + 5.dp // FAB + bottom padding of FAB
+                    bottom = 72.dp + 5.dp + 5.dp + 16.dp // FAB + bottom padding of FAB + default Scaffold FAB margin
                 )
             },
         ) {

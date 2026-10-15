@@ -349,9 +349,13 @@ fun NavContainer(
                 exitDirection = settings.predictiveBackExitDirection,
             )
         }
-        val swipeBackDirection = when (LocalLayoutDirection.current) {
-            LayoutDirection.Rtl -> NavSwipeDirection.RightToLeft
-            LayoutDirection.Ltr -> NavSwipeDirection.LeftToRight
+        val swipeBackDirection = if (settings.enableSwipeDismiss) {
+            when (LocalLayoutDirection.current) {
+                LayoutDirection.Rtl -> NavSwipeDirection.RightToLeft
+                LayoutDirection.Ltr -> NavSwipeDirection.LeftToRight
+            }
+        } else {
+            NavSwipeDirection.None
         }
         val interceptPredictiveBack =
             settings.predictiveBackAnimation == PredictiveBackAnimation.None && backStack.size > 1
@@ -372,7 +376,7 @@ fun NavContainer(
                 ManagerNavEntry(interceptPredictiveBack, onBack, useBlur) { SulogScreen() }
             }
             entry<Route.Main>(swipeDismiss = NavSwipeDirection.None) {
-                ManagerNavEntry(interceptPredictiveBack, onBack, useBlur) { MainScreen() }
+                ManagerNavEntry(interceptPredictiveBack, onBack, useBlur) { MainScreen(pagerGestureMode = settings.pagerGestureMode) }
             }
             entry<Route.AppProfileTemplate>(swipeDismiss = swipeBackDirection) {
                 ManagerNavEntry(interceptPredictiveBack, onBack, useBlur) { AppProfileTemplateScreen() }
@@ -415,16 +419,16 @@ fun NavContainer(
                 }
             }
             entry<Route.Home>(swipeDismiss = NavSwipeDirection.None) {
-                ManagerNavEntry(interceptPredictiveBack, onBack, useBlur) { MainScreen() }
+                ManagerNavEntry(interceptPredictiveBack, onBack, useBlur) { MainScreen(pagerGestureMode = settings.pagerGestureMode) }
             }
             entry<Route.SuperUser>(swipeDismiss = NavSwipeDirection.None) {
-                ManagerNavEntry(interceptPredictiveBack, onBack, useBlur) { MainScreen() }
+                ManagerNavEntry(interceptPredictiveBack, onBack, useBlur) { MainScreen(pagerGestureMode = settings.pagerGestureMode) }
             }
             entry<Route.Module>(swipeDismiss = NavSwipeDirection.None) {
-                ManagerNavEntry(interceptPredictiveBack, onBack, useBlur) { MainScreen() }
+                ManagerNavEntry(interceptPredictiveBack, onBack, useBlur) { MainScreen(pagerGestureMode = settings.pagerGestureMode) }
             }
             entry<Route.Settings>(swipeDismiss = NavSwipeDirection.None) {
-                ManagerNavEntry(interceptPredictiveBack, onBack, useBlur) { MainScreen() }
+                ManagerNavEntry(interceptPredictiveBack, onBack, useBlur) { MainScreen(pagerGestureMode = settings.pagerGestureMode) }
             }
             entry<Route.ThemeSettings>(swipeDismiss = swipeBackDirection) {
                 ManagerNavEntry(interceptPredictiveBack, onBack, useBlur) {

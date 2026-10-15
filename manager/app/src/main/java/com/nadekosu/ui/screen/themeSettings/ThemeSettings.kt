@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.Android
 import androidx.compose.material.icons.twotone.Animation
+import androidx.compose.material.icons.twotone.Badge
 import androidx.compose.material.icons.twotone.BlurOn
 import androidx.compose.material.icons.twotone.Brush
 import androidx.compose.material.icons.twotone.Check
@@ -49,9 +50,12 @@ import androidx.compose.material.icons.twotone.Info
 import androidx.compose.material.icons.twotone.LightMode
 import androidx.compose.material.icons.twotone.Opacity
 import androidx.compose.material.icons.twotone.Palette
+import androidx.compose.material.icons.twotone.Pin
 import androidx.compose.material.icons.twotone.Style
 import androidx.compose.material.icons.twotone.SwapHoriz
+import androidx.compose.material.icons.twotone.Swipe
 import androidx.compose.material.icons.twotone.Translate
+import androidx.compose.material.icons.twotone.ViewCarousel
 import androidx.compose.material.icons.twotone.VisibilityOff
 import androidx.compose.material.icons.twotone.Wallpaper
 import androidx.compose.material3.Button
@@ -601,44 +605,24 @@ private fun AppearanceSettings(
             )
         }
 
-        expandableItem(
-            animatedVisibility = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
-            expanded = ThemeConfig.isEnableBlur,
+        item(
+            visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
             topPadding = 1.dp,
-            topContent = {
-                val context = LocalContext.current
+        ) {
+            val context = LocalContext.current
 
-                SettingsSwitchWidget(
-                    icon = Icons.TwoTone.BlurOn,
-                    title = stringResource(id = R.string.settings_config_enable_blur),
-                    description = stringResource(id = R.string.settings_config_enable_blur_summary),
-                    checked = ThemeConfig.isEnableBlur,
-                    onCheckedChange = { isChecked ->
-                        BackgroundManager.saveEnableBlur(context, isChecked)
-                        if (!isChecked)
-                            BackgroundManager.saveEnableBlurExp(context, false)
-                    }
-                )
-            },
-            bottomContent = {
-                item(
-                    topPadding = 1.dp,
-                ) {
-                    val context = LocalContext.current
-
-                    SettingsSwitchWidget(
-                        icon = Icons.TwoTone.Draw,
-                        title = stringResource(id = R.string.settings_exp_draw_background_to_blur),
-                        description = stringResource(id = R.string.settings_exp_draw_background_to_blur_description),
-                        isError = true,
-                        checked = ThemeConfig.isEnableBlurExp,
-                        onCheckedChange = { isChecked ->
-                            BackgroundManager.saveEnableBlurExp(context, isChecked)
-                        }
-                    )
+            SettingsSwitchWidget(
+                icon = Icons.TwoTone.BlurOn,
+                title = stringResource(id = R.string.settings_config_enable_blur),
+                description = stringResource(id = R.string.settings_config_enable_blur_summary),
+                checked = ThemeConfig.isEnableBlur,
+                onCheckedChange = { isChecked ->
+                    BackgroundManager.saveEnableBlur(context, isChecked)
+                    if (!isChecked)
+                        BackgroundManager.saveEnableBlurExp(context, false)
                 }
-            }
-        )
+            )
+        }
 
         expandableItem(
             expanded = ThemeConfig.customBackgroundUri != null,
@@ -700,6 +684,42 @@ private fun CustomizationSettings(
         }
 
         item {
+            SettingsSwitchWidget(
+                icon = Icons.TwoTone.FormatSize,
+                title = stringResource(R.string.settings_custom_monospace_font),
+                description = stringResource(R.string.settings_custom_monospace_font_summary),
+                checked = settingsUiState.useBuiltinMonoFont,
+                onCheckedChange = { settingsViewModel.handleBuiltinMonospaceFontChange(context, it) }
+            )
+        }
+
+        item {
+            SettingsSwitchWidget(
+                icon = Icons.TwoTone.Swipe,
+                title = stringResource(R.string.settings_enable_swipe_dismiss),
+                description = stringResource(R.string.settings_enable_swipe_dismiss_summary),
+                checked = settingsUiState.enableSwipeDismiss,
+                onCheckedChange = { settingsViewModel.handleSwipeDismissChange(context, it) }
+            )
+        }
+
+        item {
+            SettingsChooseWidget(
+                icon = Icons.TwoTone.ViewCarousel,
+                title = stringResource(R.string.settings_pager_gesture_mode),
+                items = listOf(
+                    stringResource(R.string.settings_pager_gesture_native),
+                    stringResource(R.string.settings_pager_gesture_cross_axis),
+                    stringResource(R.string.settings_pager_gesture_ios_like),
+                ),
+                selectedIndex = settingsUiState.pagerGestureMode.coerceIn(0, 2),
+                onSelectedIndexChange = { index ->
+                    settingsViewModel.handlePagerGestureModeChange(context, index)
+                }
+            )
+        }
+
+        item {
             // 简洁模式开关
             SettingsSwitchWidget(
                 icon = Icons.TwoTone.Brush,
@@ -707,6 +727,26 @@ private fun CustomizationSettings(
                 description = stringResource(R.string.simple_mode_summary),
                 checked = homeUiState.isSimpleMode,
                 onCheckedChange = { homeViewModel.handleSimpleModeChange(context, it) }
+            )
+        }
+
+        item {
+            SettingsSwitchWidget(
+                icon = Icons.TwoTone.Pin,
+                title = stringResource(R.string.navigation_bar_badge),
+                description = stringResource(R.string.navigation_bar_badge_summary),
+                checked = homeUiState.showNavigationBarBadge,
+                onCheckedChange = { homeViewModel.handleNavigationBarBadgeChange(context, it) }
+            )
+        }
+
+        item {
+            SettingsSwitchWidget(
+                icon = Icons.TwoTone.Badge,
+                title = stringResource(R.string.home_card_icons),
+                description = stringResource(R.string.home_card_icons_summary),
+                checked = homeUiState.showHomeCardIcons,
+                onCheckedChange = { homeViewModel.handleHomeCardIconsChange(context, it) }
             )
         }
 
@@ -959,6 +999,24 @@ private fun SegmentedColumnScope.backgroundAdjustmentControls(
             state = state,
             viewModel = viewModel,
             coroutineScope = coroutineScope
+        )
+    }
+
+    item(
+        visible = ThemeConfig.isEnableBlur,
+        topPadding = 1.dp,
+    ) {
+        val context = LocalContext.current
+
+        SettingsSwitchWidget(
+            icon = Icons.TwoTone.Draw,
+            title = stringResource(id = R.string.settings_exp_draw_background_to_blur),
+            description = stringResource(id = R.string.settings_exp_draw_background_to_blur_description),
+            isError = true,
+            checked = ThemeConfig.isEnableBlurExp,
+            onCheckedChange = { isChecked ->
+                BackgroundManager.saveEnableBlurExp(context, isChecked)
+            }
         )
     }
 

@@ -30,11 +30,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocal
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
@@ -329,6 +331,24 @@ fun SettingsBaseWidget(
         }
     }
 
+    // M3E ListItem has a bug where supportingContent causes a RectList crash,
+    // so headline + supportingContent are combined into a single content lambda
+    // as a workaround (same approach used upstream in BakaSU).
+    val expressiveContent: @Composable () -> Unit = {
+        Column {
+            headline()
+            CompositionLocalProvider(
+                LocalContentColor provides colors.supportingContentColor(
+                    enabled = enabled,
+                    selected = selected,
+                    dragged = false,
+                ),
+            ) {
+                supportingContent()
+            }
+        }
+    }
+
     if (onClick != null || onLongClick != null) {
         var touchPoint by remember { mutableStateOf(Offset.Zero) }
 
@@ -362,10 +382,9 @@ fun SettingsBaseWidget(
             shapes = shapes,
             verticalAlignment = Alignment.CenterVertically,
             leadingContent = finalLeadingContent,
-            supportingContent = supportingContent,
             trailingContent = trailing,
             interactionSource = interactionSource,
-            content = headline
+            content = expressiveContent
         )
     } else {
         /*
@@ -376,7 +395,6 @@ fun SettingsBaseWidget(
          * which incorrectly exposes the item as disabled and changes its visual state.
          */
         ListItem(
-            headlineContent = headline,
             modifier = itemModifier
                 .clip(baseShape)
                 .then(
@@ -386,11 +404,13 @@ fun SettingsBaseWidget(
                         Modifier
                     }
                 ),
-            colors = colors,
+            enabled = enabled,
             verticalAlignment = Alignment.CenterVertically,
+            shapes = shapes,
+            colors = colors,
             leadingContent = finalLeadingContent,
-            supportingContent = supportingContent,
-            trailingContent = trailing
+            trailingContent = trailing,
+            content = expressiveContent
         )
     }
 }

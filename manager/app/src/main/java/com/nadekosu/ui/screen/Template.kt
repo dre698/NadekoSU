@@ -24,7 +24,7 @@ import androidx.compose.material.icons.twotone.Add
 import androidx.compose.material.icons.twotone.ImportExport
 import androidx.compose.material.icons.twotone.Sync
 import androidx.compose.material3.DropdownMenuGroup
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -351,7 +351,7 @@ private fun TopBar(
                     DropdownMenuGroup(
                         shapes = MenuDefaults.groupShapes()
                     ) {
-                        DropdownMenuItem(
+                        SelectableDropdownMenuItem(
                             selected = false,
                             text = {
                                 Text(stringResource(id = R.string.app_profile_import_from_clipboard))
@@ -362,7 +362,7 @@ private fun TopBar(
                             },
                             shapes = MenuDefaults.itemShape(index = 0, count = 2)
                         )
-                        DropdownMenuItem(
+                        SelectableDropdownMenuItem(
                             selected = false,
                             text = {
                                 Text(stringResource(id = R.string.app_profile_export_to_clipboard))

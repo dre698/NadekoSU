@@ -51,7 +51,7 @@ import androidx.compose.material.icons.twotone.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuGroup
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -457,7 +457,7 @@ private fun ManagerUpdateCardContent(updateInfo: ManagerUpdateInfo) {
 @Composable
 fun RebootDropdownItems(items: Map<Int, String>) {
     items.onEachIndexed { index, (id, reason) ->
-        DropdownMenuItem(
+        SelectableDropdownMenuItem(
             selected = false,
             text = { Text(stringResource(id)) },
             onClick = { reboot(reason) },

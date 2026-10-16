@@ -31,7 +31,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuGroup
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -203,7 +203,7 @@ private fun SulogScreenContent(
                                 Spacer(modifier = Modifier.height(2.dp))
 
                                 SulogEventFilter.entries.forEachIndexed { index, filter ->
-                                    DropdownMenuItem(
+                                    SelectableDropdownMenuItem(
                                         selected = filter in state.selectedFilters,
                                         text = { Text(sulogFilterLabel(filter)) },
                                         trailingIcon = {

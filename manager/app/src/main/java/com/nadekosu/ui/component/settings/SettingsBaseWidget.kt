@@ -387,6 +387,7 @@ fun SettingsBaseWidget(
                     }
                 ),
             colors = colors,
+            verticalAlignment = Alignment.CenterVertically,
             leadingContent = finalLeadingContent,
             supportingContent = supportingContent,
             trailingContent = trailing

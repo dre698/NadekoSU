@@ -29,7 +29,6 @@ import androidx.compose.material.icons.twotone.FilterList
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
@@ -205,17 +204,11 @@ private fun SulogScreenContent(
                                 SulogEventFilter.entries.forEachIndexed { index, filter ->
                                     SelectableDropdownMenuItem(
                                         selected = filter in state.selectedFilters,
-                                        text = { Text(sulogFilterLabel(filter)) },
-                                        trailingIcon = {
-                                            Checkbox(
-                                                checked = filter in state.selectedFilters,
-                                                onCheckedChange = null,
-                                            )
-                                        },
                                         onClick = {
                                             haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
                                             actions.onToggleFilter(filter)
                                         },
+                                        text = { Text(sulogFilterLabel(filter)) },
                                         shapes = MenuDefaults.itemShape(
                                             index = index,
                                             count = SulogEventFilter.entries.size

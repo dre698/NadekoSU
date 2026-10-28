@@ -2,6 +2,7 @@ package com.nadekosu.ui.navigation
 
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import top.yukonga.miuix.kmp.nav.core.NavKey
 
@@ -74,7 +75,9 @@ sealed interface Route : NavKey, Parcelable {
     @Parcelize
     @Serializable
     data class Flash(
-        val type: String,
+        // Renamed in JSON: "type" clashes with the polymorphic class discriminator
+        // and crashes onSaveInstanceState when the app goes to background.
+        @SerialName("flash_type") val type: String,
         val uris: List<String> = emptyList(),
         val currentIndex: Int = 0,
         val bootUri: String? = null,

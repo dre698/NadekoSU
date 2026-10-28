@@ -9,6 +9,7 @@ import android.system.Os
 import android.util.Log
 import com.nadekosu.BuildConfig
 import com.nadekosu.Natives
+import com.nadekosu.data.appPreferences
 import com.nadekosu.ksuApp
 import com.topjohnwu.superuser.CallbackList
 import com.topjohnwu.superuser.Shell
@@ -417,6 +418,12 @@ fun installBoot(
 
     return result.isSuccess
 }
+
+// Jailbreak (late-load) mode must always use soft reboot: a full reboot would
+// lose the jailbreak session and the root access it provides, so this isn't
+// gated behind the stored preference alone when late-load mode is active.
+fun isSoftRebootPreferred(): Boolean =
+    Natives.isLateLoadMode || ksuApp.appPreferences.getBoolean("use_soft_reboot", false)
 
 fun reboot(reason: String = "") {
     if (reason == "soft_reboot") {

@@ -43,6 +43,7 @@ import androidx.compose.material.icons.twotone.RadioButtonChecked
 import androidx.compose.material.icons.twotone.RadioButtonUnchecked
 import androidx.compose.material.icons.twotone.RemoveCircle
 import androidx.compose.material.icons.twotone.RemoveModerator
+import androidx.compose.material.icons.twotone.RestartAlt
 import androidx.compose.material.icons.twotone.Save
 import androidx.compose.material.icons.twotone.Security
 import androidx.compose.material.icons.twotone.Settings
@@ -251,6 +252,21 @@ fun SettingsPage(bottomPadding: Dp) {
                                     checked = uiState.autoJailbreakEnabled,
                                     onCheckedChange = { value ->
                                         settingsViewModel.handleAutoJailbreakChange(context, value)
+                                    }
+                                )
+                            }
+
+                            item {
+                                // Jailbreak (late-load) mode forces soft reboot on, since a full
+                                // reboot there would lose the jailbreak session and root access
+                                SettingsSwitchWidget(
+                                    icon = Icons.TwoTone.RestartAlt,
+                                    title = stringResource(id = R.string.settings_soft_reboot),
+                                    description = stringResource(id = R.string.settings_soft_reboot_summary),
+                                    enabled = !Natives.isLateLoadMode,
+                                    checked = Natives.isLateLoadMode || uiState.useSoftReboot,
+                                    onCheckedChange = { value ->
+                                        settingsViewModel.handleUseSoftRebootChange(context, value)
                                     }
                                 )
                             }

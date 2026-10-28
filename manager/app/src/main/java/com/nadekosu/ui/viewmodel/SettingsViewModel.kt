@@ -106,6 +106,7 @@ data class SettingsUiState(
     val kernelUmountStatus: String = "",
     val isKernelUmountEnabled: Boolean = false,
     val autoJailbreakEnabled: Boolean = false,
+    val useSoftReboot: Boolean = false,
     val adbRootStatus: String = "",
     val isAdbRootEnabled: Boolean = false,
     val sulogStatus: String = "",
@@ -165,6 +166,7 @@ class SettingsViewModel : ViewModel() {
                 checkUpdate = prefs.getBoolean("check_update", true),
                 checkBetaUpdate = prefs.getBoolean("check_beta_update", true),
                 autoJailbreakEnabled = prefs.getBoolean("auto_jailbreak", false),
+                useSoftReboot = prefs.getBoolean("use_soft_reboot", false),
             )
         }
 
@@ -224,6 +226,7 @@ class SettingsViewModel : ViewModel() {
                         false
                     ),
                     autoJailbreakEnabled = prefs.getBoolean("auto_jailbreak", false),
+                    useSoftReboot = prefs.getBoolean("use_soft_reboot", false),
                     adbRootStatus = runCatching { getFeatureStatus("adb_root") }.getOrDefault(""),
                     isAdbRootEnabled = runCatching { getFeaturePersistValue("adb_root") == 1L }.getOrDefault(
                         false
@@ -551,6 +554,11 @@ class SettingsViewModel : ViewModel() {
         }
         context.appPreferences.putBoolean("auto_jailbreak", value)
         _uiState.update { it.copy(autoJailbreakEnabled = value) }
+    }
+
+    fun handleUseSoftRebootChange(context: Context, value: Boolean) {
+        context.appPreferences.putBoolean("use_soft_reboot", value)
+        _uiState.update { it.copy(useSoftReboot = value) }
     }
 
     fun handleAdbRootChange(checked: Boolean) {

@@ -781,4 +781,6 @@ Diaktifkan: Aktifkan pemalsuan sus tcontext dari \'su\' dengan \'u:r:priv_app:s0
     <string name="settings_pager_gesture_native">Default</string>
     <string name="settings_pager_gesture_cross_axis">Cross-axis</string>
     <string name="settings_pager_gesture_ios_like">Gaya iOS</string>
+    <string name="settings_soft_reboot">Restart lunak, bukan reboot penuh</string>
+    <string name="settings_soft_reboot_summary">Gunakan restart lunak alih-alih reboot penuh saat memasang, memperbarui, atau mengaktifkan/menonaktifkan module.</string>
 </resources>

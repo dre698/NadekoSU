@@ -94,6 +94,7 @@ import com.nadekosu.ui.util.flashModule
 import com.nadekosu.ui.util.hasMetaModule
 import com.nadekosu.ui.util.installBoot
 import com.nadekosu.ui.util.module.ModuleUtils
+import com.nadekosu.ui.util.isSoftRebootPreferred
 import com.nadekosu.ui.util.reboot
 import com.nadekosu.ui.util.restoreBoot
 import com.nadekosu.ui.util.uninstallPermanently
@@ -512,22 +513,28 @@ fun FlashScreen(flashIt: FlashIt) {
         },
         floatingActionButton = {
             if (showFloatAction) {
+                // Soft reboot keeps the jailbreak session alive and still applies modules
+                val softReboot = (flashIt is FlashIt.FlashModule ||
+                    flashIt is FlashIt.FlashModules ||
+                    flashIt is FlashIt.FlashModuleUpdate) && isSoftRebootPreferred()
+                val rebootLabelRes = if (softReboot) R.string.reboot_soft else R.string.reboot
+
                 ExtendedFloatingActionButton(
                     onClick = {
                         scope.launch {
                             withContext(Dispatchers.IO) {
-                                reboot()
+                                reboot(if (softReboot) "soft_reboot" else "")
                             }
                         }
                     },
                     icon = {
                         Icon(
                             Icons.TwoTone.Refresh,
-                            contentDescription = stringResource(id = R.string.reboot)
+                            contentDescription = stringResource(id = rebootLabelRes)
                         )
                     },
                     text = {
-                        Text(text = stringResource(id = R.string.reboot))
+                        Text(text = stringResource(id = rebootLabelRes))
                     },
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,

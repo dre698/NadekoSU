@@ -158,6 +158,7 @@ import com.nadekosu.ui.util.LocalPermissionRequestInterface
 import com.nadekosu.ui.util.LocalSnackbarHost
 import com.nadekosu.ui.util.downloader.download
 import com.nadekosu.ui.util.hasMagisk
+import com.nadekosu.ui.util.isSoftRebootPreferred
 import com.nadekosu.ui.util.module.ModuleUtils
 import com.nadekosu.ui.util.module.Shortcut
 import com.nadekosu.ui.util.reboot
@@ -742,6 +743,7 @@ private fun ModuleList(
     val failedUninstall = stringResource(R.string.module_uninstall_failed)
     val successUninstall = stringResource(R.string.module_uninstall_success)
     val reboot = stringResource(R.string.reboot)
+    val rebootSoft = stringResource(R.string.reboot_soft)
     val rebootToApply = stringResource(R.string.reboot_to_apply)
     val moduleStr = stringResource(R.string.module)
     val uninstall = stringResource(R.string.uninstall)
@@ -956,7 +958,7 @@ private fun ModuleList(
             failedUninstall.format(module.name)
         }
         val actionLabel = if (success) {
-            reboot
+            if (isSoftRebootPreferred()) rebootSoft else reboot
         } else {
             null
         }
@@ -966,7 +968,7 @@ private fun ModuleList(
             duration = SnackbarDuration.Long
         )
         if (result == SnackbarResult.ActionPerformed) {
-            reboot()
+            reboot(if (isSoftRebootPreferred()) "soft_reboot" else "")
         }
     }
 
@@ -1074,13 +1076,14 @@ private fun ModuleList(
                                 if (success) {
                                     viewModel.fetchModuleList()
 
+                                    val softReboot = isSoftRebootPreferred()
                                     val result = snackBarHost.showSnackbar(
                                         message = rebootToApply,
-                                        actionLabel = reboot,
+                                        actionLabel = if (softReboot) rebootSoft else reboot,
                                         duration = SnackbarDuration.Long
                                     )
                                     if (result == SnackbarResult.ActionPerformed) {
-                                        reboot()
+                                        reboot(if (softReboot) "soft_reboot" else "")
                                     }
                                 } else {
                                     val message =

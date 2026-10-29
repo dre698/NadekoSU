@@ -12,11 +12,11 @@ import com.nadekosu.ui.activity.util.isNetworkAvailable
 import com.nadekosu.ui.util.HanziToPinyin
 import com.nadekosu.ui.util.module.ReleaseInfo
 import com.nadekosu.ui.util.module.fetchModuleDetail
+import com.nadekosu.ui.util.module.fetchModuleReadme
+import com.nadekosu.ui.util.module.fetchRegistryModules
+import com.nadekosu.ui.util.module.isSupportedKind
 import com.topjohnwu.superuser.io.SuFile
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,8 +24,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
-import okhttp3.Request
-import org.json.JSONArray
 import org.json.JSONObject
 
 data class ModuleRepoUiState(
@@ -38,7 +36,6 @@ data class ModuleRepoUiState(
 class ModuleRepoViewModel : ViewModel() {
     companion object {
         private const val TAG = "ModuleRepoViewModel"
-        private const val MODULES_URL = "https://modules.kernelsu.org/modules.json"
     }
 
     private var modulesCache: List<RepoModule> = emptyList()
@@ -99,7 +96,7 @@ class ModuleRepoViewModel : ViewModel() {
             val netAvailable = isNetworkAvailable(ksuApp)
             _uiState.update { it.copy(isRefreshing = true) }
             val parsed = withContext(Dispatchers.IO) {
-                if (!netAvailable) null else fetchModulesInternal(onFailure)
+                if (!netAvailable) null else fetchModulesInternal()
             }
             if (parsed != null) {
                 modulesCache = parsed
@@ -110,6 +107,7 @@ class ModuleRepoViewModel : ViewModel() {
                     )
                 }
             } else {
+                onFailure?.invoke()
                 Toast.makeText(
                     ksuApp,
                     ksuApp.getString(R.string.network_offline),
@@ -138,112 +136,94 @@ class ModuleRepoViewModel : ViewModel() {
             })
     }
 
+    /** Returns null when the registry could not be loaded (offline, HTTP error, bad format). */
     internal suspend fun fetchModulesInternal(
         onFailure: (() -> Unit)? = null
-    ): List<RepoModule> {
+    ): List<RepoModule>? {
         return runCatching {
-            val request = Request.Builder().url(MODULES_URL).build()
-            ksuApp.okhttpClient.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) return emptyList()
-                val body = resp.body?.string() ?: return emptyList()
-                val json = JSONArray(body)
-                coroutineScope {
-                    val jobs = (0 until json.length()).map { idx ->
-                        async {
-                            val item = json.optJSONObject(idx)
-                            if (item != null) parseRepoModule(item) else null
-                        }
-                    }
-
-                    jobs.awaitAll().filterNotNull()
-                }
-            }
+            fetchRegistryModules()
+                .filter { isSupportedKind(it.optString("kind", "module")) }
+                .mapNotNull { parseRepoModuleSummary(it) }
         }.onFailure {
-            onFailure?.invoke()
-        }.getOrElse {
             Log.e(TAG, "fetch modules failed", it)
-            emptyList()
-        }
+            onFailure?.invoke()
+        }.getOrNull()
     }
 
-    private suspend fun parseRepoModule(item: JSONObject): RepoModule? {
-        val moduleId = item.optString("moduleId", "")
+    /** Builds a list entry from modules.json only; releases/readme are loaded lazily. */
+    private fun parseRepoModuleSummary(item: JSONObject): RepoModule? {
+        val moduleId = item.optString("id", "")
         if (moduleId.isEmpty()) return null
-        val moduleName = item.optString("moduleName", "")
         val authorsArray = item.optJSONArray("authors")
         val authorList = if (authorsArray != null) {
-            (0 until authorsArray.length())
-                .mapNotNull { idx ->
-                    val authorObj = authorsArray.optJSONObject(idx) ?: return@mapNotNull null
-                    val name = authorObj.optString("name", "").trim()
-                    var link = authorObj.optString("link", "").trim()
-                    if (link.startsWith("`") && link.endsWith("`") && link.length >= 2) {
-                        link = link.substring(1, link.length - 1)
-                    }
-                    if (name.isEmpty()) null else Author(name = name, link = link)
-                }
-        } else {
-            emptyList()
-        }
-        val authors = if (authorList.isNotEmpty()) {
-            authorList.joinToString(", ") { it.name }
-        } else {
-            item.optString("authors", "")
-        }
-        val summary = item.optString("summary", "")
-        val metamodule = item.optBoolean("metamodule", false)
-        val stargazerCount = item.optInt("stargazerCount", 0)
-        val updatedAt = item.optString("updatedAt", "")
-        val createdAt = item.optString("createdAt", "")
-
-        var latestRelease = ""
-        var latestReleaseTime = ""
-        var latestVersionCode = 0
-        var latestAsset: ReleaseInfo? = null
-        val releases: MutableList<ReleaseInfo> = ArrayList()
-        val latestReleaseObject = item.optJSONObject("latestRelease")
-        if (latestReleaseObject != null) {
-            latestRelease = latestReleaseObject.optString(
-                "name",
-                latestReleaseObject.optString("version", "")
-            )
-            latestReleaseTime = latestReleaseObject.optString("time", "")
-            latestVersionCode = when (val value = latestReleaseObject.opt("versionCode")) {
-                null -> 0
-                is Number -> value.toInt()
-                is String -> value.toIntOrNull() ?: 0
-                else -> 0
+            (0 until authorsArray.length()).mapNotNull { idx ->
+                val a = authorsArray.optJSONObject(idx) ?: return@mapNotNull null
+                val name = a.optString("name", "").trim()
+                if (name.isEmpty()) null else Author(name, a.optString("url", "").trim())
             }
-        }
-        val detail = withContext(Dispatchers.IO) {
-            fetchModuleDetail(moduleId)
-        }
-
-        detail?.releases?.forEach {
-            releases.add(it)
-            if (it.name == latestRelease) {
-                latestAsset = it
-            }
-        }
-
+        } else emptyList()
+        val stable = item.optJSONObject("stable")
         return RepoModule(
             moduleId = moduleId,
-            moduleName = moduleName,
-            authors = authors,
+            moduleName = item.optString("name", "").trim().ifBlank { moduleId },
+            authors = authorList.joinToString(", ") { it.name },
             authorList = authorList,
-            summary = summary,
-            metamodule = metamodule,
-            stargazerCount = stargazerCount,
-            updatedAt = updatedAt,
-            createdAt = createdAt,
-            latestRelease = latestRelease,
-            latestReleaseTime = latestReleaseTime,
-            latestVersionCode = latestVersionCode,
-            latestAsset = latestAsset,
+            summary = item.optString("summary", "").trim(),
+            metamodule = item.optBoolean("metamodule", false),
+            stargazerCount = item.optInt("stars", 0),
+            updatedAt = item.optString("updatedAt", ""),
+            createdAt = "",
+            latestRelease = stable?.optString("version", "").orEmpty(),
+            latestReleaseTime = stable?.optString("publishedAt", "").orEmpty(),
+            latestVersionCode = stable?.optInt("versionCode", 0) ?: 0,
+            latestAsset = null,
             installed = SuFile.open("/data/adb/modules/${moduleId}/module.prop").exists(),
-            readme = detail?.readme.orEmpty(),
-            sourceUrl = detail?.sourceUrl.orEmpty(),
-            releases = releases
+            readme = "",
+            sourceUrl = "",
+            releases = emptyList(),
+        )
+    }
+
+    /** Loads releases, changelog and readme of a module (one request + one for the readme). */
+    suspend fun loadDetail(module: RepoModule): RepoModule? = withContext(Dispatchers.IO) {
+        val detail = fetchModuleDetail(module.moduleId) ?: return@withContext null
+        val full = module.copy(
+            moduleName = detail.name.trim().ifBlank { module.moduleName },
+            summary = detail.summary.trim().ifBlank { module.summary },
+            latestAsset = detail.latestRelease,
+            releases = detail.releases,
+            readme = fetchModuleReadme(detail.readmePath),
+            sourceUrl = detail.sourceUrl.orEmpty(),
+        )
+        modulesCache = modulesCache.map { if (it.moduleId == full.moduleId) full else it }
+        _uiState.update { state ->
+            state.copy(modules = buildModuleList(state.search, state.sortStargazerCountFirst))
+        }
+        full
+    }
+
+    /** Detail screen: the nav route only carries the id, so build the full module from its detail. */
+    suspend fun fetchById(moduleId: String): RepoModule? = withContext(Dispatchers.IO) {
+        val detail = fetchModuleDetail(moduleId) ?: return@withContext null
+        if (!isSupportedKind(detail.kind)) return@withContext null
+        RepoModule(
+            moduleId = moduleId,
+            moduleName = detail.name.trim().ifBlank { moduleId },
+            authors = detail.authors.joinToString(", ") { it.first },
+            authorList = detail.authors.map { Author(it.first, it.second) },
+            summary = detail.summary.trim(),
+            metamodule = detail.metamodule,
+            stargazerCount = detail.stars,
+            updatedAt = detail.updatedAt,
+            createdAt = "",
+            latestRelease = detail.stable.version,
+            latestReleaseTime = detail.stable.publishedAt,
+            latestVersionCode = detail.stable.versionCode,
+            latestAsset = detail.latestRelease,
+            installed = SuFile.open("/data/adb/modules/${moduleId}/module.prop").exists(),
+            readme = fetchModuleReadme(detail.readmePath),
+            sourceUrl = detail.sourceUrl.orEmpty(),
+            releases = detail.releases,
         )
     }
 }

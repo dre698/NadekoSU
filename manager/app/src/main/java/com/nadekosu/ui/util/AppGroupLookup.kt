@@ -95,10 +95,8 @@ suspend fun fetchAppGroupForUid(uid: Int, preferredPackageName: String): SuperUs
 
 /**
  * Looks up a single online repo module by id, for OnlineModuleDetailScreen (the nav route only
- * carries the id, not the full RepoModule object). ModuleRepoViewModel.fetchModulesInternal
- * doesn't touch any ViewModel/lifecycle state internally, so calling it on a bare instance here
- * (bypassing the Compose viewModel() factory) is safe - it re-fetches the whole modules.json,
- * same as ModuleRepo's own list screen does, since there's no dedicated single-module endpoint.
+ * carries the id, not the full RepoModule object). Uses the module's own detail document of the
+ * KernelSU Modules registry (api/v1/modules/{id}.json), so only one module is fetched.
  */
 suspend fun fetchRepoModuleById(moduleId: String): ModuleRepoViewModel.RepoModule? =
-    ModuleRepoViewModel().fetchModulesInternal().find { it.moduleId == moduleId }
+    ModuleRepoViewModel().fetchById(moduleId)

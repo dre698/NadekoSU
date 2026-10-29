@@ -588,35 +588,46 @@ fun OnlineModuleItem(
                     }
                     Spacer(Modifier.width(10.dp))
 
-                    if (module.latestAsset != null) {
+                    if (module.latestVersionCode > 0 || module.latestAsset != null) {
                         val confirmInstallTitle =
                             stringResource(R.string.confirm_install_module_title, module.moduleName)
                         FilledTonalButton(
                             modifier = Modifier.defaultMinSize(minWidth = 52.dp, minHeight = 32.dp),
                             onClick = {
                                 viewModel.viewModelScope.launch {
+                                    val full = module.takeIf { it.latestAsset != null }
+                                        ?: viewModel.loadDetail(module)
+                                    val latest = full?.latestAsset
+                                    if (full == null || latest == null) {
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.network_offline),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                        return@launch
+                                    }
                                     val result = confirmDialog.awaitConfirm(
                                         title = confirmInstallTitle,
                                         html = true,
-                                        content = module.latestAsset.descriptionHTML
+                                        content = latest.descriptionHTML
                                     )
 
                                     if (result == ConfirmResult.Canceled) return@launch
 
-                                    val assets = module.latestAsset.assets
+                                    val assets = latest.assets
                                     if (assets.size <= 1) {
                                         assets.firstOrNull()?.let { asset ->
                                             downloadAssetAndInstall(
                                                 context,
                                                 permissionRequestInterface,
-                                                module,
+                                                full,
                                                 asset,
                                                 navigator,
                                                 viewModel.viewModelScope
                                             )
                                         }
                                     } else {
-                                        currentModuleForChooseDialog.value = module
+                                        currentModuleForChooseDialog.value = full
                                         chooseDialog.show()
                                     }
                                 }

@@ -639,22 +639,6 @@ private fun AppearanceSettings(
         }
 
         item(
-            visible = ThemeConfig.bottomBarStyle == BottomBarStyle.FLOATING,
-            topPadding = 1.dp,
-        ) {
-            val context = LocalContext.current
-            SettingsSwitchWidget(
-                icon = Icons.TwoTone.Label,
-                title = stringResource(id = R.string.settings_hide_floating_nav_bar_labels),
-                description = stringResource(id = R.string.settings_hide_floating_nav_bar_labels_summary),
-                checked = ThemeConfig.hideFloatingNavBarLabels,
-                onCheckedChange = { isChecked ->
-                    BackgroundManager.saveHideFloatingNavBarLabels(context, isChecked)
-                }
-            )
-        }
-
-        item(
             visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
             topPadding = 1.dp,
         ) {
@@ -760,6 +744,20 @@ private fun CustomizationSettings(
                 description = stringResource(R.string.navigation_bar_badge_summary),
                 checked = homeUiState.showNavigationBarBadge,
                 onCheckedChange = { homeViewModel.handleNavigationBarBadgeChange(context, it) }
+            )
+        }
+
+        item(
+            visible = ThemeConfig.bottomBarStyle == BottomBarStyle.FLOATING,
+        ) {
+            SettingsSwitchWidget(
+                icon = Icons.TwoTone.Label,
+                title = stringResource(id = R.string.settings_hide_floating_nav_bar_labels),
+                description = stringResource(id = R.string.settings_hide_floating_nav_bar_labels_summary),
+                checked = ThemeConfig.hideFloatingNavBarLabels,
+                onCheckedChange = { isChecked ->
+                    BackgroundManager.saveHideFloatingNavBarLabels(context, isChecked)
+                }
             )
         }
 

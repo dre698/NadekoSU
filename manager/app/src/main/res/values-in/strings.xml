@@ -771,6 +771,8 @@ Diaktifkan: Aktifkan pemalsuan sus tcontext dari \'su\' dengan \'u:r:priv_app:s0
     <string name="warning_of_meta_module_title">Memerlukan Meta module</string>
     <string name="navigation_bar_badge">Badge navigation bar</string>
     <string name="navigation_bar_badge_summary">Tampilkan jumlah superuser / module di navigation bar</string>
+    <string name="settings_hide_floating_nav_bar_labels">Sembunyikan Label Navigasi</string>
+    <string name="settings_hide_floating_nav_bar_labels_summary">Sembunyikan label ikon dan posisikan ikon ke tengah pada navigation bar mengambang</string>
     <string name="home_card_icons">Tampilkan ikon di kartu beranda</string>
     <string name="home_card_icons_summary">Tambahkan ikon ke kartu informasi di beranda</string>
     <string name="settings_custom_monospace_font">Gunakan font monospace bawaan</string>

@@ -179,15 +179,17 @@ fun NavigationBar(
                             } else {
                                 icon()
                             }
-                            Text(
-                                text = stringResource(destination.label),
-                                color = contentColor,
-                                fontSize = 11.sp,
-                                lineHeight = 14.sp,
-                                maxLines = 1,
-                                softWrap = false,
-                                overflow = TextOverflow.Visible
-                            )
+                            if (!ThemeConfig.hideFloatingNavBarLabels) {
+                                Text(
+                                    text = stringResource(destination.label),
+                                    color = contentColor,
+                                    fontSize = 11.sp,
+                                    lineHeight = 14.sp,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Visible
+                                )
+                            }
                         }
                     }
                 }

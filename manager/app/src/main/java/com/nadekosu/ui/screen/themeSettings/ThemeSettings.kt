@@ -47,6 +47,7 @@ import androidx.compose.material.icons.twotone.Draw
 import androidx.compose.material.icons.twotone.FormatColorFill
 import androidx.compose.material.icons.twotone.FormatSize
 import androidx.compose.material.icons.twotone.Info
+import androidx.compose.material.icons.twotone.Label
 import androidx.compose.material.icons.twotone.LightMode
 import androidx.compose.material.icons.twotone.Opacity
 import androidx.compose.material.icons.twotone.Palette
@@ -633,6 +634,22 @@ private fun AppearanceSettings(
                         context,
                         if (isChecked) BottomBarStyle.FLOATING else BottomBarStyle.MATERIAL3_EXPRESSIVE
                     )
+                }
+            )
+        }
+
+        item(
+            visible = ThemeConfig.bottomBarStyle == BottomBarStyle.FLOATING,
+            topPadding = 1.dp,
+        ) {
+            val context = LocalContext.current
+            SettingsSwitchWidget(
+                icon = Icons.TwoTone.Label,
+                title = stringResource(id = R.string.settings_hide_floating_nav_bar_labels),
+                description = stringResource(id = R.string.settings_hide_floating_nav_bar_labels_summary),
+                checked = ThemeConfig.hideFloatingNavBarLabels,
+                onCheckedChange = { isChecked ->
+                    BackgroundManager.saveHideFloatingNavBarLabels(context, isChecked)
                 }
             )
         }

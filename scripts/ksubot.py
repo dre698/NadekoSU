@@ -19,7 +19,6 @@ GITHUB_EVENT = json.loads(open(os.environ.get("GITHUB_EVENT_PATH"), "r").read())
 GITHUB_REF_TYPE = os.environ.get("GITHUB_REF_TYPE")
 
 commit_message = ''
-commit_line = ''
 
 def _head_commit_message() -> str:
     msg = GITHUB_EVENT["head_commit"]["message"]
@@ -57,25 +56,11 @@ except:
     print_exc()
     commit_message = '(Unexpected Error! So no commit message)'
 
-if 'compare' in GITHUB_EVENT:
-    commit_url = GITHUB_EVENT['compare']
-    commit_line = '<a href="' + commit_url + '">Compare</a>'
-elif 'head_commit' in GITHUB_EVENT:
-    commit_url = GITHUB_EVENT['head_commit']['url']
-    commit_line = '<a href="' + commit_url + '">Commit</a>'
-else:
-    commit_line = ''
-
 MSG_TEMPLATE = """
 <b>{title}</b>
 Branch: {branch}
 #ci_{version}
-<pre>
-{commit_message}
-</pre>
-{commit_line}
-<a href="{run_url}">Workflow run</a>
-<a href="https://nightly.link/dre698/NadekoSU/workflows/build-manager/main/Manager-debug.zip">Get latest main Debug build</a>
+<pre>{commit_message}</pre>
 """.strip()
 
 def escape_telegram_html(text: str) -> str:
@@ -87,8 +72,6 @@ def get_caption():
         branch=BRANCH,
         version=VERSION,
         commit_message=escape_telegram_html(commit_message),
-        commit_line=commit_line,
-        run_url=RUN_URL,
     )
     return msg
 
@@ -98,8 +81,6 @@ def get_caption_for_debug():
         branch=BRANCH,
         version=VERSION,
         commit_message=escape_telegram_html(commit_message),
-        commit_line=commit_line,
-        run_url=RUN_URL,
     )
     return msg
 

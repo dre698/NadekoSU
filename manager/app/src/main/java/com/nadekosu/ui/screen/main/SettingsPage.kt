@@ -110,6 +110,7 @@ import com.nadekosu.ui.util.LocalSnackbarHost
 import com.nadekosu.ui.util.SusfsLkmState
 import com.nadekosu.ui.util.getBugreportFile
 import com.nadekosu.ui.util.getSusfsLkmState
+import com.nadekosu.ui.util.loadSusfsLkmNow
 import com.nadekosu.ui.util.setSusfsLkmEnabled
 import com.nadekosu.ui.viewmodel.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
@@ -303,21 +304,17 @@ fun SettingsPage(bottomPadding: Dp) {
                                 visible = Build.SUPPORTED_ABIS.contains("arm64-v8a")
                             ) {
                                 val lkmState = susfsLkm
-                                val lkmSummary = when {
-                                    lkmState?.kernelProvided == true ->
-                                        stringResource(id = R.string.settings_susfs_lkm_kernel_summary)
-                                    Natives.isLateLoadMode ->
-                                        stringResource(id = R.string.settings_susfs_lkm_late_load_summary)
-                                    else -> stringResource(id = R.string.settings_susfs_lkm_summary)
+                                val lkmSummary = if (lkmState?.kernelProvided == true) {
+                                    stringResource(id = R.string.settings_susfs_lkm_kernel_summary)
+                                } else {
+                                    stringResource(id = R.string.settings_susfs_lkm_summary)
                                 }
-                                val lkmChecked = lkmState?.let { it.loaded || it.autoLoad } ?: false
+                                val lkmChecked = lkmState?.autoLoad ?: false
                                 SettingsSwitchWidget(
                                     icon = Icons.TwoTone.Security,
                                     title = stringResource(id = R.string.settings_susfs_lkm),
                                     description = lkmSummary,
-                                    // In jailbreak mode it can only be switched off, never on.
-                                    enabled = lkmState != null && !lkmState.kernelProvided && !susfsLkmBusy &&
-                                        (!Natives.isLateLoadMode || lkmChecked),
+                                    enabled = lkmState != null && !lkmState.kernelProvided && !susfsLkmBusy,
                                     checked = lkmChecked,
                                     onCheckedChange = { value ->
                                         susfsLkmBusy = true
@@ -339,6 +336,38 @@ fun SettingsPage(bottomPadding: Dp) {
                                         }
                                     }
                                 )
+                            }
+
+                            item(
+                                visible = Build.SUPPORTED_ABIS.contains("arm64-v8a") &&
+                                    susfsLkm?.let { !it.kernelProvided } == true
+                            ) {
+                                val lkmLoaded = susfsLkm?.loaded == true
+                                SettingsBaseWidget(
+                                    icon = Icons.TwoTone.Security,
+                                    title = stringResource(id = R.string.settings_susfs_lkm_load_now),
+                                    description = stringResource(
+                                        id = if (lkmLoaded) R.string.settings_susfs_lkm_load_now_done
+                                        else R.string.settings_susfs_lkm_load_now_summary
+                                    ),
+                                    enabled = !lkmLoaded && !susfsLkmBusy,
+                                    onClick = {
+                                        susfsLkmBusy = true
+                                        scope.launch {
+                                            val ok = withContext(Dispatchers.IO) {
+                                                runCatching { loadSusfsLkmNow() }.getOrDefault(false)
+                                            }
+                                            susfsLkm = runCatching { getSusfsLkmState() }.getOrNull() ?: susfsLkm
+                                            susfsLkmBusy = false
+                                            Toast.makeText(
+                                                context,
+                                                if (ok) R.string.settings_susfs_lkm_load_now_ok
+                                                else R.string.settings_susfs_lkm_failed,
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        }
+                                    }
+                                ) {}
                             }
 
                             item {

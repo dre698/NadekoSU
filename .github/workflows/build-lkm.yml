@@ -52,4 +52,4 @@ jobs:
     uses: ./.github/workflows/ddk-lkm-susfs.yml
     with:
       kmi: ${{ matrix.kmi }}
-      ddk_release: '20260313'
+      ddk_release: '20260828'

@@ -609,6 +609,14 @@ fun setSusfsLkmEnabled(enabled: Boolean): Boolean {
     return execKsud(cmd, newShell = true)
 }
 
+/**
+ * Load the SUSFS guard module right now, from a root shell in the global mount namespace
+ * (same way KernelSU-Next does it). Works in jailbreak mode too.
+ */
+fun loadSusfsLkmNow(): Boolean = withNewRootShell(globalMnt = true) {
+    ShellUtils.fastCmdResult(this, "${getKsuDaemonPath()} susfs lkm load")
+}
+
 fun getSuSFSStatus(): String {
     val shell = getRootShell()
     return ShellUtils.fastCmd(shell, "${getKsuDaemonPath()} susfs status").trim()

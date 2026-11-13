@@ -9,7 +9,10 @@
     <string name="home_version_info">Version Info</string>
     <string name="home_status_info">Status Info</string>
     <string name="home_short_info">SuperUser: %1$d, Modules: %2$d</string>
-    <string name="home_short_info_with_update">SuperUser: %1$d, Modules: %2$d | %3$d Update</string>
+    <plurals name="home_short_info_with_update">
+        <item quantity="one">SuperUser: %1$d, Modules: %2$d | %3$d Update</item>
+        <item quantity="other">SuperUser: %1$d, Modules: %2$d | %3$d Updates</item>
+    </plurals>
     <string name="home_unsupported">Unsupported</string>
     <string name="home_unsupported_reason">No KernelSU driver detected on your kernel, wrong kernel?</string>
     <string name="home_kernel">Kernel version</string>

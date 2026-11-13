@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -600,8 +601,9 @@ private fun StatusCard(
                 iconSize = 18.dp,
                 title = workingModeText,
                 description = if (moduleUpdateCount > 0) {
-                    stringResource(
-                        R.string.home_short_info_with_update,
+                    pluralStringResource(
+                        R.plurals.home_short_info_with_update,
+                        moduleUpdateCount,
                         uiState.systemInfo.superuserCount,
                         uiState.systemInfo.moduleCount,
                         moduleUpdateCount

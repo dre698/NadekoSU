@@ -107,7 +107,10 @@ import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurEffect
 import com.nadekosu.ui.theme.blurSource
 import com.nadekosu.ui.util.LocalSnackbarHost
+import com.nadekosu.ui.util.SusfsLkmState
 import com.nadekosu.ui.util.getBugreportFile
+import com.nadekosu.ui.util.getSusfsLkmState
+import com.nadekosu.ui.util.setSusfsLkmEnabled
 import com.nadekosu.ui.viewmodel.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -155,6 +158,11 @@ fun SettingsPage(bottomPadding: Dp) {
         val logSaved = stringResource(R.string.log_saved)
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
+        var susfsLkm by remember { mutableStateOf<SusfsLkmState?>(null) }
+        var susfsLkmBusy by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            susfsLkm = runCatching { getSusfsLkmState() }.getOrNull()
+        }
         val exportBugreportLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.CreateDocument("application/gzip")
         ) { uri: Uri? ->
@@ -290,6 +298,43 @@ fun SettingsPage(bottomPadding: Dp) {
                                 )
                             }
 
+
+                            item(
+                                visible = Build.SUPPORTED_ABIS.contains("arm64-v8a")
+                            ) {
+                                val lkmState = susfsLkm
+                                val lkmSummary = if (lkmState?.kernelProvided == true) {
+                                    stringResource(id = R.string.settings_susfs_lkm_kernel_summary)
+                                } else {
+                                    stringResource(id = R.string.settings_susfs_lkm_summary)
+                                }
+                                SettingsSwitchWidget(
+                                    icon = Icons.TwoTone.Security,
+                                    title = stringResource(id = R.string.settings_susfs_lkm),
+                                    description = lkmSummary,
+                                    enabled = lkmState != null && !lkmState.kernelProvided && !susfsLkmBusy,
+                                    checked = lkmState?.let { it.loaded || it.autoLoad } ?: false,
+                                    onCheckedChange = { value ->
+                                        susfsLkmBusy = true
+                                        scope.launch {
+                                            val ok = withContext(Dispatchers.IO) {
+                                                runCatching { setSusfsLkmEnabled(value) }.getOrDefault(false)
+                                            }
+                                            susfsLkm = runCatching { getSusfsLkmState() }.getOrNull() ?: susfsLkm
+                                            susfsLkmBusy = false
+                                            Toast.makeText(
+                                                context,
+                                                when {
+                                                    !ok -> R.string.settings_susfs_lkm_failed
+                                                    value -> R.string.settings_susfs_lkm_on
+                                                    else -> R.string.settings_susfs_lkm_off
+                                                },
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        }
+                                    }
+                                )
+                            }
 
                             item {
                                 val sulogSummary = when (uiState.sulogStatus) {

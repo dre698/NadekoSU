@@ -579,6 +579,41 @@ fun restartApp(packageName: String) {
     launchApp(packageName)
 }
 
+data class SusfsLkmState(
+    /** SUSFS already answers and it is not our LKM, i.e. it is built into the kernel. */
+    val kernelProvided: Boolean,
+    val loaded: Boolean,
+    val autoLoad: Boolean,
+)
+
+suspend fun getSusfsLkmState(): SusfsLkmState = withContext(Dispatchers.IO) {
+    withNewRootShell(globalMnt = true) {
+        val ksud = getKsuDaemonPath()
+        val loaded = newJob().add("test -d /sys/module/susfs_guard_lkm").exec().isSuccess
+        val version = ShellUtils.fastCmd(this, "$ksud susfs show version").trim()
+        val autoLoad = ShellUtils.fastCmd(this, "$ksud susfs lkm autoload status").trim() == "enabled"
+        SusfsLkmState(
+            kernelProvided = version.startsWith("v") && !loaded,
+            loaded = loaded,
+            autoLoad = autoLoad,
+        )
+    }
+}
+
+/**
+ * Enable: persist auto-load, then load the LKM now (rolled back if the load fails).
+ * Disable: only stop auto-loading; an already loaded LKM stays until the next reboot.
+ */
+fun setSusfsLkmEnabled(enabled: Boolean): Boolean {
+    if (!enabled) {
+        return execKsud("susfs lkm autoload disable", newShell = true)
+    }
+    if (!execKsud("susfs lkm autoload enable", newShell = true)) return false
+    if (execKsud("susfs lkm load", newShell = true)) return true
+    execKsud("susfs lkm autoload disable", newShell = true)
+    return false
+}
+
 fun getSuSFSStatus(): String {
     val shell = getRootShell()
     return ShellUtils.fastCmd(shell, "${getKsuDaemonPath()} susfs status").trim()

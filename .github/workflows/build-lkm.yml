@@ -36,3 +36,20 @@ jobs:
       ddk_release: '20260313'
       expected_pr_build_size: ${{ inputs.expected_pr_build_size || '' }}
       expected_pr_build_hash: ${{ inputs.expected_pr_build_hash || '' }}
+
+  build-lkm-susfs:
+    strategy:
+      fail-fast: false
+      matrix:
+        kmi:
+          - android12-5.10
+          - android13-5.10
+          - android13-5.15
+          - android14-5.15
+          - android14-6.1
+          - android15-6.6
+          - android16-6.12
+    uses: ./.github/workflows/ddk-lkm-susfs.yml
+    with:
+      kmi: ${{ matrix.kmi }}
+      ddk_release: '20260313'

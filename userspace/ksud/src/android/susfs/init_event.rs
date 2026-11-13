@@ -82,6 +82,9 @@ pub fn on_boot_completed() {
 }
 
 pub fn on_post_fs_data() {
+    // Must run first: the guard LKM provides the SUSFS supercalls used below.
+    crate::android::susfs::lkm::load_if_autoload_enabled();
+
     let config = Config::read_or_default();
 
     log::info!("on_post_fs_data triggered!");

@@ -22,8 +22,8 @@ clean:
 check_symbol: tools/check_symbol.c
 	$(CC) tools/check_symbol.c -o check_symbol
 format:
-	find . \( -name "*.c" -o -name "*.h" \) -print0 | xargs -0 clang-format -i
+	find . -path ./susfs -prune -o \( -name "*.c" -o -name "*.h" \) -print0 | xargs -0 clang-format -i
 check-format:
-	find . \( -name "*.c" -o -name "*.h" \) -print0 | xargs -0 clang-format --dry-run --Werror
+	find . -path ./susfs -prune -o \( -name "*.c" -o -name "*.h" \) -print0 | xargs -0 clang-format --dry-run --Werror
 
 # Keep a new line here!! Because someone may append config

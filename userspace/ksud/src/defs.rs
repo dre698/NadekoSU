@@ -58,6 +58,9 @@ mod android {
 
     pub const DYNAMIC_MANAGER: &str = concatcp!(WORKING_DIR, ".dynamic_manager");
     pub const SUSFS_CONFIG: &str = concatcp!(WORKING_DIR, ".susfs.json");
+    /// Marker file: exists => load the embedded SUSFS guard LKM at post-fs-data.
+    /// Content (optional) = fallback KMI used when auto-detection fails.
+    pub const SUSFS_LKM_AUTOLOAD: &str = concatcp!(WORKING_DIR, ".susfs_lkm_autoload");
 
     #[derive(Serialize)]
     pub struct MountInfo {

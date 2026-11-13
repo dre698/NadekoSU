@@ -10,7 +10,7 @@ use crate::android::susfs::{
     api::prelude as api,
     config::cli::{ConfigCommand, run as run_config},
     enums::UidScheme,
-    slot_info,
+    lkm, slot_info,
 };
 
 #[derive(Debug, Args)]
@@ -214,6 +214,12 @@ pub enum SuSFSSubCommands {
         info_type: ShowType,
     },
 
+    /// Load / unload the embedded SUSFS guard LKM (for kernels without in-tree SUSFS).
+    Lkm {
+        #[command(subcommand)]
+        command: LkmCommand,
+    },
+
     /// Read boot slot kernel uname and build-time
     #[command(name = "slot_info")]
     SlotInfo {
@@ -221,6 +227,36 @@ pub enum SuSFSSubCommands {
         /// Defaults to /dev/block/by-name/[boot_a|boot_b|boot]
         boot_image: Option<String>,
     },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum LkmCommand {
+    /// Load the embedded susfs_guard_lkm.ko for the detected (or given) KMI.
+    Load {
+        /// Override the detected KMI, e.g. android13-5.15
+        #[arg(long)]
+        kmi: Option<String>,
+    },
+    /// Unload susfs_guard_lkm.
+    Unload,
+    /// Configure automatic loading at post-fs-data.
+    Autoload {
+        #[command(subcommand)]
+        command: LkmAutoloadCommand,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum LkmAutoloadCommand {
+    /// Enable auto-load (optionally pin a fallback KMI).
+    Enable {
+        #[arg(long)]
+        kmi: Option<String>,
+    },
+    /// Disable auto-load.
+    Disable,
+    /// Print "enabled" or "disabled".
+    Status,
 }
 
 #[derive(Subcommand, Debug)]
@@ -353,6 +389,18 @@ pub fn run_main(args: SusfsArgs) -> Result<()> {
                 let variant = api::variant()?;
                 println!("{variant}");
             }
+        },
+        SuSFSSubCommands::Lkm { command } => match command {
+            LkmCommand::Load { kmi } => lkm::load(kmi.as_deref())?,
+            LkmCommand::Unload => lkm::unload()?,
+            LkmCommand::Autoload { command } => match command {
+                LkmAutoloadCommand::Enable { kmi } => lkm::set_autoload(true, kmi.as_deref())?,
+                LkmAutoloadCommand::Disable => lkm::set_autoload(false, None)?,
+                LkmAutoloadCommand::Status => println!(
+                    "{}",
+                    if lkm::autoload_enabled() { "enabled" } else { "disabled" }
+                ),
+            },
         },
         SuSFSSubCommands::SlotInfo { boot_image } => {
             if let Some(path) = boot_image {

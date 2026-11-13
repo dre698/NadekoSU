@@ -169,7 +169,9 @@ baselineProfile {
 }
 
 base {
-    archivesName.set("NadekoSU_${managerVersionName}_${managerVersionCode}")
+    archivesName.set(
+        "${managerVersionBase}(+${managerCommitCount})"
+    )
 }
 
 configurations.all {

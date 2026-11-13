@@ -394,7 +394,7 @@ class ModuleViewModel : ViewModel() {
                             ) {
                                 checkUpdate(module.updateJson, module.versionCode)
                             } else {
-                                null
+                                oldModuleList.find { it.id == module.id }?.moduleUpdate
                             }
                         )
                     }

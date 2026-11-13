@@ -61,6 +61,9 @@ mod android {
     /// Marker file: exists => load the embedded SUSFS guard LKM at post-fs-data.
     /// Content (optional) = fallback KMI used when auto-detection fails.
     pub const SUSFS_LKM_AUTOLOAD: &str = concatcp!(WORKING_DIR, ".susfs_lkm_autoload");
+    /// Crash guard: exists from the start of an auto-load until boot completes.
+    /// If it is still there at the next post-fs-data, the last boot died => auto-load is disabled.
+    pub const SUSFS_LKM_LOADING: &str = concatcp!(WORKING_DIR, ".susfs_lkm_loading");
 
     #[derive(Serialize)]
     pub struct MountInfo {

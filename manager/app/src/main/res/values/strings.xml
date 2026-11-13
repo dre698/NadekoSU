@@ -793,9 +793,10 @@ Important Note:\n
     <string name="settings_soft_reboot">Soft restart instead of reboot</string>
     <string name="settings_soft_reboot_summary">Use soft restart instead of a full reboot when installing, updating, or toggling modules.</string>
     <string name="settings_susfs_lkm">SUSFS kernel module</string>
-    <string name="settings_susfs_lkm_summary">Load the built-in SUSFS guard module at boot. For GKI kernels without SUSFS built in.</string>
+    <string name="settings_susfs_lkm_summary">Load the built-in SUSFS guard module at boot. For GKI kernels without SUSFS built in. Takes effect on the next reboot.</string>
+    <string name="settings_susfs_lkm_late_load_summary">Not available in jailbreak mode.</string>
     <string name="settings_susfs_lkm_kernel_summary">SUSFS is already built into your kernel.</string>
-    <string name="settings_susfs_lkm_on">SUSFS module loaded and set to load at boot.</string>
-    <string name="settings_susfs_lkm_off">Auto-load disabled. The loaded module is removed after a reboot.</string>
-    <string name="settings_susfs_lkm_failed">Failed to load the SUSFS module. Your kernel or KMI may not be supported.</string>
+    <string name="settings_susfs_lkm_on">SUSFS module will load at the next reboot.</string>
+    <string name="settings_susfs_lkm_off">Auto-load disabled.</string>
+    <string name="settings_susfs_lkm_failed">Failed to change the SUSFS module setting.</string>
 </resources>

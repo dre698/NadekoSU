@@ -303,17 +303,22 @@ fun SettingsPage(bottomPadding: Dp) {
                                 visible = Build.SUPPORTED_ABIS.contains("arm64-v8a")
                             ) {
                                 val lkmState = susfsLkm
-                                val lkmSummary = if (lkmState?.kernelProvided == true) {
-                                    stringResource(id = R.string.settings_susfs_lkm_kernel_summary)
-                                } else {
-                                    stringResource(id = R.string.settings_susfs_lkm_summary)
+                                val lkmSummary = when {
+                                    lkmState?.kernelProvided == true ->
+                                        stringResource(id = R.string.settings_susfs_lkm_kernel_summary)
+                                    Natives.isLateLoadMode ->
+                                        stringResource(id = R.string.settings_susfs_lkm_late_load_summary)
+                                    else -> stringResource(id = R.string.settings_susfs_lkm_summary)
                                 }
+                                val lkmChecked = lkmState?.let { it.loaded || it.autoLoad } ?: false
                                 SettingsSwitchWidget(
                                     icon = Icons.TwoTone.Security,
                                     title = stringResource(id = R.string.settings_susfs_lkm),
                                     description = lkmSummary,
-                                    enabled = lkmState != null && !lkmState.kernelProvided && !susfsLkmBusy,
-                                    checked = lkmState?.let { it.loaded || it.autoLoad } ?: false,
+                                    // In jailbreak mode it can only be switched off, never on.
+                                    enabled = lkmState != null && !lkmState.kernelProvided && !susfsLkmBusy &&
+                                        (!Natives.isLateLoadMode || lkmChecked),
+                                    checked = lkmChecked,
                                     onCheckedChange = { value ->
                                         susfsLkmBusy = true
                                         scope.launch {

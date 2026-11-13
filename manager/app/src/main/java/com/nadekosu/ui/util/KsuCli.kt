@@ -601,17 +601,12 @@ suspend fun getSusfsLkmState(): SusfsLkmState = withContext(Dispatchers.IO) {
 }
 
 /**
- * Enable: persist auto-load, then load the LKM now (rolled back if the load fails).
- * Disable: only stop auto-loading; an already loaded LKM stays until the next reboot.
+ * Only toggles auto-load. The module is loaded by ksud at the next real boot, never from here:
+ * loading a kernel module on a running system could crash or hang the device.
  */
 fun setSusfsLkmEnabled(enabled: Boolean): Boolean {
-    if (!enabled) {
-        return execKsud("susfs lkm autoload disable", newShell = true)
-    }
-    if (!execKsud("susfs lkm autoload enable", newShell = true)) return false
-    if (execKsud("susfs lkm load", newShell = true)) return true
-    execKsud("susfs lkm autoload disable", newShell = true)
-    return false
+    val cmd = if (enabled) "susfs lkm autoload enable" else "susfs lkm autoload disable"
+    return execKsud(cmd, newShell = true)
 }
 
 fun getSuSFSStatus(): String {

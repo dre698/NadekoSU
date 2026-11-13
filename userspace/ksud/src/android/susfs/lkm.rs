@@ -11,9 +11,9 @@ use anyhow::{Context, Result, ensure};
 use log::{info, warn};
 
 use crate::{
-    android::susfs::api::prelude as api,
+    android::{ksucalls, susfs::api::prelude as api, utils::is_safe_mode},
     boot_patch::get_current_kmi,
-    defs::SUSFS_LKM_AUTOLOAD,
+    defs::{SUSFS_LKM_AUTOLOAD, SUSFS_LKM_LOADING},
 };
 
 const MODULE_NAME: &std::ffi::CStr = c"susfs_guard_lkm";
@@ -116,12 +116,38 @@ pub fn unload() -> Result<()> {
     Ok(())
 }
 
+/// Called from the boot-completed stage: the boot survived the auto-load, drop the crash guard.
+pub fn confirm_boot() {
+    let _ = fs::remove_file(SUSFS_LKM_LOADING);
+}
+
 /// Called from post-fs-data, BEFORE the persisted SUSFS config is applied.
 /// Never fails the boot: errors are only logged.
+///
+/// Safety rules:
+/// - never in late-load (jailbreak) mode: that path runs post-fs-data inside an emulated soft
+///   reboot on a live system, and loading a kernel module there can hang the whole flow;
+/// - never in safe mode;
+/// - crash guard: if the previous auto-load never reached boot-completed, auto-load is switched
+///   off instead of looping.
 pub fn load_if_autoload_enabled() {
     let Some(fallback) = read_marker() else {
         return;
     };
+    if ksucalls::is_late_load() {
+        info!("SUSFS LKM auto-load skipped: late-load (jailbreak) mode");
+        return;
+    }
+    if is_safe_mode() {
+        info!("SUSFS LKM auto-load skipped: safe mode");
+        return;
+    }
+    if std::path::Path::new(SUSFS_LKM_LOADING).exists() {
+        warn!("previous SUSFS LKM auto-load did not finish booting; disabling auto-load");
+        let _ = fs::remove_file(SUSFS_LKM_AUTOLOAD);
+        let _ = fs::remove_file(SUSFS_LKM_LOADING);
+        return;
+    }
     if !cfg!(target_arch = "aarch64") {
         warn!("SUSFS LKM auto-load is on, but the LKM is arm64-only");
         return;
@@ -135,7 +161,17 @@ pub fn load_if_autoload_enabled() {
         warn!("SUSFS LKM auto-load: KMI detection failed and no fallback KMI saved");
         return;
     };
-    if let Err(e) = load(Some(&kmi)) {
-        warn!("SUSFS LKM auto-load failed for KMI {kmi}: {e:#}");
+
+    if let Err(e) = fs::write(SUSFS_LKM_LOADING, &kmi) {
+        warn!("cannot write SUSFS LKM crash guard, not loading: {e}");
+        return;
+    }
+    match load(Some(&kmi)) {
+        // keep the guard until boot-completed
+        Ok(()) => {}
+        Err(e) => {
+            warn!("SUSFS LKM auto-load failed for KMI {kmi}: {e:#}");
+            let _ = fs::remove_file(SUSFS_LKM_LOADING);
+        }
     }
 }

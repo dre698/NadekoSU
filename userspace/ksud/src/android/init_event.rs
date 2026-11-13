@@ -181,6 +181,8 @@ pub fn on_services() {
 }
 
 pub fn on_boot_completed() {
+    crate::android::susfs::lkm::confirm_boot();
+
     if let Err(e) = ksucalls::ensure_uapi_version_matched() {
         error!("{e:#}, skip on_boot_completed");
         return;

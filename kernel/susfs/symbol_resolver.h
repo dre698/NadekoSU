@@ -11,5 +11,6 @@ int ksu_symbol_name_of(unsigned long addr, char *buf, char **module_out);
 int ksu_symbol_is_start(unsigned long addr, const char *name);
 int ksu_addr_is_named(unsigned long addr, const char *name);
 int ksu_init_symbol_resolver(void);
+void ksu_symbol_index_release(void);
 
 #endif

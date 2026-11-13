@@ -410,7 +410,7 @@ static int susfs_load_layer(int id, bool fatal)
     return 0;
 }
 
-static int __init susfs_init(void)
+static int __init susfs_init_inner(void)
 {
     int i;
 
@@ -492,9 +492,20 @@ static int __init susfs_init(void)
     return 0;
 }
 
+/* The symbol name index (symbol_resolver.c) is only needed while init resolves its symbols; drop it
+ * on every way out of init, success or failure, so the memory is not held for the module's lifetime. */
+static int __init susfs_init(void)
+{
+    int ret = susfs_init_inner();
+
+    ksu_symbol_index_release();
+    return ret;
+}
+
 static void __exit susfs_exit(void)
 {
     susfs_layers_down((int)ARRAY_SIZE(susfs_layers) - 1);
+    ksu_symbol_index_release();
     SUSFS_LOGI("susfs_guard_lkm: exit\n");
 }
 

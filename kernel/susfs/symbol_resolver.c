@@ -4,6 +4,9 @@
 #include <linux/kallsyms.h>
 #include <linux/string.h>
 #include <linux/version.h>
+#include <linux/vmalloc.h>
+#include <linux/log2.h>
+#include <linux/overflow.h>
 
 #include "symbol_resolver.h"
 #include "susfs_log.h"
@@ -121,6 +124,139 @@ static void kr_collect_add(struct kr_collect *c, unsigned long addr)
 		c->addrs[c->n++] = addr;
 }
 
+/*
+ * One-shot name index for ksu_find_symbol_all().
+ *
+ * The linear scan below decompresses every kallsyms name (~200k of them) on each call, and module
+ * init makes on the order of a hundred such calls.  On slow cores that adds up to seconds, and
+ * vendor hang detectors (seen on Unisoc: "susfs_guard_lkm.ko loads too long time, panic timeout =
+ * 2000 ms") turn a slow init_module into a kernel panic.  So the first call walks the table once
+ * and records, per name, where its entry lives; later calls hash the query, probe a few slots and
+ * re-expand only the candidate entries.  The table is dropped when init finishes
+ * (ksu_symbol_index_release); a later lookup simply rebuilds it.
+ *
+ * Results are identical to the scan: matches are returned in kallsyms order (ascending index).
+ */
+struct ks_idx_slot {
+	u32 idx1;	/* symbol index + 1, 0 = empty slot */
+	u32 off;	/* offset of the entry inside the names blob */
+};
+
+static struct ks_idx_slot *ks_idx_tab;
+static unsigned int ks_idx_mask;
+static bool ks_idx_tried;
+
+#define KS_IDX_HITS	16
+
+static u32 ks_name_hash(const char *s)
+{
+	u32 h = 2166136261u;
+
+	while (*s) {
+		h ^= (unsigned char)*s++;
+		h *= 16777619u;
+	}
+	return h;
+}
+
+/* caller holds ks_linear_lock */
+static void ks_idx_build(void)
+{
+	struct slide_win w;
+	char nbuf[KR_NAME_MAX];
+	struct ks_idx_slot *tab;
+	unsigned int size, idx = 0;
+	int retried = 0;
+
+	ks_idx_tried = true;
+	if (!klnum_val || klnum_val > (1U << 24))
+		return;
+
+	size = roundup_pow_of_two(klnum_val * 2);
+	tab = vzalloc(array_size(size, sizeof(*tab)));
+	if (!tab)
+		return;
+
+	if (safe_read(ti_buf, (void *)klindex_addr, sizeof(ti_buf)) ||
+	    safe_read(tt_buf, (void *)kltable_addr, sizeof(tt_buf)) ||
+	    slide_init(&w, klnames_addr, KS_WIN_SIZE, KS_WIN_MARGIN)) {
+		vfree(tab);
+		return;
+	}
+
+	while (idx < klnum_val) {
+		const unsigned char *enc = slide_ptr(&w, slide_buf);
+		unsigned int len = enc[0];
+		unsigned int hdr = 1;
+
+		if (len & 0x80) {
+			len = (len & 0x7f) | (enc[1] << 7);
+			hdr = 2;
+		}
+
+		if (len > KR_NAME_MAX || w.off + hdr + len > w.valid) {
+			if (retried || slide_advance(&w, (w.valid - w.off) + 4))
+				break;
+			retried = 1;
+			continue;
+		}
+		retried = 0;
+
+		if (ks_expand_raw(enc, ti_buf, tt_buf, nbuf, sizeof(nbuf))) {
+			unsigned int slot = ks_name_hash(nbuf) & (size - 1);
+
+			while (tab[slot].idx1)
+				slot = (slot + 1) & (size - 1);
+			tab[slot].idx1 = idx + 1;
+			tab[slot].off = (u32)(slide_addr(&w) - klnames_addr);
+		}
+
+		if (slide_advance(&w, hdr + len))
+			break;
+		idx++;
+	}
+
+	ks_idx_mask = size - 1;
+	ks_idx_tab = tab;
+}
+
+/* caller holds ks_linear_lock; fills c in kallsyms order */
+static void ks_idx_lookup(const char *name, struct kr_collect *c)
+{
+	unsigned int hit[KS_IDX_HITS];
+	char ebuf[KR_NAME_MAX];
+	unsigned int slot = ks_name_hash(name) & ks_idx_mask;
+	int nh = 0, i, j;
+
+	while (ks_idx_tab[slot].idx1) {
+		if (expand_sym(ks_idx_tab[slot].off, ebuf, sizeof(ebuf)) &&
+		    !strcmp(ebuf, name) && nh < KS_IDX_HITS)
+			hit[nh++] = ks_idx_tab[slot].idx1 - 1;
+		slot = (slot + 1) & ks_idx_mask;
+	}
+
+	/* insertion sort: the scan reports matches in ascending symbol index */
+	for (i = 1; i < nh; i++) {
+		unsigned int v = hit[i];
+
+		for (j = i - 1; j >= 0 && hit[j] > v; j--)
+			hit[j + 1] = hit[j];
+		hit[j + 1] = v;
+	}
+	for (i = 0; i < nh; i++)
+		kr_collect_add(c, sym_addr((int)hit[i]));
+}
+
+void ksu_symbol_index_release(void)
+{
+	mutex_lock(&ks_linear_lock);
+	vfree(ks_idx_tab);
+	ks_idx_tab = NULL;
+	ks_idx_mask = 0;
+	ks_idx_tried = false;
+	mutex_unlock(&ks_linear_lock);
+}
+
 int ksu_find_symbol_all(const char *name, unsigned long *addrs, int max)
 {
 	struct slide_win w;
@@ -133,6 +269,14 @@ int ksu_find_symbol_all(const char *name, unsigned long *addrs, int max)
 		return 0;
 
 	mutex_lock(&ks_linear_lock);
+	if (!ks_idx_tab && !ks_idx_tried)
+		ks_idx_build();
+	if (ks_idx_tab) {
+		ks_idx_lookup(name, &c);
+		goto out;
+	}
+
+	/* index unavailable (allocation failed, ...): fall back to the plain scan */
 	if (safe_read(ti_buf, (void *)klindex_addr, sizeof(ti_buf)) ||
 	    safe_read(tt_buf, (void *)kltable_addr, sizeof(tt_buf)) ||
 	    slide_init(&w, klnames_addr, KS_WIN_SIZE, KS_WIN_MARGIN))

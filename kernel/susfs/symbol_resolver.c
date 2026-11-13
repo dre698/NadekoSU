@@ -7,6 +7,8 @@
 #include <linux/vmalloc.h>
 #include <linux/log2.h>
 #include <linux/overflow.h>
+#include <linux/spinlock.h>
+#include <linux/limits.h>
 
 #include "symbol_resolver.h"
 #include "susfs_log.h"
@@ -31,8 +33,17 @@ static bool kr_layout_ready(void)
 	return klnum_val && kloffs_addr && klnames_addr;
 }
 
+static bool ks_idx_first(const char *name, unsigned long *addr);
+
+/* Exact-name lookup.  While the one-shot index exists (module init) it answers from there: the
+ * kernel's own kallsyms_lookup_name() is a linear scan too, and init makes hundreds of such calls.
+ * A name the index does not have (module symbols, ...) still goes to the kernel. */
 static __nocfi noinline unsigned long kr_klp(const char *name)
 {
+	unsigned long addr;
+
+	if (ks_idx_first(name, &addr))
+		return addr;
 	return kallrecon_klp(name);
 }
 
@@ -142,6 +153,9 @@ struct ks_idx_slot {
 	u32 off;	/* offset of the entry inside the names blob */
 };
 
+/* ks_idx_tab/ks_idx_mask are published and retired under ks_idx_lock (lookups may run in any
+ * context); building and the `tried` flag are serialized by ks_linear_lock like the plain scan. */
+static DEFINE_SPINLOCK(ks_idx_lock);
 static struct ks_idx_slot *ks_idx_tab;
 static unsigned int ks_idx_mask;
 static bool ks_idx_tried;
@@ -166,6 +180,7 @@ static void ks_idx_build(void)
 	char nbuf[KR_NAME_MAX];
 	struct ks_idx_slot *tab;
 	unsigned int size, idx = 0;
+	unsigned long flags;
 	int retried = 0;
 
 	ks_idx_tried = true;
@@ -216,24 +231,34 @@ static void ks_idx_build(void)
 		idx++;
 	}
 
+	spin_lock_irqsave(&ks_idx_lock, flags);
 	ks_idx_mask = size - 1;
 	ks_idx_tab = tab;
+	spin_unlock_irqrestore(&ks_idx_lock, flags);
 }
 
-/* caller holds ks_linear_lock; fills c in kallsyms order */
-static void ks_idx_lookup(const char *name, struct kr_collect *c)
+/* fills c in kallsyms order; false = no index, caller falls back to the plain scan */
+static bool ks_idx_lookup(const char *name, struct kr_collect *c)
 {
 	unsigned int hit[KS_IDX_HITS];
 	char ebuf[KR_NAME_MAX];
-	unsigned int slot = ks_name_hash(name) & ks_idx_mask;
+	unsigned long flags;
+	unsigned int slot;
 	int nh = 0, i, j;
 
+	spin_lock_irqsave(&ks_idx_lock, flags);
+	if (!ks_idx_tab) {
+		spin_unlock_irqrestore(&ks_idx_lock, flags);
+		return false;
+	}
+	slot = ks_name_hash(name) & ks_idx_mask;
 	while (ks_idx_tab[slot].idx1) {
 		if (expand_sym(ks_idx_tab[slot].off, ebuf, sizeof(ebuf)) &&
 		    !strcmp(ebuf, name) && nh < KS_IDX_HITS)
 			hit[nh++] = ks_idx_tab[slot].idx1 - 1;
 		slot = (slot + 1) & ks_idx_mask;
 	}
+	spin_unlock_irqrestore(&ks_idx_lock, flags);
 
 	/* insertion sort: the scan reports matches in ascending symbol index */
 	for (i = 1; i < nh; i++) {
@@ -245,16 +270,66 @@ static void ks_idx_lookup(const char *name, struct kr_collect *c)
 	}
 	for (i = 0; i < nh; i++)
 		kr_collect_add(c, sym_addr((int)hit[i]));
+	return true;
+}
+
+/* First match in kallsyms order, like kallsyms_lookup_name(); false = not answered here. */
+static bool ks_idx_first(const char *name, unsigned long *addr)
+{
+	char ebuf[KR_NAME_MAX];
+	unsigned int best = UINT_MAX;
+	unsigned long flags;
+	unsigned int slot;
+
+	if (!name || !name[0])
+		return false;
+
+	spin_lock_irqsave(&ks_idx_lock, flags);
+	if (!ks_idx_tab) {
+		spin_unlock_irqrestore(&ks_idx_lock, flags);
+		return false;
+	}
+	slot = ks_name_hash(name) & ks_idx_mask;
+	while (ks_idx_tab[slot].idx1) {
+		unsigned int idx = ks_idx_tab[slot].idx1 - 1;
+
+		if (idx < best && expand_sym(ks_idx_tab[slot].off, ebuf, sizeof(ebuf)) &&
+		    !strcmp(ebuf, name))
+			best = idx;
+		slot = (slot + 1) & ks_idx_mask;
+	}
+	spin_unlock_irqrestore(&ks_idx_lock, flags);
+
+	if (best == UINT_MAX)
+		return false;
+	*addr = sym_addr((int)best);
+	return *addr != 0;
+}
+
+/* Build the index now (module init, process context). */
+static void ks_idx_prepare(void)
+{
+	mutex_lock(&ks_linear_lock);
+	if (!ks_idx_tab && !ks_idx_tried)
+		ks_idx_build();
+	mutex_unlock(&ks_linear_lock);
 }
 
 void ksu_symbol_index_release(void)
 {
+	struct ks_idx_slot *tab;
+	unsigned long flags;
+
 	mutex_lock(&ks_linear_lock);
-	vfree(ks_idx_tab);
+	spin_lock_irqsave(&ks_idx_lock, flags);
+	tab = ks_idx_tab;
 	ks_idx_tab = NULL;
 	ks_idx_mask = 0;
+	spin_unlock_irqrestore(&ks_idx_lock, flags);
 	ks_idx_tried = false;
 	mutex_unlock(&ks_linear_lock);
+
+	vfree(tab);
 }
 
 int ksu_find_symbol_all(const char *name, unsigned long *addrs, int max)
@@ -271,10 +346,8 @@ int ksu_find_symbol_all(const char *name, unsigned long *addrs, int max)
 	mutex_lock(&ks_linear_lock);
 	if (!ks_idx_tab && !ks_idx_tried)
 		ks_idx_build();
-	if (ks_idx_tab) {
-		ks_idx_lookup(name, &c);
+	if (ks_idx_lookup(name, &c))
 		goto out;
-	}
 
 	/* index unavailable (allocation failed, ...): fall back to the plain scan */
 	if (safe_read(ti_buf, (void *)klindex_addr, sizeof(ti_buf)) ||
@@ -415,6 +488,9 @@ int __init ksu_init_symbol_resolver(void)
 
 	SUSFS_LOGI("symbol_resolver: kallrecon layout v%d base=0x%lx num=%u klp=%d\n",
 		   (int)kl_layout, kernel_base, klnum_val, !!kallrecon_klp);
+
+	/* From here on init does hundreds of lookups; see the index comment above. */
+	ks_idx_prepare();
 
 	return 0;
 }

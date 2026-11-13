@@ -17,6 +17,8 @@ val androidMinSdkVersion: Int by rootProject.extra
 val androidTargetSdkVersion: Int by rootProject.extra
 val androidSourceCompatibility: JavaVersion by rootProject.extra
 val androidTargetCompatibility: JavaVersion by rootProject.extra
+val managerVersionBase: Int by rootProject.extra
+val managerCommitCount: Int by rootProject.extra
 val managerVersionCode: Int by rootProject.extra
 val managerVersionName: String by rootProject.extra
 
@@ -168,7 +170,7 @@ baselineProfile {
 
 base {
     archivesName.set(
-        "NadekoSU_${managerVersionName}_${managerVersionCode}"
+        "${managerVersionBase}(+${managerCommitCount})"
     )
 }
 

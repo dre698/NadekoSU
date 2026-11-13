@@ -527,6 +527,7 @@ Diaktifkan: Aktifkan pemalsuan sus tcontext dari \'su\' dengan \'u:r:priv_app:s0
     <string name="home_pr_build_warning">Ini adalah build debug PR. JANGAN gunakan di produksi!</string>
     <string name="home_seccomp_status">Status Seccomp</string>
     <string name="home_short_info">SuperUser: %1$d, Module: %2$d</string>
+    <string name="home_short_info_with_update">SuperUser: %1$d, Module: %2$d | %3$d Update</string>
     <string name="home_status_info">Info Status</string>
     <string name="home_version_info">Info Versi</string>
     <string name="info">Info</string>

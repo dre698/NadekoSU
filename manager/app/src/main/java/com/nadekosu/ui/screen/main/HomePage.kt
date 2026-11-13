@@ -107,6 +107,7 @@ import com.nadekosu.ui.navigation.Route
 import com.nadekosu.ui.screen.LabelText
 import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.ThemeConfig
+import com.nadekosu.ui.viewmodel.ModuleViewModel
 import com.nadekosu.ui.theme.blurEffect
 import com.nadekosu.ui.theme.blurSource
 import com.nadekosu.ui.util.LocalPermissionRequestInterface
@@ -135,8 +136,20 @@ fun HomePage(
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    val moduleViewModel = viewModel<ModuleViewModel>(
+        viewModelStoreOwner = ksuApp
+    )
+    val moduleUiState by moduleViewModel.uiState.collectAsStateWithLifecycle()
+    val moduleUpdateCount = moduleUiState.moduleList.count { it.moduleUpdate != null }
+
     LaunchedEffect(Unit) {
         viewModel.awaitInitialData(context)
+    }
+
+    LaunchedEffect(Unit) {
+        if (moduleUiState.moduleList.isEmpty()) {
+            moduleViewModel.fetchModuleList()
+        }
     }
 
     if (!uiState.isInitialDataLoaded) return
@@ -315,6 +328,7 @@ fun HomePage(
 
                     StatusCard(
                         uiState = uiState,
+                        moduleUpdateCount = moduleUpdateCount,
                         onClickInstall = {
                             navigator.push(Route.Install(preselectedKernelUri = null))
                         },
@@ -558,6 +572,7 @@ private fun TopBar(
 @Composable
 private fun StatusCard(
     uiState: HomeUiState,
+    moduleUpdateCount: Int = 0,
     onClickInstall: () -> Unit = {},
     onClickJailbreak: () -> Unit = {}
 ) {
@@ -584,11 +599,20 @@ private fun StatusCard(
                 icon = Icons.TwoTone.TaskAlt,
                 iconSize = 18.dp,
                 title = workingModeText,
-                description = stringResource(
-                    R.string.home_short_info,
-                    uiState.systemInfo.superuserCount,
-                    uiState.systemInfo.moduleCount
-                ),
+                description = if (moduleUpdateCount > 0) {
+                    stringResource(
+                        R.string.home_short_info_with_update,
+                        uiState.systemInfo.superuserCount,
+                        uiState.systemInfo.moduleCount,
+                        moduleUpdateCount
+                    )
+                } else {
+                    stringResource(
+                        R.string.home_short_info,
+                        uiState.systemInfo.superuserCount,
+                        uiState.systemInfo.moduleCount
+                    )
+                },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 foreContent = {
                     Spacer(Modifier.width(8.dp))

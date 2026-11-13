@@ -212,6 +212,12 @@ jobs:
         run: |
           find app/build/outputs/apk/${{ matrix.build_type }} -type f -name "*.apk" ! -name "*universal*" -print -delete
 
+      - name: Drop "universal" from APK filename
+        run: |
+          find app/build/outputs/apk/${{ matrix.build_type }} -type f -name "*-universal-*.apk" | while read -r f; do
+            mv -v "$f" "${f/-universal/}"
+          done
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:

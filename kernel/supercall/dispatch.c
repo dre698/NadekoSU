@@ -1,5 +1,7 @@
 #include <linux/capability.h>
 #include <linux/cred.h>
+#include <linux/kallsyms.h>
+#include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/kprobes.h>
 #include <linux/syscalls.h>
@@ -22,6 +24,7 @@
 #include "manager/manager_identity.h"
 #include "selinux/selinux.h"
 #include "infra/file_wrapper.h"
+#include "infra/symbol_resolver.h"
 #ifdef CONFIG_KSU_TRACEPOINT_HOOK
 #include "hook/tp_marker.h"
 #endif
@@ -132,6 +135,7 @@ static int do_get_info_legacy(void __user *arg)
 
 static int do_report_event(void __user *arg)
 {
+    static bool services_started = false;
     struct ksu_report_event_cmd cmd;
 
     if (copy_from_user(&cmd, arg, sizeof(cmd))) {
@@ -141,6 +145,9 @@ static int do_report_event(void __user *arg)
     switch (cmd.event) {
     case EVENT_POST_FS_DATA: {
         static bool post_fs_data_lock = false;
+
+        // Reset for emulated soft reboot
+        services_started = false;
         if (!post_fs_data_lock) {
             post_fs_data_lock = true;
             if (ksu_late_loaded) {
@@ -172,6 +179,15 @@ static int do_report_event(void __user *arg)
         pr_info("module mounted!\n");
         on_module_mounted();
         break;
+    }
+    case EVENT_SERVICES: {
+        if (services_started) {
+            pr_info("services already started, skipping\n");
+            return 0;
+        }
+        services_started = true;
+        pr_info("services triggered\n");
+        return 1;
     }
     default:
         break;
@@ -437,7 +453,7 @@ static int do_get_feature(void __user *arg)
     }
 
     ret = ksu_get_feature(cmd.feature_id, &cmd.value, &supported);
-    cmd.supported = supported ? 1 : 0;
+    cmd.supported = supported ? KSU_FEATURE_FLAG_SUPPORTED : 0;
 
     if (ret && supported) {
         pr_err("get_feature: failed for feature %u: %d\n", cmd.feature_id, ret);
@@ -864,6 +880,58 @@ static int do_disable_escape_to_root(void __user *arg)
 {
     set_thread_flag(TIF_KSU_DISABLE_ESCAPE_WITH_ROOT);
     return 0;
+}
+
+/*
+ * Resolve symbols of the running kernel image, exported or not. Names that do
+ * not exist (or only exist in a module) are reported as address 0.
+ */
+static int do_lookup_symbols(void __user *arg)
+{
+    struct ksu_lookup_symbols_cmd cmd;
+    const u64 __user *unames;
+    u64 __user *uaddrs;
+    int found = 0;
+    u32 i;
+
+    if (copy_from_user(&cmd, arg, sizeof(cmd)))
+        return -EFAULT;
+
+    if (cmd.flags) {
+        pr_err("lookup_symbols: unsupported flags 0x%x\n", cmd.flags);
+        return -EINVAL;
+    }
+    if (!cmd.count || cmd.count > KSU_LOOKUP_SYMBOLS_MAX)
+        return -EINVAL;
+
+    unames = (const u64 __user *)(uintptr_t)cmd.names;
+    uaddrs = (u64 __user *)(uintptr_t)cmd.addrs;
+    for (i = 0; i < cmd.count; i++) {
+        unsigned long addr = 0;
+        char *name;
+        u64 uname;
+
+        if (get_user(uname, unames + i))
+            return -EFAULT;
+
+        name = strndup_user((const char __user *)(uintptr_t)uname, KSYM_NAME_LEN);
+        if (IS_ERR(name)) {
+            // An overlong name cannot be a kernel symbol: report it missing.
+            if (PTR_ERR(name) != -EINVAL)
+                return PTR_ERR(name);
+        } else {
+            if (*name)
+                addr = find_kernel_symbol_exact(name);
+            kfree(name);
+        }
+
+        if (addr)
+            found++;
+        if (put_user((u64)addr, uaddrs + i))
+            return -EFAULT;
+    }
+
+    return found;
 }
 
 // 100. GET_FULL_VERSION - Get full version string
@@ -1334,6 +1402,12 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
         .cmd = KSU_IOCTL_DISABLE_ESCAPE_TO_ROOT, 
         .name = "DISABLE_ESCAPE_TO_ROOT", 
         .handler = do_disable_escape_to_root, 
+        .perm_check = only_root 
+    },
+    { 
+        .cmd = KSU_IOCTL_LOOKUP_SYMBOLS,
+        .name = "LOOKUP_SYMBOLS",
+        .handler = do_lookup_symbols,
         .perm_check = only_root 
     },
     // downstream begin

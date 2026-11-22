@@ -2,6 +2,7 @@ package com.nadekosu.ui.component.miuix.animation
 
 import android.annotation.SuppressLint
 import android.graphics.RuntimeShader
+import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.VisibilityThreshold
@@ -41,8 +42,8 @@ class InteractiveHighlight(
     val offset: Offset get() = positionAnimation.value - startPosition
 
     @Language("AGSL")
-    private val shader =
-        RuntimeShader(
+    private val shader: RuntimeShader? =
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) null else RuntimeShader(
             """
     uniform float2 size;
     layout(color) uniform half4 color;
@@ -59,7 +60,8 @@ class InteractiveHighlight(
     val modifier: Modifier =
         Modifier.drawWithContent {
             val progress = pressProgressAnimation.value
-            if (progress > 0f) {
+            val shader = shader
+            if (progress > 0f && shader != null) {
                 drawRect(
                     Color.White.copy(0.06f * progress),
                     blendMode = BlendMode.Plus

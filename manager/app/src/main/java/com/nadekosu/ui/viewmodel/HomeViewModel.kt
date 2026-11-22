@@ -2,6 +2,7 @@ package com.nadekosu.ui.viewmodel
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import android.system.Os
 import android.util.Log
@@ -10,12 +11,14 @@ import androidx.lifecycle.viewModelScope
 import com.nadekosu.BuildConfig
 import com.nadekosu.KernelVersion
 import com.nadekosu.Natives
+import com.nadekosu.data.HomeLayoutStyle
 import com.nadekosu.data.appPreferences
 import com.nadekosu.data.update.ManagerUpdateInfo
 import com.nadekosu.data.update.ManagerUpdateRepository
 import com.nadekosu.getKernelVersion
 import com.nadekosu.ksuApp
 import com.nadekosu.data.susfs.SuSFSConfigHelper
+import com.nadekosu.ui.util.HomeBannerStorage
 import com.nadekosu.ui.util.getMetaModuleImplement
 import com.nadekosu.ui.util.getModuleCount
 import com.nadekosu.ui.util.getSELinuxStatus
@@ -49,6 +52,8 @@ data class HomeUiState(
     val isHideLinkCard: Boolean = false,
     val showNavigationBarBadge: Boolean = true,
     val showHomeCardIcons: Boolean = false,
+    val homeLayoutStyle: String = HomeLayoutStyle.DEFAULT,
+    val homeBannerFile: String? = null,
     val isInitialDataLoaded: Boolean = false,
     val isCoreDataLoaded: Boolean = false,
     val isExtendedDataLoaded: Boolean = false,
@@ -363,6 +368,35 @@ class HomeViewModel : ViewModel() {
             it.copy(showHomeCardIcons = newValue)
         }
     }
+
+    fun handleHomeLayoutStyleChange(context: Context, value: String) {
+        val style = HomeLayoutStyle.fromValue(value)
+        context.appPreferences.putString(HomeLayoutStyle.PREF_KEY, style)
+        _uiState.update { it.copy(homeLayoutStyle = style) }
+    }
+
+    fun handleHomeBannerPicked(context: Context, uri: Uri, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val name = HomeBannerStorage.import(context, uri)
+            if (name == null) {
+                onResult(false)
+                return@launch
+            }
+            val old = _uiState.value.homeBannerFile
+            context.appPreferences.putString(HomeLayoutStyle.BANNER_PREF_KEY, name)
+            _uiState.update { it.copy(homeBannerFile = name) }
+            withContext(Dispatchers.IO) { HomeBannerStorage.delete(context, old) }
+            onResult(true)
+        }
+    }
+
+    fun handleHomeBannerReset(context: Context) {
+        val old = _uiState.value.homeBannerFile
+        context.appPreferences.remove(HomeLayoutStyle.BANNER_PREF_KEY)
+        _uiState.update { it.copy(homeBannerFile = null) }
+        viewModelScope.launch(Dispatchers.IO) { HomeBannerStorage.delete(context, old) }
+    }
+
     fun refreshData(
         context: Context,
         refreshUI: Boolean = false
@@ -429,6 +463,10 @@ class HomeViewModel : ViewModel() {
                     "show_home_card_icons",
                     false
                 ),
+                homeLayoutStyle = HomeLayoutStyle.fromValue(
+                    settingsPrefs.getString(HomeLayoutStyle.PREF_KEY)
+                ),
+                homeBannerFile = settingsPrefs.getString(HomeLayoutStyle.BANNER_PREF_KEY),
             )
         }
     }

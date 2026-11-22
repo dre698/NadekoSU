@@ -90,6 +90,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nadekosu.BuildConfig
 import com.nadekosu.Natives
+import com.nadekosu.data.HomeLayoutStyle
 import com.nadekosu.R
 import com.nadekosu.data.update.ManagerUpdateChannel
 import com.nadekosu.data.update.ManagerUpdateInfo
@@ -327,7 +328,21 @@ fun HomePage(
                         )
                     }
 
-                    StatusCard(
+                    if (uiState.homeLayoutStyle == HomeLayoutStyle.DASHBOARD &&
+                        uiState.systemStatus.ksuVersion != null
+                    ) {
+                        DashboardStatusSection(
+                            uiState = uiState,
+                            moduleUpdateCount = moduleUpdateCount,
+                            onClickHero = {
+                                if (uiState.systemStatus.isRootAvailable ||
+                                    uiState.systemStatus.kernelVersion.isGKI()
+                                ) {
+                                    navigator.push(Route.Install(preselectedKernelUri = null))
+                                }
+                            },
+                        )
+                    } else StatusCard(
                         uiState = uiState,
                         moduleUpdateCount = moduleUpdateCount,
                         onClickInstall = {

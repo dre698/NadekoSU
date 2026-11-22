@@ -780,6 +780,14 @@ Important Note:\n
     <string name="susfs_backup_default_filename">susfs_backup.json</string>
     <string name="navigation_bar_badge">Navigation bar badges</string>
     <string name="navigation_bar_badge_summary">Show superuser / module counts in the navigation bar</string>
+    <string name="home_layout_style">Home layout</string>
+    <string name="home_layout_circle">Circle UI / Legacy</string>
+    <string name="home_layout_dashboard">Dashboard UI</string>
+    <string name="home_banner_pick">Banner image</string>
+    <string name="home_banner_pick_summary">Pick a picture for the status banner</string>
+    <string name="home_banner_set">Custom image is set. Tap to change</string>
+    <string name="home_banner_reset">Remove banner image</string>
+    <string name="home_banner_failed">Failed to load the image</string>
     <string name="home_card_icons">Show icons on home cards</string>
     <string name="home_card_icons_summary">Add icons to the home information cards</string>
     <string name="settings_custom_monospace_font">Use built-in monospace font</string>

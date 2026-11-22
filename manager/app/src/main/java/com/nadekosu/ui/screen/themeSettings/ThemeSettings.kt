@@ -40,6 +40,9 @@ import androidx.compose.material.icons.twotone.Brush
 import androidx.compose.material.icons.twotone.Check
 import androidx.compose.material.icons.twotone.ColorLens
 import androidx.compose.material.icons.twotone.Contrast
+import androidx.compose.material.icons.twotone.Dashboard
+import androidx.compose.material.icons.twotone.Delete
+import androidx.compose.material.icons.twotone.Image
 import androidx.compose.material.icons.twotone.DarkMode
 import androidx.compose.material.icons.twotone.DesignServices
 import androidx.compose.material.icons.twotone.Dock
@@ -93,6 +96,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.nadekosu.R
+import com.nadekosu.data.HomeLayoutStyle
 import com.nadekosu.ksuApp
 import com.nadekosu.ui.component.ConfirmResult
 import com.nadekosu.ui.component.KeyPointSlider
@@ -693,7 +697,60 @@ private fun CustomizationSettings(
     moduleViewModel: ModuleViewModel,
 ) {
     val context = LocalContext.current
+    val bannerPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            homeViewModel.handleHomeBannerPicked(context, it) { ok ->
+                if (!ok) {
+                    Toast.makeText(context, R.string.home_banner_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
     SegmentedColumn(title = stringResource(R.string.custom_settings)) {
+        item {
+            SettingsChooseWidget(
+                icon = Icons.TwoTone.Dashboard,
+                title = stringResource(R.string.home_layout_style),
+                items = listOf(
+                    stringResource(R.string.home_layout_circle),
+                    stringResource(R.string.home_layout_dashboard),
+                ),
+                selectedIndex = HomeLayoutStyle.supported.indexOf(homeUiState.homeLayoutStyle)
+                    .coerceAtLeast(0),
+                onSelectedIndexChange = { index ->
+                    homeViewModel.handleHomeLayoutStyleChange(
+                        context,
+                        HomeLayoutStyle.supported.getOrElse(index) { HomeLayoutStyle.DEFAULT }
+                    )
+                }
+            )
+        }
+
+        item(visible = homeUiState.homeLayoutStyle == HomeLayoutStyle.DASHBOARD) {
+            SettingsBaseWidget(
+                icon = Icons.TwoTone.Image,
+                title = stringResource(R.string.home_banner_pick),
+                description = stringResource(
+                    if (homeUiState.homeBannerFile != null) R.string.home_banner_set
+                    else R.string.home_banner_pick_summary
+                ),
+                onClick = { bannerPicker.launch("image/*") }
+            )
+        }
+
+        item(
+            visible = homeUiState.homeLayoutStyle == HomeLayoutStyle.DASHBOARD &&
+                homeUiState.homeBannerFile != null
+        ) {
+            SettingsBaseWidget(
+                icon = Icons.TwoTone.Delete,
+                title = stringResource(R.string.home_banner_reset),
+                onClick = { homeViewModel.handleHomeBannerReset(context) }
+            )
+        }
+
         item {
             // 图标切换
             SettingsSwitchWidget(

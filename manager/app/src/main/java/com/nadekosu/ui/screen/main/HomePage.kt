@@ -384,7 +384,16 @@ fun HomePage(
                 }
 
                 if (uiState.isExtendedDataLoaded) {
-                    InfoCard(
+                    if (uiState.homeLayoutStyle == HomeLayoutStyle.DASHBOARD) {
+                        DashboardInfoCard(
+                            systemStatus = uiState.systemStatus,
+                            systemInfo = uiState.systemInfo,
+                            isSimpleMode = uiState.isSimpleMode,
+                            isHideSusfsStatus = uiState.isHideSusfsStatus,
+                            isHideZygiskImplement = uiState.isHideZygiskImplement,
+                            isHideMetaModuleImplement = uiState.isHideMetaModuleImplement,
+                        )
+                    } else InfoCard(
                         systemStatus = uiState.systemStatus,
                         systemInfo = uiState.systemInfo,
                         isSimpleMode = uiState.isSimpleMode,

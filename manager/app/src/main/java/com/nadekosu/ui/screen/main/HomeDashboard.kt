@@ -1,5 +1,18 @@
 package com.nadekosu.ui.screen.main
 
+import android.os.Build
+import androidx.compose.material.icons.twotone.Android
+import androidx.compose.material.icons.twotone.DeveloperBoard
+import androidx.compose.material.icons.twotone.Fingerprint
+import androidx.compose.material.icons.twotone.FilterList
+import androidx.compose.material.icons.twotone.Info
+import androidx.compose.material.icons.twotone.Memory
+import androidx.compose.material.icons.twotone.Security
+import androidx.compose.material.icons.twotone.Smartphone
+import androidx.compose.material.icons.twotone.Tag
+import androidx.compose.material.icons.twotone.Tune
+import com.nadekosu.ui.component.ksuIsValid
+import com.nadekosu.ui.viewmodel.HomeViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -150,8 +163,9 @@ private fun DashboardHero(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(min = 210.dp)
                     .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -251,7 +265,7 @@ private fun DashboardCountCard(
         onClick = onClick,
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = CardConfig.cardAlpha),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = CardConfig.cardAlpha),
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Row(
@@ -275,12 +289,134 @@ private fun DashboardCountCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = value,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     if (badge != null) {
                         Spacer(Modifier.width(6.dp))
                         LabelText(label = badge)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Dashboard UI info list: one flat card with every row, instead of the two titled groups
+ * the legacy layout uses.
+ */
+@Composable
+internal fun DashboardInfoCard(
+    systemStatus: HomeViewModel.SystemStatus,
+    systemInfo: HomeViewModel.SystemInfo,
+    isSimpleMode: Boolean,
+    isHideSusfsStatus: Boolean,
+    isHideZygiskImplement: Boolean,
+    isHideMetaModuleImplement: Boolean,
+) {
+    val valid = ksuIsValid()
+    val seccomp = when (systemInfo.seccompStatus) {
+        -1 -> stringResource(R.string.seccomp_status_not_supported)
+        0 -> stringResource(R.string.seccomp_status_disabled)
+        1 -> stringResource(R.string.seccomp_status_strict)
+        2 -> stringResource(R.string.seccomp_status_filter)
+        else -> stringResource(R.string.seccomp_status_unknown)
+    }
+    val managersList = systemInfo.managersList
+    val managersText = if (!isSimpleMode && managersList != null) {
+        val appName = stringResource(R.string.app_name)
+        val dynamicName = stringResource(R.string.dynamic_managerature)
+        val unknownName = stringResource(R.string.unknown_signature)
+        buildString {
+            managersList.managers.groupBy { it.signatureIndex }.toSortedMap().forEach { (index, list) ->
+                append(list.joinToString(", ") { "UID: ${it.uid}" })
+                append(" ")
+                append(
+                    when {
+                        index == 0 -> "($appName)"
+                        index == 255 -> "($dynamicName)"
+                        index >= 1 -> "(#$index)"
+                        else -> "($unknownName)"
+                    }
+                )
+                append(" | ")
+            }
+        }.trimEnd(' ', '|').ifEmpty { stringResource(R.string.no_active_manager) }
+    } else null
+
+    val rows = buildList<Triple<ImageVector, String, String>> {
+        add(
+            Triple(
+                Icons.TwoTone.Tag,
+                stringResource(R.string.home_manager_version),
+                "${systemInfo.managerVersion.first} (${systemInfo.managerVersion.second}/${systemInfo.managerVersion.third})"
+            )
+        )
+        add(Triple(Icons.TwoTone.DeveloperBoard, stringResource(R.string.home_kernel), systemInfo.kernelRelease))
+        if (valid) {
+            add(
+                Triple(
+                    Icons.TwoTone.Memory,
+                    stringResource(R.string.home_kernel_version),
+                    systemStatus.ksuFullVersion.orEmpty()
+                )
+            )
+        }
+        if (!isSimpleMode && valid) {
+            add(Triple(Icons.TwoTone.Tune, stringResource(R.string.home_hook_type), Natives.getHookType()))
+        }
+        add(Triple(Icons.TwoTone.Smartphone, stringResource(R.string.home_device_model), systemInfo.deviceModel))
+        if (!isSimpleMode) {
+            add(Triple(Icons.TwoTone.Android, stringResource(R.string.home_android_version), systemInfo.androidVersion))
+            add(Triple(Icons.TwoTone.Fingerprint, stringResource(R.string.home_fingerprint), Build.FINGERPRINT))
+        }
+        add(Triple(Icons.TwoTone.Security, stringResource(R.string.home_selinux_status), systemInfo.selinuxStatus))
+        add(Triple(Icons.TwoTone.FilterList, stringResource(R.string.home_seccomp_status), seccomp))
+        if (!isHideZygiskImplement && !isSimpleMode &&
+            systemInfo.zygiskImplement.isNotEmpty() && systemInfo.zygiskImplement != "None"
+        ) {
+            add(Triple(Icons.TwoTone.Extension, stringResource(R.string.home_zygisk_implement), systemInfo.zygiskImplement))
+        }
+        if (!isHideMetaModuleImplement && !isSimpleMode &&
+            systemInfo.metaModuleImplement.isNotEmpty() && systemInfo.metaModuleImplement != "None"
+        ) {
+            add(Triple(Icons.TwoTone.Extension, stringResource(R.string.home_meta_module_implement), systemInfo.metaModuleImplement))
+        }
+        if (!isSimpleMode && !isHideSusfsStatus && systemInfo.susfsEnabled && systemInfo.susfsVersion.isNotEmpty()) {
+            add(Triple(Icons.TwoTone.Info, stringResource(R.string.home_susfs_version), systemInfo.susfsVersion))
+        }
+        if (managersText != null) {
+            add(Triple(Icons.TwoTone.Group, stringResource(R.string.multi_manager_list), managersText))
+        }
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = CardConfig.cardAlpha),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            rows.forEach { (icon, title, value) ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text(text = title, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            text = value,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }

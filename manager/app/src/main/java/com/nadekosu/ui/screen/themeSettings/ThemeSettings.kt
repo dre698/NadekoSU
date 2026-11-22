@@ -358,6 +358,13 @@ fun ThemeSettingsScreen() {
             }
 
             item {
+                HomeLayoutSettings(
+                    homeUiState = homeUiState,
+                    homeViewModel = homeViewModel,
+                )
+            }
+
+            item {
                 // Predictive Back Settings
                 SegmentedColumn(
                     title = stringResource(R.string.predictive_back_settings)
@@ -688,13 +695,9 @@ private fun AppearanceSettings(
 }
 
 @Composable
-private fun CustomizationSettings(
+private fun HomeLayoutSettings(
     homeUiState: HomeUiState,
-    moduleUiState: ModuleUiState,
-    settingsUiState: SettingsUiState,
-    settingsViewModel: SettingsViewModel,
     homeViewModel: HomeViewModel,
-    moduleViewModel: ModuleViewModel,
 ) {
     val context = LocalContext.current
     val bannerPicker = rememberLauncherForActivityResult(
@@ -708,7 +711,7 @@ private fun CustomizationSettings(
             }
         }
     }
-    SegmentedColumn(title = stringResource(R.string.custom_settings)) {
+    SegmentedColumn(title = stringResource(R.string.home_layout_section)) {
         item {
             SettingsChooseWidget(
                 icon = Icons.TwoTone.Dashboard,
@@ -750,7 +753,20 @@ private fun CustomizationSettings(
                 onClick = { homeViewModel.handleHomeBannerReset(context) }
             )
         }
+    }
+}
 
+@Composable
+private fun CustomizationSettings(
+    homeUiState: HomeUiState,
+    moduleUiState: ModuleUiState,
+    settingsUiState: SettingsUiState,
+    settingsViewModel: SettingsViewModel,
+    homeViewModel: HomeViewModel,
+    moduleViewModel: ModuleViewModel,
+) {
+    val context = LocalContext.current
+    SegmentedColumn(title = stringResource(R.string.custom_settings)) {
         item {
             // 图标切换
             SettingsSwitchWidget(

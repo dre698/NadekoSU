@@ -165,7 +165,7 @@ private fun DashboardHero(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 210.dp)
+                    .heightIn(min = 190.dp)
                     .padding(20.dp),
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {

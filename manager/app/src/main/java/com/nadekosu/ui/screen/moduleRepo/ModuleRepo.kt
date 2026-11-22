@@ -1,6 +1,14 @@
 package com.nadekosu.ui.screen.moduleRepo
 
 import android.content.Context
+import com.nadekosu.data.modulestore.StoreSourceKind
+import com.nadekosu.data.modulestore.DEFAULT_REPOSITORY_URL
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.AlertDialog
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -434,6 +442,206 @@ private fun ModuleRepoBottomSheetContent(
                 )
             }
         }
+
+        ModuleRepoSourceSection(
+            viewModel = viewModel,
+            uiState = uiState,
+            onDone = {
+                scope.launch {
+                    bottomSheetState.hide()
+                    onDismiss()
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun ModuleRepoSourceSection(
+    viewModel: ModuleRepoViewModel,
+    uiState: ModuleRepoUiState,
+    onDone: () -> Unit,
+) {
+    var showRepositoryDialog by remember { mutableStateOf(false) }
+    var showUrlDialog by remember { mutableStateOf(false) }
+    var urlText by remember(showUrlDialog) { mutableStateOf(uiState.customUrl) }
+    val kind = uiState.sourceKind
+
+    Text(
+        text = stringResource(R.string.module_repo_source),
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+    )
+    Column(
+        modifier = Modifier.padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        SourceOption(
+            selected = kind == StoreSourceKind.KERNELSU,
+            label = stringResource(R.string.module_repo_source_kernelsu),
+            onClick = {
+                viewModel.useKernelSu()
+                onDone()
+            }
+        )
+        SourceOption(
+            selected = kind == StoreSourceKind.CLUSTER,
+            label = stringResource(R.string.module_repo_source_community),
+            onClick = {
+                viewModel.loadRepositories()
+                showRepositoryDialog = true
+            }
+        )
+        if (kind == StoreSourceKind.CLUSTER) {
+            Text(
+                text = uiState.repositoryUrl.ifBlank { DEFAULT_REPOSITORY_URL },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 40.dp)
+            )
+        }
+        SourceOption(
+            selected = kind == StoreSourceKind.CUSTOM,
+            label = stringResource(R.string.module_repo_source_custom),
+            onClick = { showUrlDialog = true }
+        )
+        if (kind == StoreSourceKind.CUSTOM && uiState.customUrl.isNotBlank()) {
+            Text(
+                text = uiState.customUrl,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 40.dp)
+            )
+        }
+        if (kind != StoreSourceKind.KERNELSU) {
+            Text(
+                text = stringResource(R.string.module_repo_source_warning),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+
+    if (showRepositoryDialog) {
+        val current = uiState.repositoryUrl.ifBlank { DEFAULT_REPOSITORY_URL }
+        AlertDialog(
+            onDismissRequest = { showRepositoryDialog = false },
+            title = { Text(stringResource(R.string.module_repo_choose_repository)) },
+            text = {
+                if (uiState.repositories.isEmpty()) {
+                    Text(stringResource(R.string.module_repo_repositories_loading))
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = 360.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        uiState.repositories.forEach { repo ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = kind == StoreSourceKind.CLUSTER && repo.url == current,
+                                        role = Role.RadioButton,
+                                        onClick = {
+                                            showRepositoryDialog = false
+                                            viewModel.useCluster(repo.url)
+                                            onDone()
+                                        }
+                                    )
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = kind == StoreSourceKind.CLUSTER && repo.url == current,
+                                    onClick = null
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = repo.name.ifBlank { repo.url },
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    Text(
+                                        text = if (repo.modulesCount > 0) "${repo.modulesCount} · ${repo.url}" else repo.url,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showRepositoryDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showUrlDialog) {
+        AlertDialog(
+            onDismissRequest = { showUrlDialog = false },
+            title = { Text(stringResource(R.string.module_repo_source_custom)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = urlText,
+                        onValueChange = { urlText = it },
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.module_repo_custom_url_hint)) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        text = stringResource(R.string.module_repo_custom_url_summary),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                val value = urlText.trim()
+                TextButton(
+                    enabled = value.startsWith("http://", true) || value.startsWith("https://", true),
+                    onClick = {
+                        showUrlDialog = false
+                        viewModel.useCustom(value)
+                        onDone()
+                    }
+                ) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUrlDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun SourceOption(
+    selected: Boolean,
+    label: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Spacer(Modifier.width(16.dp))
+        Text(text = label, style = MaterialTheme.typography.bodyMedium)
     }
 }
 

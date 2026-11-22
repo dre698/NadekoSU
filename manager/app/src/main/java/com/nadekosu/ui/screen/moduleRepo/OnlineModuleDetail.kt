@@ -173,15 +173,22 @@ private fun OnlineModuleDetailContent(module: ModuleRepoViewModel.RepoModule) {
                         )
                     },
                     actions = {
-                        IconButton(
-                            onClick = {
-                                uriHandler.openUri("https://modules.kernelsu.org/module/${module.moduleId}")
+                        // Registry modules have a page on the registry site; modules from other
+                        // sources only have the homepage/source link their repository provides.
+                        val homeUrl = if (ModuleRepoViewModel.isExternal(module.moduleId)) {
+                            module.sourceUrl
+                        } else {
+                            "https://modules.kernelsu.org/module/${module.moduleId}"
+                        }
+                        if (homeUrl.isNotBlank()) {
+                            IconButton(
+                                onClick = { uriHandler.openUri(homeUrl) }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.TwoTone.OpenInBrowser,
+                                    contentDescription = stringResource(R.string.open_module_home_page),
+                                )
                             }
-                        ) {
-                            Icon(
-                                imageVector = Icons.TwoTone.OpenInBrowser,
-                                contentDescription = stringResource(R.string.open_module_home_page),
-                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors().copy(

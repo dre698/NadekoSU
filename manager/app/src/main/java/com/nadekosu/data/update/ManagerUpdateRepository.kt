@@ -61,7 +61,7 @@ object ManagerUpdateRepository {
     }
 
     private val managerApkPattern = Regex(
-        "^NadekoSU_(.+)_(\\d+)-(arm64-v8a|armeabi-v7a|x86_64|universal)-release\\.apk$"
+        "^NadekoSU_(.+)_(\\d+)(?:-(arm64-v8a|armeabi-v7a|x86_64|universal))?-release\\.apk$"
     )
     private val commitCountLinkPattern = Regex("""[?&]page=(\d+)>; rel="last"""")
 
@@ -186,7 +186,8 @@ object ManagerUpdateRepository {
         return ParsedApkName(
             versionName = match.groupValues[1],
             versionCode = versionCode,
-            abi = match.groupValues[3],
+            // CI strips "universal" from the file name, so a missing ABI means the universal build.
+            abi = match.groupValues[3].ifEmpty { UNIVERSAL_ABI },
             fileName = fileName,
         )
     }

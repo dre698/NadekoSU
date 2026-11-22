@@ -46,7 +46,6 @@ import androidx.compose.material.icons.twotone.Smartphone
 import androidx.compose.material.icons.twotone.Tag
 import androidx.compose.material.icons.twotone.TaskAlt
 import androidx.compose.material.icons.twotone.Tune
-import androidx.compose.material.icons.twotone.VolunteerActivism
 import androidx.compose.material.icons.twotone.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -406,7 +405,6 @@ fun HomePage(
 
                 // 链接卡片
                 if (!uiState.isSimpleMode && !uiState.isHideLinkCard) {
-                    DonateCard(uiState.showHomeCardIcons)
                     LearnMoreCard(uiState.showHomeCardIcons)
                 }
 
@@ -728,28 +726,6 @@ fun LearnMoreCard(showHomeCardIcons: Boolean) {
                 onClick = {
                     uriHandler.openUri(url)
                 }
-            )
-        }
-    }
-}
-
-@Composable
-fun DonateCard(showHomeCardIcons: Boolean) {
-    val uriHandler = LocalUriHandler.current
-    SegmentedColumn(
-        modifier = Modifier.fillMaxWidth(),
-        title = stringResource(R.string.home_support_title),
-        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)
-    ) {
-        item {
-            SettingsBaseWidget(
-                icon = Icons.TwoTone.VolunteerActivism.takeIf { showHomeCardIcons },
-                iconPlaceholder = false,
-                title = stringResource(R.string.home_support_title),
-                description = stringResource(R.string.home_support_content),
-                onClick = {
-                    uriHandler.openUri("https://patreon.com/weishu")
-                },
             )
         }
     }

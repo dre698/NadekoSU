@@ -119,6 +119,8 @@ pub fn run(package_name: &String, kmi: Option<String>, allow_shell: bool) -> Res
     // 8. Execute late-load stage scripts (blocking)
     init_event::run_stage("late-load", true);
 
+    crate::android::boot_hide::boot_apply();
+
     // 9. Load system.prop
     if let Err(e) = crate::android::module::load_system_prop() {
         warn!("load system.prop failed: {e}");

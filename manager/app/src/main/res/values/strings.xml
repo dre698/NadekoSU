@@ -790,6 +790,10 @@ Important Note:\n
     <string name="module_repo_custom_url_hint">Repository URL</string>
     <string name="module_repo_custom_url_summary">http(s) link to a Magisk-format repository. It reads json/modules.json, or the .json link you give.</string>
     <string name="module_repo_source_failed">Failed to load this source</string>
+    <string name="settings_nadeko_hide" translatable="false">Nadeko Hide</string>
+    <string name="settings_nadeko_hide_summary">Partially hide the bootloader unlock state</string>
+    <string name="settings_nadeko_hide_reboot_hint">The real value returns after reboot</string>
+    <string name="settings_nadeko_hide_failed">Failed to change Nadeko Hide</string>
     <string name="home_fingerprint">Fingerprint</string>
     <string name="home_layout_section">Layout</string>
     <string name="home_layout_style">Home layout</string>

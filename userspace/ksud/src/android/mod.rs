@@ -1,4 +1,5 @@
 pub mod cli;
+mod boot_hide;
 mod debug;
 mod dynamic_manager;
 mod feature;

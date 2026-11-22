@@ -39,6 +39,7 @@ import androidx.compose.material.icons.twotone.FolderDelete
 import androidx.compose.material.icons.twotone.FolderOff
 import androidx.compose.material.icons.twotone.Info
 import androidx.compose.material.icons.twotone.Policy
+import androidx.compose.material.icons.twotone.VisibilityOff
 import androidx.compose.material.icons.twotone.RadioButtonChecked
 import androidx.compose.material.icons.twotone.RadioButtonUnchecked
 import androidx.compose.material.icons.twotone.RemoveCircle
@@ -401,6 +402,18 @@ fun SettingsPage(bottomPadding: Dp) {
                                     checked = uiState.isSelinuxHideEnabled,
                                     onCheckedChange = { checked ->
                                         settingsViewModel.handleSelinuxHideChange(context, checked)
+                                    },
+                                )
+                            }
+
+                            item {
+                                SettingsSwitchWidget(
+                                    icon = Icons.TwoTone.VisibilityOff,
+                                    title = stringResource(id = R.string.settings_nadeko_hide),
+                                    description = stringResource(id = R.string.settings_nadeko_hide_summary),
+                                    checked = uiState.isBootHideEnabled,
+                                    onCheckedChange = { checked ->
+                                        settingsViewModel.handleBootHideChange(context, checked)
                                     },
                                 )
                             }

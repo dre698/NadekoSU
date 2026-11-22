@@ -163,6 +163,16 @@ suspend fun isOfficialSignature(): Boolean = withContext(Dispatchers.IO) {
         .orEmpty() == "size: 0x37e, hash: b364a61f219a2547429317cd93e703949e54b6f6d7ca45f358481438aad1dbe9"
 }
 
+/** "enabled" or "disabled"; empty when ksud could not be reached. */
+suspend fun getBootHideStatus(): String = withContext(Dispatchers.IO) {
+    val out = getRootShell().newJob()
+        .add("${getKsuDaemonPath()} boot-hide status").to(ArrayList<String>(), null).exec().out
+    out.firstOrNull()?.trim().orEmpty()
+}
+
+fun setBootHideEnabled(enabled: Boolean): Boolean =
+    execKsud("boot-hide ${if (enabled) "enable" else "disable"}", true)
+
 suspend fun getFeatureStatus(feature: String): String = withContext(Dispatchers.IO) {
     val shell = getRootShell()
     val out = shell.newJob()

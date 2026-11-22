@@ -163,6 +163,12 @@ enum Commands {
     /// Resetprop - Magisk-compatible system property tool
     Resetprop(crate::android::resetprop::Args),
 
+    /// Hide the bootloader unlock state from system properties
+    BootHide {
+        #[command(subcommand)]
+        command: crate::android::boot_hide::Command,
+    },
+
     /// Manage susfs component
     Susfs(susfs::cli::SusfsArgs),
 
@@ -595,6 +601,7 @@ pub fn run() -> Result<()> {
     let result = match cli.command {
         Commands::AnyKernel3 { zip, slot } => anykernel3::flash(&zip, slot),
         Commands::Susfs(args) => crate::android::susfs::cli::run_main(args),
+        Commands::BootHide { command } => crate::android::boot_hide::run(&command),
         Commands::PostFsData => init_event::on_post_data_fs(),
         Commands::BootCompleted => {
             init_event::on_boot_completed();

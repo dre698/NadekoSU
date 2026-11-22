@@ -120,6 +120,8 @@ pub fn on_post_data_fs() -> Result<()> {
         warn!("exec post-fs-data scripts failed: {e}");
     }
 
+    crate::android::boot_hide::boot_apply();
+
     // load system.prop
     if let Err(e) = module::load_system_prop() {
         warn!("load system.prop failed: {e}");

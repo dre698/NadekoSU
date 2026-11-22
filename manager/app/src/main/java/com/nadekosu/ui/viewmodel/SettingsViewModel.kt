@@ -34,7 +34,9 @@ import com.nadekosu.ui.theme.saveThemeSeedColor
 import com.nadekosu.ui.theme.saveUseBuiltinMonoFont
 import com.nadekosu.ui.util.execKsud
 import com.nadekosu.ui.util.getFeaturePersistValue
+import com.nadekosu.ui.util.getBootHideStatus
 import com.nadekosu.ui.util.getFeatureStatus
+import com.nadekosu.ui.util.setBootHideEnabled
 import com.topjohnwu.superuser.ShellUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -113,6 +115,7 @@ data class SettingsUiState(
     val isSuLogEnabled: Boolean = false,
     val selinuxHideStatus: String = "",
     val isSelinuxHideEnabled: Boolean = false,
+    val isBootHideEnabled: Boolean = false,
     val defaultUmountModules: Boolean = false,
 )
 
@@ -237,6 +240,9 @@ class SettingsViewModel : ViewModel() {
                         ""
                     ),
                     isSelinuxHideEnabled = runCatching { Natives.isSelinuxHideEnabled() }.getOrDefault(
+                        false
+                    ),
+                    isBootHideEnabled = runCatching { getBootHideStatus() == "enabled" }.getOrDefault(
                         false
                     ),
                     defaultUmountModules = runCatching { Natives.isDefaultUmountModules() }.getOrDefault(
@@ -576,6 +582,19 @@ class SettingsViewModel : ViewModel() {
             if (Natives.setSuLogEnabled(checked)) {
                 execKsud("feature save", true)
                 _uiState.update { it.copy(isSuLogEnabled = checked) }
+            }
+        }
+    }
+
+    fun handleBootHideChange(context: Context, checked: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val ok = setBootHideEnabled(checked)
+            if (ok) _uiState.update { it.copy(isBootHideEnabled = checked) }
+            withContext(Dispatchers.Main) {
+                when {
+                    !ok -> Toast.makeText(context, R.string.settings_nadeko_hide_failed, Toast.LENGTH_LONG).show()
+                    !checked -> Toast.makeText(context, R.string.settings_nadeko_hide_reboot_hint, Toast.LENGTH_LONG).show()
+                }
             }
         }
     }

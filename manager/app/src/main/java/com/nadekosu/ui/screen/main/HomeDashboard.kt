@@ -119,8 +119,8 @@ private fun DashboardHero(
     }
     val hasImage = bannerFile != null
     val shape = RoundedCornerShape(28.dp)
-    val baseColor = MaterialTheme.colorScheme.primaryContainer
-    val contentColor = if (hasImage) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
+    val baseColor = MaterialTheme.colorScheme.surfaceBright
+    val contentColor = if (hasImage) Color.White else MaterialTheme.colorScheme.onSurface
     val subColor = contentColor.copy(alpha = 0.8f)
 
     val title = if (Natives.isSafeMode) {
@@ -133,6 +133,8 @@ private fun DashboardHero(
         status.kernelUAPIVersion?.let { append("-").append(it) }
     }
     val runMode = if (status.lkmMode == true) "LKM" else "Built-in"
+    val jailbreakText = stringResource(R.string.jailbreak_mode)
+    val modeText = if (Natives.isLateLoadMode) "$runMode • $jailbreakText" else runMode
 
     Surface(
         onClick = onClick,
@@ -187,17 +189,12 @@ private fun DashboardHero(
                             color = subColor,
                         )
                     }
-                    LabelText(
-                        label = runMode,
-                        containerColor = MaterialTheme.colorScheme.primary,
+                    Text(
+                        text = modeText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = subColor,
+                        maxLines = 1,
                     )
-                    if (Natives.isLateLoadMode) {
-                        Spacer(Modifier.width(6.dp))
-                        LabelText(
-                            label = stringResource(R.string.jailbreak_mode),
-                            containerColor = MaterialTheme.colorScheme.primary,
-                        )
-                    }
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -265,7 +262,7 @@ private fun DashboardCountCard(
         onClick = onClick,
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = CardConfig.cardAlpha),
+        color = MaterialTheme.colorScheme.surfaceBright.copy(alpha = CardConfig.cardAlpha),
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Row(
@@ -289,8 +286,8 @@ private fun DashboardCountCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = value,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (badge != null) {
                         Spacer(Modifier.width(6.dp))
@@ -394,7 +391,7 @@ internal fun DashboardInfoCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = CardConfig.cardAlpha),
+        color = MaterialTheme.colorScheme.surfaceBright.copy(alpha = CardConfig.cardAlpha),
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Column(

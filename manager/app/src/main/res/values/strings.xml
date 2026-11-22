@@ -783,7 +783,7 @@ Important Note:\n
     <string name="home_fingerprint">Fingerprint</string>
     <string name="home_layout_section">Layout</string>
     <string name="home_layout_style">Home layout</string>
-    <string name="home_layout_circle">Circle UI / Legacy</string>
+    <string name="home_layout_circle">Circle UI</string>
     <string name="home_layout_dashboard">Dashboard UI</string>
     <string name="home_banner_pick">Banner image</string>
     <string name="home_banner_pick_summary">Pick a picture for the status banner</string>

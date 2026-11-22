@@ -98,6 +98,7 @@ import com.materialkolor.dynamiccolor.ColorSpec
 import com.nadekosu.R
 import com.nadekosu.data.HomeLayoutStyle
 import com.nadekosu.ksuApp
+import com.nadekosu.ui.util.HomeBannerStorage
 import com.nadekosu.ui.component.ConfirmResult
 import com.nadekosu.ui.component.KeyPointSlider
 import com.nadekosu.ui.component.rememberConfirmDialog
@@ -700,15 +701,38 @@ private fun HomeLayoutSettings(
     homeViewModel: HomeViewModel,
 ) {
     val context = LocalContext.current
+    val bannerCropLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.let { UCrop.getOutput(it) }?.let { cropped ->
+                homeViewModel.handleHomeBannerPicked(context, cropped) { ok ->
+                    if (!ok) {
+                        Toast.makeText(context, R.string.home_banner_failed, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        } else if (result.resultCode == UCrop.RESULT_ERROR) {
+            Toast.makeText(context, R.string.home_banner_failed, Toast.LENGTH_SHORT).show()
+        }
+    }
     val bannerPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let {
-            homeViewModel.handleHomeBannerPicked(context, it) { ok ->
-                if (!ok) {
-                    Toast.makeText(context, R.string.home_banner_failed, Toast.LENGTH_SHORT).show()
-                }
+        uri?.let { source ->
+            val aspect = HomeBannerStorage.aspect
+            val maxWidth = HomeBannerStorage.CROP_MAX_WIDTH
+            val intent = Intent(context, BackgroundCropActivity::class.java).apply {
+                putExtra(UCrop.EXTRA_INPUT_URI, source)
+                putExtra(UCrop.EXTRA_OUTPUT_URI, createBackgroundCropOutputUri(context, "home_banner_crop"))
+                putExtra(UCrop.EXTRA_ASPECT_RATIO_X, aspect)
+                putExtra(UCrop.EXTRA_ASPECT_RATIO_Y, 1f)
+                putExtra(UCrop.EXTRA_MAX_SIZE_X, maxWidth)
+                putExtra(UCrop.EXTRA_MAX_SIZE_Y, (maxWidth / aspect).toInt())
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             }
+            bannerCropLauncher.launch(intent)
         }
     }
     SegmentedColumn(title = stringResource(R.string.home_layout_section)) {

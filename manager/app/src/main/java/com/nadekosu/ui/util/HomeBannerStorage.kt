@@ -18,6 +18,17 @@ object HomeBannerStorage {
     private const val DIR = "home_banner"
     private const val MAX_EDGE = 1600
 
+    /** Width / height of the Dashboard hero as last measured on screen; the crop frame locks to it. */
+    @Volatile
+    var aspect: Float = 2f
+        private set
+
+    fun reportAspect(width: Int, height: Int) {
+        if (width > 0 && height > 0) aspect = width.toFloat() / height.toFloat()
+    }
+
+    const val CROP_MAX_WIDTH = MAX_EDGE
+
     fun fileOf(context: Context, name: String?): File? {
         if (name.isNullOrBlank()) return null
         return File(File(context.filesDir, DIR), name).takeIf { it.isFile }

@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -143,7 +144,11 @@ private fun DashboardHero(
         color = baseColor.copy(alpha = CardConfig.cardAlpha),
         contentColor = contentColor,
     ) {
-        Box(modifier = Modifier.heightIn(min = 190.dp)) {
+        Box(
+            modifier = Modifier
+                .heightIn(min = 190.dp)
+                .onSizeChanged { HomeBannerStorage.reportAspect(it.width, it.height) }
+        ) {
             if (bannerFile != null) {
                 AsyncImage(
                     model = bannerFile,

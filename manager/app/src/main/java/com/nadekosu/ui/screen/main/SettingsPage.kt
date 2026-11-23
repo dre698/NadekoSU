@@ -115,6 +115,7 @@ import com.nadekosu.ui.util.loadSusfsLkmNow
 import com.nadekosu.ui.util.setSusfsLkmEnabled
 import com.nadekosu.ui.viewmodel.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
@@ -126,6 +127,7 @@ import java.time.format.DateTimeFormatter
  */
 private val SPACING_MEDIUM = 8.dp
 private val SPACING_LARGE = 16.dp
+private const val SETTINGS_LOAD_DELAY_MS = 300L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -138,6 +140,9 @@ fun SettingsPage(bottomPadding: Dp) {
     val uiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
+        // Settings is composed as a neighbour while tabs are switched quickly. Waiting a moment
+        // lets that pass without running every feature query for a page nobody stopped on.
+        delay(SETTINGS_LOAD_DELAY_MS)
         settingsViewModel.loadFeatureSettings(context)
     }
 
@@ -163,6 +168,7 @@ fun SettingsPage(bottomPadding: Dp) {
         var susfsLkm by remember { mutableStateOf<SusfsLkmState?>(null) }
         var susfsLkmBusy by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) {
+            delay(SETTINGS_LOAD_DELAY_MS)
             susfsLkm = runCatching { getSusfsLkmState() }.getOrNull()
         }
         val exportBugreportLauncher = rememberLauncherForActivityResult(

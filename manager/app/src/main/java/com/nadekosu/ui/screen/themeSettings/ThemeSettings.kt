@@ -116,7 +116,6 @@ import com.nadekosu.ui.screen.themeSettings.component.ThemeSettingsDialogs
 import com.nadekosu.ui.screen.themeSettings.crop.BackgroundCropActivity
 import com.nadekosu.ui.screen.themeSettings.util.restartActivity
 import com.nadekosu.ui.theme.BackgroundManager
-import com.nadekosu.ui.theme.BottomBarStyle
 import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurEffect
@@ -633,24 +632,6 @@ private fun AppearanceSettings(
         }
 
         item(
-            topPadding = 1.dp
-        ) {
-            val context = LocalContext.current
-            SettingsSwitchWidget(
-                icon = Icons.TwoTone.Dock,
-                title = stringResource(id = R.string.settings_floating_nav_bar),
-                description = stringResource(id = R.string.settings_floating_nav_bar_summary),
-                checked = ThemeConfig.bottomBarStyle == BottomBarStyle.FLOATING,
-                onCheckedChange = { isChecked ->
-                    BackgroundManager.saveBottomBarStyle(
-                        context,
-                        if (isChecked) BottomBarStyle.FLOATING else BottomBarStyle.MATERIAL3_EXPRESSIVE
-                    )
-                }
-            )
-        }
-
-        item(
             visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
             topPadding = 1.dp,
         ) {
@@ -844,9 +825,7 @@ private fun CustomizationSettings(
             )
         }
 
-        item(
-            visible = ThemeConfig.bottomBarStyle == BottomBarStyle.FLOATING,
-        ) {
+        item {
             SettingsSwitchWidget(
                 icon = Icons.TwoTone.Label,
                 title = stringResource(id = R.string.settings_hide_floating_nav_bar_labels),

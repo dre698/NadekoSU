@@ -123,7 +123,6 @@ object ThemeConfig {
     var isEnableBlur by mutableStateOf(false)
     var isEnableBlurExp by mutableStateOf(false)
     var isUseBackgroundSeedColor by mutableStateOf(false)
-    var bottomBarStyle by mutableStateOf(BottomBarStyle.FLOATING)
     var hideFloatingNavBarLabels by mutableStateOf(false)
 
     // 主题变化检测
@@ -296,11 +295,6 @@ object BackgroundManager {
         context.appPreferences.putBoolean("enable_blur_exp", enable)
     }
 
-    fun saveBottomBarStyle(context: Context, style: BottomBarStyle) {
-        ThemeConfig.bottomBarStyle = style
-        context.appPreferences.putInt("bottom_bar_style", style.ordinal)
-    }
-
     fun saveHideFloatingNavBarLabels(context: Context, enable: Boolean) {
         ThemeConfig.hideFloatingNavBarLabels = enable
         context.appPreferences.putBoolean("hide_floating_nav_bar_labels", enable)
@@ -363,7 +357,6 @@ object BackgroundManager {
         ThemeConfig.isEnableBlurExp = prefs.getBoolean("enable_blur_exp", false)
         ThemeConfig.isUseBackgroundSeedColor = prefs.getBoolean("use_background_seed_color", false)
         ThemeConfig.isHighContrastMode = prefs.getBoolean("high_contrast_mode", false)
-        ThemeConfig.bottomBarStyle = BottomBarStyle.fromOrdinal(prefs.getInt("bottom_bar_style", BottomBarStyle.FLOATING.ordinal))
         ThemeConfig.hideFloatingNavBarLabels = prefs.getBoolean("hide_floating_nav_bar_labels", false)
     }
 

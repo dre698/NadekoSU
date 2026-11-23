@@ -37,7 +37,6 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FlexibleBottomAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -73,8 +72,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nadekosu.ksuApp
 import com.nadekosu.ui.component.FloatingBottomBar
 import com.nadekosu.ui.component.FloatingBottomBarItem
+import com.nadekosu.ui.component.StandardFloatingBottomBar
 import com.nadekosu.ui.screen.BottomBarDestination
-import com.nadekosu.ui.theme.BottomBarStyle
 import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurEffect
@@ -122,7 +121,7 @@ fun NavigationBar(
     }
 
     if (isBottomBar) {
-        if (ThemeConfig.bottomBarStyle == BottomBarStyle.FLOATING && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && LocalBlurState.current != null) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -196,32 +195,32 @@ fun NavigationBar(
             }
             return
         }
-        FlexibleBottomAppBar(
+        Box(
             modifier = Modifier
+                .fillMaxWidth()
                 .windowInsetsPadding(
                     WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
                 )
-                .blurEffect(),
-            containerColor =
-                if (ThemeConfig.isEnableBlur)
-                    Color.Transparent
-                else
-                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(CardConfig.cardAlpha),
-            contentColor = MaterialTheme.colorScheme.onSurface
+                .padding(
+                    bottom = 12.dp + WindowInsets.navigationBars.asPaddingValues()
+                        .calculateBottomPadding()
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            destinations.forEachIndexed { index, destination ->
-                BottomBarNavigationItem(
-                    isSelected = index == page,
-                    destination = destination,
-                    onClick = {
-                        handlePageChange(index)
-                    },
-                    superuserCount = superuserCount,
-                    moduleCount = moduleCount,
-                    isHideOtherInfo = isHideOtherInfo,
-                    showNavigationBarBadge = showNavigationBarBadge,
-                )
-            }
+            StandardFloatingBottomBar(
+                destinations = destinations,
+                selectedIndex = page,
+                onSelect = { handlePageChange(it) },
+                showLabels = !ThemeConfig.hideFloatingNavBarLabels,
+                badgeCount = { destination ->
+                    if (isHideOtherInfo || !showNavigationBarBadge) 0
+                    else when (destination) {
+                        BottomBarDestination.SuperUser -> superuserCount
+                        BottomBarDestination.Module -> moduleCount
+                        else -> 0
+                    }
+                },
+            )
         }
     } else {
         WideNavigationRail(
@@ -299,49 +298,6 @@ private fun NavigationRailItem(
                 maxLines = 1
             )
         },
-    )
-}
-
-@Composable
-private fun RowScope.BottomBarNavigationItem(
-    isSelected: Boolean,
-    destination: BottomBarDestination,
-    onClick: () -> Unit,
-    superuserCount: Int,
-    moduleCount: Int,
-    isHideOtherInfo: Boolean,
-    showNavigationBarBadge: Boolean
-) {
-    NavigationBarItem(
-        selected = isSelected,
-        onClick = onClick,
-        icon = {
-            BadgedBox(
-                badge = {
-                    DestinationBadge(
-                        dest = destination,
-                        superUser = superuserCount,
-                        module = moduleCount,
-                        isHideOtherInfo = isHideOtherInfo,
-                        showNavigationBarBadge = showNavigationBarBadge,
-                    )
-                }
-            ) {
-                if (isSelected) {
-                    Icon(destination.iconSelected, stringResource(destination.label))
-                } else {
-                    Icon(destination.iconNotSelected, stringResource(destination.label))
-                }
-            }
-        },
-        label = {
-            Text(
-                stringResource(destination.label),
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1
-            )
-        },
-        alwaysShowLabel = false
     )
 }
 

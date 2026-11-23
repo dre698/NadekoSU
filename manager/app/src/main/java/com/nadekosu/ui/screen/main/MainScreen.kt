@@ -4,6 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import kotlin.math.abs
 import androidx.compose.foundation.pager.HorizontalPager
 import top.yukonga.miuix.kmp.utils.pagerGestureOverride
 import androidx.compose.foundation.pager.rememberPagerState
@@ -41,6 +44,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private val NavigationSpringSpec = spring<Float>(
+    dampingRatio = Spring.DampingRatioNoBouncy,
+    stiffness = Spring.StiffnessMediumLow,
+)
+
 @Composable
 fun MainScreen(pagerGestureMode: Int = 0) {
     var savedPages by rememberSaveable<MutableState<List<BottomBarDestination>>> {
@@ -60,42 +68,23 @@ fun MainScreen(pagerGestureMode: Int = 0) {
         initialPage = uiSelectedPage,
         pageCount = { pages.size }
     )
-    var userScrollEnabled by remember { mutableStateOf(true) }
-    var animating by remember { mutableStateOf(false) }
-    var animateJob by remember { mutableStateOf<Job?>(null) }
-    var lastRequestedPage by remember { mutableIntStateOf(pagerState.currentPage) }
+    // The job that is moving the pager for the latest tab tap; null while the user is in control.
+    val navJob = remember { arrayOfNulls<Job>(1) }
 
     val handlePageChange: (Int) -> Unit = remember(pagerState, coroutineScope) {
         { page ->
-            uiSelectedPage = page
-            if (page == pagerState.currentPage) {
-                if (animateJob != null && lastRequestedPage != page) {
-                    animateJob?.cancel()
-                    animateJob = null
-                    animating = false
-                    userScrollEnabled = true
-                }
-                lastRequestedPage = page
-            } else {
-                if (animateJob != null && lastRequestedPage == page) {
-                    // Already animating to the requested page
-                } else {
-                    animateJob?.cancel()
-                    animating = true
-                    userScrollEnabled = false
-                    val job = coroutineScope.launch {
-                        try {
-                            pagerState.animateScrollToPage(page)
-                        } finally {
-                            if (animateJob === this) {
-                                userScrollEnabled = true
-                                animating = false
-                                animateJob = null
-                            }
-                        }
+            // A repeated tap on the page we are already heading to must not restart the animation.
+            if (page != uiSelectedPage || page != pagerState.currentPage) {
+                uiSelectedPage = page
+                navJob[0]?.cancel()
+                navJob[0] = coroutineScope.launch {
+                    val from = pagerState.currentPage
+                    if (abs(page - from) > 1) {
+                        // Hop next to the target without animating, so the pages in between are
+                        // never composed (each one loads its own data when it appears).
+                        pagerState.scrollToPage(if (page > from) page - 1 else page + 1)
                     }
-                    animateJob = job
-                    lastRequestedPage = page
+                    pagerState.animateScrollToPage(page, animationSpec = NavigationSpringSpec)
                 }
             }
         }
@@ -103,7 +92,8 @@ fun MainScreen(pagerGestureMode: Int = 0) {
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect { page ->
-            if (!animating) uiSelectedPage = page
+            // Follow swipes, but not the pages a tab tap passes through.
+            if (navJob[0]?.isActive != true) uiSelectedPage = page
         }
     }
 
@@ -128,10 +118,9 @@ fun MainScreen(pagerGestureMode: Int = 0) {
                         .pagerGestureOverride(
                             pagerState = pagerState,
                             mode = pagerGestureMode,
-                            enabled = userScrollEnabled,
+                            enabled = true,
                         ),
                     state = pagerState,
-                    userScrollEnabled = userScrollEnabled,
                     beyondViewportPageCount = 1,
                 ) { pageIndex ->
                     if (pages.isEmpty()) return@HorizontalPager

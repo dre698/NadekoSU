@@ -202,6 +202,8 @@ fun NavigationBar(
                     WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
                 )
                 .padding(
+                    start = 24.dp,
+                    end = 24.dp,
                     bottom = 12.dp + WindowInsets.navigationBars.asPaddingValues()
                         .calculateBottomPadding()
                 ),

@@ -26,31 +26,38 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
 import com.nadekosu.ui.screen.BottomBarDestination
+import kotlin.math.roundToInt
 
-private val ItemMinWidth = 48.dp
-private val ItemSpacing = 4.dp
-private val BarPadding = 8.dp
+private val BarHeight = 76.dp
+private val ItemHeight = 56.dp
+private val BarPadding = 10.dp
 private val BarMaxWidth = 400.dp
+
+/** The selected item is this many times wider than the others, which all share the rest evenly. */
+private const val SelectedItemWeight = 1.5f
 
 /**
  * Floating capsule used whenever the liquid glass bar is not available (blur off, or Android 11
- * and older). The bar spans the screen width; the selected item grows into a pill that holds its
- * label, every other item stays an icon.
+ * and older). Items share the bar evenly; the selected one is a little wider and becomes a pill
+ * holding its label next to the icon.
  *
- * Each item animates its own expansion and pill fade from where it currently is, so tapping
- * quickly through the tabs retargets the running animations instead of restarting them, and
- * nothing here recomposes per frame (the weight and the pill alpha are read in layout and draw).
+ * Each item animates its own width and pill from where it currently is, so tapping quickly through
+ * the tabs retargets the running animations instead of restarting them. The animated values are
+ * read in layout and draw, so nothing here recomposes per frame.
+ *
+ * Nothing in an item is clipped: a badge with two digits is wider than the icon it hangs on and
+ * must be allowed to stick out of the item.
  */
 @Composable
 fun StandardFloatingBottomBar(
@@ -73,14 +80,8 @@ fun StandardFloatingBottomBar(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center,
     ) {
-        val barWidth: Dp = maxWidth.coerceAtMost(BarMaxWidth)
-        // Space left for the selected item once every other item has its minimum width.
-        val extraWidth = (barWidth - BarPadding * 2 - ItemSpacing * (destinations.size - 1) -
-            ItemMinWidth * destinations.size).coerceAtLeast(0.dp)
-        val openWeight = if (showLabels) 1f + extraWidth / ItemMinWidth else 1f
-
         Surface(
-            modifier = Modifier.width(barWidth),
+            modifier = Modifier.width(maxWidth.coerceAtMost(BarMaxWidth)),
             shape = CircleShape,
             color = barColor,
             contentColor = MaterialTheme.colorScheme.onSurface,
@@ -89,10 +90,9 @@ fun StandardFloatingBottomBar(
         ) {
             Row(
                 modifier = Modifier
-                    .height(64.dp)
+                    .height(BarHeight)
                     .padding(BarPadding)
                     .selectableGroup(),
-                horizontalArrangement = Arrangement.spacedBy(ItemSpacing),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 destinations.forEachIndexed { index, destination ->
@@ -107,11 +107,6 @@ fun StandardFloatingBottomBar(
                         animationSpec = spec,
                         label = "navItemPill",
                     )
-                    val iconScale by animateFloatAsState(
-                        targetValue = if (selected) 1f else 0.9f,
-                        animationSpec = spec,
-                        label = "navItemIconScale",
-                    )
                     val tint = if (selected) {
                         MaterialTheme.colorScheme.onSecondaryContainer
                     } else {
@@ -121,18 +116,23 @@ fun StandardFloatingBottomBar(
 
                     Row(
                         modifier = Modifier
-                            .weight(1f + (openWeight - 1f) * expansion)
-                            .height(44.dp)
-                            .clip(CircleShape)
-                            .drawBehind { drawRect(pillColor, alpha = pillAlpha) }
+                            .weight(1f + (SelectedItemWeight - 1f) * expansion)
+                            .height(ItemHeight)
+                            .padding(horizontal = 2.dp)
+                            .drawBehind {
+                                drawRoundRect(
+                                    color = pillColor,
+                                    cornerRadius = CornerRadius(size.height / 2f),
+                                    alpha = pillAlpha,
+                                )
+                            }
                             .selectable(
                                 selected = selected,
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 role = Role.Tab,
                                 onClick = { if (!selected) onSelect(index) },
-                            )
-                            .padding(horizontal = 12.dp),
+                            ),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -140,10 +140,6 @@ fun StandardFloatingBottomBar(
                             Icon(
                                 imageVector = if (selected) destination.iconSelected else destination.iconNotSelected,
                                 contentDescription = stringResource(destination.label),
-                                modifier = Modifier.graphicsLayer {
-                                    scaleX = iconScale
-                                    scaleY = iconScale
-                                },
                                 tint = tint,
                             )
                         }
@@ -158,22 +154,31 @@ fun StandardFloatingBottomBar(
                                         ),
                                         containerColor = MaterialTheme.colorScheme.primary,
                                         contentColor = MaterialTheme.colorScheme.onPrimary,
-                                    ) { Text(count.toString()) }
+                                    ) { Text(if (count > 99) "99+" else count.toString()) }
                                 }
                             ) { icon() }
                         } else {
                             icon()
                         }
-                        if (expansion > 0f && extraWidth > 0.dp) {
+                        if (showLabels) {
+                            // The label's width follows the expansion, so the icon glides to its
+                            // place instead of jumping when the label appears or disappears.
                             Text(
                                 text = stringResource(destination.label),
                                 modifier = Modifier
-                                    .padding(start = 8.dp * expansion)
-                                    .graphicsLayer { alpha = expansion },
+                                    .clipToBounds()
+                                    .layout { measurable, constraints ->
+                                        val placeable = measurable.measure(constraints.copy(minWidth = 0))
+                                        val width = (placeable.width * expansion).roundToInt()
+                                        layout(width, placeable.height) { placeable.placeRelative(0, 0) }
+                                    }
+                                    .graphicsLayer { alpha = expansion }
+                                    .padding(start = 8.dp),
                                 color = tint,
                                 style = MaterialTheme.typography.labelLarge,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
+                                softWrap = false,
+                                overflow = TextOverflow.Clip,
                             )
                         }
                     }

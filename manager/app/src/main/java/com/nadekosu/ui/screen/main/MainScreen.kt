@@ -8,6 +8,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import kotlin.math.abs
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import top.yukonga.miuix.kmp.utils.pagerGestureOverride
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Scaffold
@@ -24,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,13 +38,26 @@ import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurSource
 import com.nadekosu.ui.util.LocalBlurState
 import com.nadekosu.ui.util.LocalHandlePageChange
+import com.nadekosu.ui.util.LocalIsCurrentPage
 import com.nadekosu.ui.util.LocalPagerState
 import com.nadekosu.ui.util.LocalSelectedPage
 import com.nadekosu.ui.util.LocalSnackbarHost
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+/** True after the first frame, so the first frame only has to build the visible tab. */
+@Composable
+private fun rememberContentReady(): Boolean {
+    var ready by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        ready = true
+    }
+    return ready
+}
 
 private val NavigationSpringSpec = spring<Float>(
     dampingRatio = Spring.DampingRatioNoBouncy,
@@ -68,6 +83,12 @@ fun MainScreen(pagerGestureMode: Int = 0) {
         initialPage = uiSelectedPage,
         pageCount = { pages.size }
     )
+    // Only the current tab is built for the first frame; the others follow once it is on screen.
+    val contentReady = rememberContentReady()
+
+    // True while a tab tap is moving the pager, so tabs passed on the way do not count as current.
+    var isNavigating by remember { mutableStateOf(false) }
+
     // The job that is moving the pager for the latest tab tap; null while the user is in control.
     val navJob = remember { arrayOfNulls<Job>(1) }
 
@@ -77,14 +98,20 @@ fun MainScreen(pagerGestureMode: Int = 0) {
             if (page != uiSelectedPage || page != pagerState.currentPage) {
                 uiSelectedPage = page
                 navJob[0]?.cancel()
+                isNavigating = true
                 navJob[0] = coroutineScope.launch {
-                    val from = pagerState.currentPage
-                    if (abs(page - from) > 1) {
-                        // Hop next to the target without animating, so the pages in between are
-                        // never composed (each one loads its own data when it appears).
-                        pagerState.scrollToPage(if (page > from) page - 1 else page + 1)
+                    val self = coroutineContext.job
+                    try {
+                        val from = pagerState.currentPage
+                        if (abs(page - from) > 1) {
+                            // Hop next to the target without animating, so the tabs in between
+                            // are never drawn sliding past.
+                            pagerState.scrollToPage(if (page > from) page - 1 else page + 1)
+                        }
+                        pagerState.animateScrollToPage(page, animationSpec = NavigationSpringSpec)
+                    } finally {
+                        if (navJob[0] === self) isNavigating = false
                     }
-                    pagerState.animateScrollToPage(page, animationSpec = NavigationSpringSpec)
                 }
             }
         }
@@ -121,17 +148,26 @@ fun MainScreen(pagerGestureMode: Int = 0) {
                             enabled = true,
                         ),
                     state = pagerState,
-                    beyondViewportPageCount = 1,
+                    beyondViewportPageCount = if (contentReady) (pages.size - 1).coerceAtLeast(1) else 0,
+                    overscrollEffect = null,
+                    flingBehavior = PagerDefaults.flingBehavior(
+                        state = pagerState,
+                        snapAnimationSpec = NavigationSpringSpec,
+                    ),
                 ) { pageIndex ->
                     if (pages.isEmpty()) return@HorizontalPager
 
-                    val snackBarHostState = remember { SnackbarHostState() }
-                    CompositionLocalProvider(
-                        LocalSnackbarHost provides snackBarHostState,
-                        LocalBlurState provides rememberMaterial3BlurBackdrop(ThemeConfig.isEnableBlur),
-                    ) {
-                        val destination = pages[pageIndex]
-                        destination.direction(paddingBottom)
+                    val isCurrentPage = !isNavigating && pageIndex == pagerState.settledPage
+                    if (contentReady || pageIndex == pagerState.currentPage) {
+                        val snackBarHostState = remember { SnackbarHostState() }
+                        CompositionLocalProvider(
+                            LocalSnackbarHost provides snackBarHostState,
+                            LocalBlurState provides rememberMaterial3BlurBackdrop(ThemeConfig.isEnableBlur),
+                            LocalIsCurrentPage provides isCurrentPage,
+                        ) {
+                            val destination = pages[pageIndex]
+                            destination.direction(paddingBottom)
+                        }
                     }
                 }
             }

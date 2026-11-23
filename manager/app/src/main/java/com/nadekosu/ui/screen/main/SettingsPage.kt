@@ -107,6 +107,7 @@ import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurEffect
 import com.nadekosu.ui.theme.blurSource
+import com.nadekosu.ui.util.LocalIsCurrentPage
 import com.nadekosu.ui.util.LocalSnackbarHost
 import com.nadekosu.ui.util.SusfsLkmState
 import com.nadekosu.ui.util.getBugreportFile
@@ -115,7 +116,6 @@ import com.nadekosu.ui.util.loadSusfsLkmNow
 import com.nadekosu.ui.util.setSusfsLkmEnabled
 import com.nadekosu.ui.viewmodel.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
@@ -127,7 +127,6 @@ import java.time.format.DateTimeFormatter
  */
 private val SPACING_MEDIUM = 8.dp
 private val SPACING_LARGE = 16.dp
-private const val SETTINGS_LOAD_DELAY_MS = 300L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -139,11 +138,9 @@ fun SettingsPage(bottomPadding: Dp) {
     val settingsViewModel = viewModel<SettingsViewModel>(viewModelStoreOwner = ksuApp)
     val uiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) {
-        // Settings is composed as a neighbour while tabs are switched quickly. Waiting a moment
-        // lets that pass without running every feature query for a page nobody stopped on.
-        delay(SETTINGS_LOAD_DELAY_MS)
-        settingsViewModel.loadFeatureSettings(context)
+    val isCurrentPage = LocalIsCurrentPage.current
+    LaunchedEffect(isCurrentPage) {
+        if (isCurrentPage) settingsViewModel.loadFeatureSettings(context)
     }
 
     Scaffold(
@@ -167,9 +164,8 @@ fun SettingsPage(bottomPadding: Dp) {
         val scope = rememberCoroutineScope()
         var susfsLkm by remember { mutableStateOf<SusfsLkmState?>(null) }
         var susfsLkmBusy by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) {
-            delay(SETTINGS_LOAD_DELAY_MS)
-            susfsLkm = runCatching { getSusfsLkmState() }.getOrNull()
+        LaunchedEffect(isCurrentPage) {
+            if (isCurrentPage) susfsLkm = runCatching { getSusfsLkmState() }.getOrNull()
         }
         val exportBugreportLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.CreateDocument("application/gzip")

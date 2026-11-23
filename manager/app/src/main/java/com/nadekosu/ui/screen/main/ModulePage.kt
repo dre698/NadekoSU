@@ -154,6 +154,7 @@ import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.blurSource
 import com.nadekosu.ui.theme.renderBackgroundBlur
+import com.nadekosu.ui.util.LocalIsCurrentPage
 import com.nadekosu.ui.util.LocalPermissionRequestInterface
 import com.nadekosu.ui.util.LocalSnackbarHost
 import com.nadekosu.ui.util.downloader.download
@@ -297,7 +298,11 @@ fun ModulePage(bottomPadding: Dp) {
             sortEnabledFirst = prefs.getBoolean("module_sort_enabled_first", false),
             sortActionFirst = prefs.getBoolean("module_sort_action_first", false),
         )
-        if (uiState.moduleList.isEmpty() || uiState.isNeedRefresh) {
+    }
+
+    val isCurrentPage = LocalIsCurrentPage.current
+    LaunchedEffect(isCurrentPage) {
+        if (isCurrentPage && (uiState.moduleList.isEmpty() || uiState.isNeedRefresh)) {
             viewModel.fetchModuleList()
         }
     }

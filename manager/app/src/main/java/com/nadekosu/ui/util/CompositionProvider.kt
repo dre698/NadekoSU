@@ -20,6 +20,12 @@ val LocalPagerState = compositionLocalOf<PagerState> { error("No pager state") }
 val LocalHandlePageChange = compositionLocalOf<(Int) -> Unit> { error("No handle page change") }
 val LocalSelectedPage = compositionLocalOf<Int> { error("No selected page") }
 
+/**
+ * True only for the tab that is on screen and at rest. A tab composed in advance, or passed over
+ * while switching tabs quickly, reads false and should hold back its data loading until it is true.
+ */
+val LocalIsCurrentPage = compositionLocalOf { true }
+
 val LocalBackgroundBlurAnchor = staticCompositionLocalOf<LayoutCoordinates?> { null }
 
 val LocalPortraitState = compositionLocalOf<Boolean> { error("No portrait state") }

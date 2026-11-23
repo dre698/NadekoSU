@@ -39,9 +39,9 @@ import androidx.compose.ui.unit.dp
 import com.nadekosu.ui.screen.BottomBarDestination
 import kotlin.math.roundToInt
 
-private val BarHeight = 76.dp
+private val BarHeight = 64.dp
 private val ItemHeight = 56.dp
-private val BarPadding = 10.dp
+private val BarPadding = 4.dp
 private val BarMaxWidth = 400.dp
 
 /** The selected item is this many times wider than the others, which all share the rest evenly. */
@@ -97,16 +97,20 @@ fun StandardFloatingBottomBar(
             ) {
                 destinations.forEachIndexed { index, destination ->
                     val selected = index == selectedIndex
-                    val expansion by animateFloatAsState(
+                    // The bouncy spring overshoots past 0 and 1; a negative value used to give the
+                    // label a negative width and crash, so both are clamped where they are read.
+                    val expansionRaw by animateFloatAsState(
                         targetValue = if (selected && showLabels) 1f else 0f,
                         animationSpec = spec,
                         label = "navItemExpansion",
                     )
-                    val pillAlpha by animateFloatAsState(
+                    val pillAlphaRaw by animateFloatAsState(
                         targetValue = if (selected) 1f else 0f,
                         animationSpec = spec,
                         label = "navItemPill",
                     )
+                    val expansion = expansionRaw.coerceIn(0f, 1f)
+                    val pillAlpha = pillAlphaRaw.coerceIn(0f, 1f)
                     val tint = if (selected) {
                         MaterialTheme.colorScheme.onSecondaryContainer
                     } else {
@@ -169,7 +173,7 @@ fun StandardFloatingBottomBar(
                                     .clipToBounds()
                                     .layout { measurable, constraints ->
                                         val placeable = measurable.measure(constraints.copy(minWidth = 0))
-                                        val width = (placeable.width * expansion).roundToInt()
+                                        val width = (placeable.width * expansion).roundToInt().coerceAtLeast(0)
                                         layout(width, placeable.height) { placeable.placeRelative(0, 0) }
                                     }
                                     .graphicsLayer { alpha = expansion }

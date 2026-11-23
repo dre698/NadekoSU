@@ -233,8 +233,6 @@
     <string name="settings_config_enable_blur">Enable Blur</string>
     <string name="settings_floating_nav_bar">Floating Navigation Bar</string>
     <string name="settings_floating_nav_bar_summary">Use Apple style floating bottom bar</string>
-    <string name="settings_hide_floating_nav_bar_labels">Hide Navigation Labels</string>
-    <string name="settings_hide_floating_nav_bar_labels_summary">Hide icon labels and center icons in the floating navigation bar</string>
     <string name="settings_config_enable_blur_summary">Enable blur process for this app</string>
     <string name="settings_exp_draw_background_to_blur">Draw Custom background to blur</string>
     <string name="settings_exp_draw_background_to_blur_description">Experiment feature, process with your own risk</string>
@@ -797,7 +795,7 @@ Important Note:\n
     <string name="home_fingerprint">Fingerprint</string>
     <string name="home_layout_section">Layout</string>
     <string name="home_layout_style">Home layout</string>
-    <string name="home_layout_circle">Circle UI / Legacy</string>
+    <string name="home_layout_circle">Circle UI</string>
     <string name="home_layout_dashboard">Dashboard UI</string>
     <string name="home_banner_pick">Banner image</string>
     <string name="home_banner_pick_summary">Pick a picture for the status banner</string>

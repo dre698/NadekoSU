@@ -7,7 +7,7 @@ object HomeLayoutStyle {
     const val PREF_KEY = "home_layout_style"
     const val BANNER_PREF_KEY = "home_banner_file"
 
-    /** The original single-column home (Circle UI / Legacy). */
+    /** The original single-column home (Circle UI). */
     const val CIRCLE = "circle"
 
     /** Hero banner with a custom image, counters and the info cards. */

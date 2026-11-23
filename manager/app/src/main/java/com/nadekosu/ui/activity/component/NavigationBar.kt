@@ -178,17 +178,6 @@ fun NavigationBar(
                             } else {
                                 icon()
                             }
-                            if (!ThemeConfig.hideFloatingNavBarLabels) {
-                                Text(
-                                    text = stringResource(destination.label),
-                                    color = contentColor,
-                                    fontSize = 11.sp,
-                                    lineHeight = 14.sp,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = TextOverflow.Visible
-                                )
-                            }
                         }
                     }
                 }
@@ -213,7 +202,7 @@ fun NavigationBar(
                 destinations = destinations,
                 selectedIndex = page,
                 onSelect = { handlePageChange(it) },
-                showLabels = !ThemeConfig.hideFloatingNavBarLabels,
+                showLabels = true,
                 badgeCount = { destination ->
                     if (isHideOtherInfo || !showNavigationBarBadge) 0
                     else when (destination) {

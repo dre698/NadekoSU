@@ -827,18 +827,6 @@ private fun CustomizationSettings(
 
         item {
             SettingsSwitchWidget(
-                icon = Icons.TwoTone.Label,
-                title = stringResource(id = R.string.settings_hide_floating_nav_bar_labels),
-                description = stringResource(id = R.string.settings_hide_floating_nav_bar_labels_summary),
-                checked = ThemeConfig.hideFloatingNavBarLabels,
-                onCheckedChange = { isChecked ->
-                    BackgroundManager.saveHideFloatingNavBarLabels(context, isChecked)
-                }
-            )
-        }
-
-        item {
-            SettingsSwitchWidget(
                 icon = Icons.TwoTone.Badge,
                 title = stringResource(R.string.home_card_icons),
                 description = stringResource(R.string.home_card_icons_summary),

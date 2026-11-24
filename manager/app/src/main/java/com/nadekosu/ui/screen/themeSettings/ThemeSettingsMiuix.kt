@@ -118,7 +118,7 @@ import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.preference.ArrowPreference
-import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
+import com.nadekosu.ui.component.miuix.ChoicePreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
@@ -546,7 +546,7 @@ private fun MiuixColorsCategory(state: SettingsUiState, viewModel: SettingsViewM
                 onCheckedChange = { viewModel.handleDynamicColorChange(context, it) },
             )
             if (!state.useDynamicColor) {
-                OverlayDropdownPreference(
+                ChoicePreference(
                     title = stringResource(R.string.miuix_key_color),
                     items = colorNames,
                     startAction = { PrefIcon(Icons.Rounded.Colorize) },
@@ -557,7 +557,7 @@ private fun MiuixColorsCategory(state: SettingsUiState, viewModel: SettingsViewM
                     },
                 )
             }
-            OverlayDropdownPreference(
+            ChoicePreference(
                 title = stringResource(R.string.dynamic_palette_style),
                 items = styles.map { it.displayName() },
                 startAction = { PrefIcon(Icons.Rounded.Style) },
@@ -569,7 +569,7 @@ private fun MiuixColorsCategory(state: SettingsUiState, viewModel: SettingsViewM
                     )
                 },
             )
-            OverlayDropdownPreference(
+            ChoicePreference(
                 title = stringResource(R.string.dynamic_color_spec),
                 items = specs.map { it.displayName() },
                 startAction = { PrefIcon(Icons.Rounded.DesignServices) },
@@ -676,7 +676,7 @@ private fun MiuixIconTextCategory(state: SettingsUiState, viewModel: SettingsVie
 private fun MiuixHomeCardCategory(homeUiState: HomeUiState, homeViewModel: HomeViewModel) {
     val context = LocalContext.current
     SectionCard(ThemeSettingsCategory.HOME_CARD) {
-        OverlayDropdownPreference(
+        ChoicePreference(
             title = stringResource(R.string.home_layout_style),
             items = listOf(
                 stringResource(R.string.home_layout_circle),
@@ -769,7 +769,7 @@ private fun MiuixGesturesCategory(state: SettingsUiState, viewModel: SettingsVie
             checked = state.enableSwipeDismiss,
             onCheckedChange = { viewModel.handleSwipeDismissChange(context, it) },
         )
-        OverlayDropdownPreference(
+        ChoicePreference(
             title = stringResource(R.string.settings_pager_gesture_mode),
             items = listOf(
                 stringResource(R.string.settings_pager_gesture_native),
@@ -848,7 +848,7 @@ private fun MiuixDetailsCategory(
 private fun MiuixThemeCategory(actions: ThemePackageActions) {
     val context = LocalContext.current
     SectionCard(ThemeSettingsCategory.THEME) {
-        OverlayDropdownPreference(
+        ChoicePreference(
             title = stringResource(R.string.ui_style_title),
             items = listOf(
                 stringResource(R.string.ui_style_material),

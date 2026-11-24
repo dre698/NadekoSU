@@ -1,5 +1,6 @@
 package com.nadekosu.ui.screen.main
 
+import com.nadekosu.data.UiStyle
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
@@ -130,7 +131,7 @@ private val SPACING_LARGE = 16.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsPage(bottomPadding: Dp) {
+private fun MaterialSettingsPage(bottomPadding: Dp) {
     val navigator = LocalNavigator.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     val snackBarHost = LocalSnackbarHost.current
@@ -604,7 +605,7 @@ fun SettingsPage(bottomPadding: Dp) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LogBottomSheet(
+internal fun LogBottomSheet(
     onDismiss: () -> Unit,
     onSaveLog: () -> Unit,
     onShareLog: () -> Unit
@@ -876,4 +877,14 @@ private fun TopBar(
         windowInsets = TopAppBarDefaults.windowInsets.add(WindowInsets(left = 12.dp)),
         scrollBehavior = scrollBehavior
     )
+}
+
+/** Draws the settings tab with the component set picked in Theme > UI style. */
+@Composable
+fun SettingsPage(bottomPadding: Dp) {
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        MiuixSettingsPage(bottomPadding)
+    } else {
+        MaterialSettingsPage(bottomPadding)
+    }
 }

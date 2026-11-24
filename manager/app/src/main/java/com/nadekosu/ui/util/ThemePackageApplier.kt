@@ -83,7 +83,7 @@ object ThemePackageApplier {
         homeViewModel.handleHomeCardIconsChange(context, data.showHomeCardIcons)
         homeViewModel.handleNavigationBarBadgeChange(context, data.showNavigationBarBadge)
         if (banner != null) {
-            suspendCoroutine { continuation ->
+            suspendCoroutine<Boolean> { continuation ->
                 homeViewModel.handleHomeBannerPicked(context, Uri.fromFile(banner)) {
                     continuation.resume(it)
                 }

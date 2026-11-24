@@ -824,4 +824,15 @@ Important Note:\n
     <string name="settings_susfs_lkm_on">SUSFS module will load at the next reboot.</string>
     <string name="settings_susfs_lkm_off">Auto-load disabled.</string>
     <string name="settings_susfs_lkm_failed">Failed to change the SUSFS module setting.</string>
+    <string name="theme_category_colors">Colors</string>
+    <string name="theme_category_background">Background</string>
+    <string name="theme_category_icon_text">Icon &amp; text</string>
+    <string name="theme_category_home_card">Home card</string>
+    <string name="theme_category_top_bar">Top bar</string>
+    <string name="theme_category_bottom_bar">Bottom bar</string>
+    <string name="theme_category_gestures">Gestures</string>
+    <string name="theme_category_details">Details</string>
+    <string name="theme_category_language">Language</string>
+    <string name="theme_preview_caption">Preview · Material 3 Expressive</string>
+    <string name="theme_preview_compact_summary">Settings below update this preview · Tap to enlarge</string>
 </resources>

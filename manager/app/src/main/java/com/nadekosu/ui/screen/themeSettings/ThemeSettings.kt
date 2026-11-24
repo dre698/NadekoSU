@@ -1,5 +1,31 @@
 package com.nadekosu.ui.screen.themeSettings
 
+import com.nadekosu.ui.theme.ThemeSeedColors
+import com.nadekosu.ui.screen.themeSettings.component.ThemeSettingsCategory
+import com.nadekosu.ui.screen.themeSettings.component.ThemePreviewDialog
+import com.nadekosu.ui.screen.themeSettings.component.ThemePreviewCard
+import com.nadekosu.ui.screen.themeSettings.component.ThemeCategoryGrid
+import com.materialkolor.dynamicColorScheme
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material.icons.twotone.BrightnessAuto
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
@@ -296,6 +322,19 @@ fun ThemeSettingsScreen() {
 
     val navigator = LocalNavigator.current
 
+    // Preview card + category grid are pinned; only the selected category is composed below.
+    var selectedCategoryKey by rememberSaveable { mutableStateOf(ThemeSettingsCategory.COLORS.name) }
+    val selectedCategory = ThemeSettingsCategory.entries
+        .firstOrNull { it.name == selectedCategoryKey } ?: ThemeSettingsCategory.COLORS
+    var showFullPreview by rememberSaveable { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+    LaunchedEffect(selectedCategory) { listState.scrollToItem(0) }
+    val previewModeLabel = settingsState.themeOptions
+        .getOrNull(settingsState.themeMode).orEmpty() +
+            " · " + settingsState.dynamicPaletteStyle.displayName()
+
+    ThemePreviewDialog(show = showFullPreview, onDismiss = { showFullPreview = false })
+
     LaunchedEffect(Unit) {
         scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
     }
@@ -337,101 +376,70 @@ fun ThemeSettingsScreen() {
         containerColor = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) { paddingValues ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .nestedScroll(scrollBehavior.nestedScrollConnection)
-                .blurSource()
+                .padding(top = paddingValues.calculateTopPadding())
         ) {
-            item {
-                Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding()))
-            }
-
-            item {
-                // 外观设置
-                AppearanceSettings(
-                    state = settingsState,
-                    viewModel = settingsViewModel,
-                    pickImageLauncher = pickImageLauncher,
-                    coroutineScope = coroutineScope
-                )
-            }
-
-            item {
-                HomeLayoutSettings(
-                    homeUiState = homeUiState,
-                    homeViewModel = homeViewModel,
-                )
-            }
-
-            item {
-                // Predictive Back Settings
-                SegmentedColumn(
-                    title = stringResource(R.string.predictive_back_settings)
-                ) {
-                    item {
-                        PredictiveBackAnimationWidget(settingsState) { animation ->
-                            settingsViewModel.setPredictiveBackAnimation(context, animation)
+            ThemePreviewCard(
+                modeLabel = previewModeLabel,
+                onClick = { showFullPreview = true },
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 8.dp),
+            )
+            ThemeCategoryGrid(
+                selected = selectedCategory,
+                onSelect = { selectedCategoryKey = it.name },
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 8.dp),
+            )
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .nestedScroll(scrollBehavior.nestedScrollConnection)
+                    .blurSource()
+            ) {
+                item(key = selectedCategory.name) {
+                    when (selectedCategory) {
+                        ThemeSettingsCategory.COLORS -> ColorsSettings(settingsState, settingsViewModel)
+                        ThemeSettingsCategory.BACKGROUND -> BackgroundSettings(
+                            state = settingsState,
+                            viewModel = settingsViewModel,
+                            pickImageLauncher = pickImageLauncher,
+                            coroutineScope = coroutineScope,
+                        )
+                        ThemeSettingsCategory.ICON_TEXT -> IconTextSettings(
+                            state = settingsState,
+                            viewModel = settingsViewModel,
+                            coroutineScope = coroutineScope,
+                        )
+                        ThemeSettingsCategory.HOME_CARD -> {
+                            HomeLayoutSettings(
+                                homeUiState = homeUiState,
+                                homeViewModel = homeViewModel,
+                            )
+                            HomeCardSettings(homeUiState, homeViewModel)
                         }
-                    }
-                    item(
-                        visible = settingsState.predictiveBackAnimation == PredictiveBackAnimation.Scale ||
-                                settingsState.predictiveBackAnimation == PredictiveBackAnimation.AOSP
-                    ) {
-                        PredictiveBackAnimationDirectionWidget(settingsState) { direction ->
-                            settingsViewModel.setPredictiveBackExitDirection(context, direction)
-                        }
+                        ThemeSettingsCategory.TOP_BAR -> TopBarSettings()
+                        ThemeSettingsCategory.BOTTOM_BAR -> BottomBarSettings(homeUiState, homeViewModel)
+                        ThemeSettingsCategory.GESTURES -> GestureSettings(settingsState, settingsViewModel)
+                        ThemeSettingsCategory.DETAILS -> DetailsSettings(
+                            homeUiState = homeUiState,
+                            homeViewModel = homeViewModel,
+                            moduleUiState = moduleUiState,
+                            moduleViewModel = moduleViewModel,
+                        )
+                        ThemeSettingsCategory.LANGUAGE -> LanguageSettings(settingsState, settingsViewModel)
                     }
                 }
-            }
 
-            item {
-                SegmentedColumn(
-                    title = stringResource(R.string.settings_pager_gesture_mode)
-                ) {
-                    item {
-                        SettingsSwitchWidget(
-                            icon = Icons.TwoTone.Swipe,
-                            title = stringResource(R.string.settings_enable_swipe_dismiss),
-                            description = stringResource(R.string.settings_enable_swipe_dismiss_summary),
-                            checked = settingsState.enableSwipeDismiss,
-                            onCheckedChange = { settingsViewModel.handleSwipeDismissChange(context, it) }
-                        )
-                    }
-
-                    item {
-                        SettingsChooseWidget(
-                            icon = Icons.TwoTone.ViewCarousel,
-                            title = stringResource(R.string.settings_pager_gesture_mode),
-                            items = listOf(
-                                stringResource(R.string.settings_pager_gesture_native),
-                                stringResource(R.string.settings_pager_gesture_cross_axis),
-                                stringResource(R.string.settings_pager_gesture_ios_like),
-                            ),
-                            selectedIndex = settingsState.pagerGestureMode.coerceIn(0, 2),
-                            onSelectedIndexChange = { index ->
-                                settingsViewModel.handlePagerGestureModeChange(context, index)
-                            }
-                        )
-                    }
+                item {
+                    Spacer(modifier = Modifier.height(paddingValues.calculateBottomPadding()))
                 }
-            }
-
-            item {
-                // 自定义设置
-                CustomizationSettings(
-                    homeUiState = homeUiState,
-                    homeViewModel = homeViewModel,
-                    moduleUiState = moduleUiState,
-                    moduleViewModel = moduleViewModel,
-                    settingsUiState = settingsState,
-                    settingsViewModel = settingsViewModel
-                )
-            }
-
-            item {
-                // 系统导航栏padding计算
-                Spacer(modifier = Modifier.height(paddingValues.calculateBottomPadding()))
             }
         }
     }
@@ -517,34 +525,34 @@ fun PredictiveBackAnimationDirectionWidget(
 }
 
 @Composable
-private fun AppearanceSettings(
-    state: SettingsUiState,
-    viewModel: SettingsViewModel,
-    pickImageLauncher: ManagedActivityResultLauncher<String, Uri?>,
-    coroutineScope: CoroutineScope
-) {
+private fun SettingsSurface(shape: Shape, content: @Composable () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .renderBackgroundBlur(MaterialTheme.colorScheme.surfaceBright),
+        color = if (ThemeConfig.isEnableBlurExp) Color.Transparent else
+            MaterialTheme.colorScheme.surfaceBright.copy(alpha = CardConfig.cardAlpha),
+        shape = shape,
+        content = content,
+    )
+}
+
+@Composable
+private fun ColorsSettings(state: SettingsUiState, viewModel: SettingsViewModel) {
     val context = LocalContext.current
-    SegmentedColumn(title = stringResource(R.string.appearance_settings)) {
-        item {
-            // 语言设置
-            LanguageSetting(state = state, viewModel = viewModel)
+    SegmentedColumn(title = stringResource(R.string.theme_category_colors)) {
+        item { shape ->
+            SettingsSurface(shape) {
+                ThemeModeToggleRow(
+                    options = state.themeOptions,
+                    selectedIndex = state.themeMode,
+                    onSelect = { index -> viewModel.handleThemeModeChange(context, index) },
+                )
+            }
         }
 
-        item {
-            // 主题模式
-            SettingsChooseWidget(
-                icon = Icons.TwoTone.DarkMode,
-                title = stringResource(R.string.theme_mode),
-                items = state.themeOptions,
-                selectedIndex = state.themeMode,
-                onSelectedIndexChange = { index ->
-                    viewModel.handleThemeModeChange(context, index)
-                }
-            )
-        }
-
-        item {
-            // 动态颜色开关
+        item(topPadding = 1.dp) {
             SettingsSwitchWidget(
                 icon = Icons.TwoTone.ColorLens,
                 title = stringResource(R.string.dynamic_color_title),
@@ -557,8 +565,16 @@ private fun AppearanceSettings(
         item(
             visible = !state.useDynamicColor,
             topPadding = 1.dp,
+        ) { shape ->
+            SettingsSurface(shape) {
+                SeedColorRow(state = state, viewModel = viewModel)
+            }
+        }
+
+        item(
+            visible = !state.useDynamicColor,
+            topPadding = 1.dp,
         ) {
-            // 主题色选择
             ThemeColorSelection(viewModel = viewModel)
         }
 
@@ -591,6 +607,246 @@ private fun AppearanceSettings(
                         }
                     )
                 }
+            )
+        }
+    }
+}
+
+/** System / Light / Dark as a connected icon-only toggle group. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ThemeModeToggleRow(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+) {
+    val haptic = LocalHapticFeedback.current
+    val colors = MaterialTheme.colorScheme
+    val icons = listOf(Icons.TwoTone.BrightnessAuto, Icons.TwoTone.LightMode, Icons.TwoTone.DarkMode)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+    ) {
+        options.forEachIndexed { index, label ->
+            ToggleButton(
+                checked = index == selectedIndex,
+                onCheckedChange = {
+                    if (it) {
+                        haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
+                        onSelect(index)
+                    }
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { role = Role.RadioButton },
+                shapes = when (index) {
+                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                },
+                colors = ToggleButtonDefaults.colors(
+                    checkedContainerColor = colors.primaryContainer,
+                    checkedContentColor = colors.onPrimaryContainer,
+                    containerColor = colors.surfaceContainerHighest,
+                    contentColor = colors.onSurface,
+                ),
+                contentPadding = PaddingValues(vertical = 14.dp),
+            ) {
+                Icon(
+                    imageVector = icons.getOrElse(index) { Icons.TwoTone.BrightnessAuto },
+                    contentDescription = label,
+                )
+            }
+        }
+    }
+}
+
+private val seedColorOptions: List<Int> = listOf(
+    ThemeSeedColors.Default.toArgb(),
+    Color(0xFFF44336).toArgb(),
+    Color(0xFFE91E63).toArgb(),
+    Color(0xFF9C27B0).toArgb(),
+    Color(0xFF673AB7).toArgb(),
+    Color(0xFF3F51B5).toArgb(),
+    Color(0xFF2196F3).toArgb(),
+    Color(0xFF00BCD4).toArgb(),
+    Color(0xFF009688).toArgb(),
+    Color(0xFF4CAF50).toArgb(),
+    Color(0xFFFFEB3B).toArgb(),
+    Color(0xFFFF9800).toArgb(),
+    Color(0xFF795548).toArgb(),
+    Color(0xFF607D8B).toArgb(),
+)
+
+@Composable
+private fun SeedColorRow(state: SettingsUiState, viewModel: SettingsViewModel) {
+    val context = LocalContext.current
+    val isDark = ThemeConfig.forceDarkMode ?: isSystemInDarkTheme()
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        items(seedColorOptions) { color ->
+            SeedColorTile(
+                color = Color(color),
+                selected = ThemeConfig.seedColor == color,
+                isDark = isDark,
+                style = state.dynamicPaletteStyle,
+                spec = state.dynamicColorSpec,
+                onClick = { viewModel.handleThemeColorChange(context, color) },
+            )
+        }
+    }
+}
+
+/** Round-rect tile: top half primaryContainer, bottom half tertiaryContainer, dot / check on top. */
+@Composable
+private fun SeedColorTile(
+    color: Color,
+    selected: Boolean,
+    isDark: Boolean,
+    style: PaletteStyle,
+    spec: ColorSpec.SpecVersion,
+    onClick: () -> Unit,
+) {
+    val haptic = LocalHapticFeedback.current
+    val scheme = dynamicColorScheme(
+        seedColor = color,
+        isDark = isDark,
+        style = style,
+        specVersion = spec,
+    )
+    Surface(
+        onClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+            onClick()
+        },
+        shape = RoundedCornerShape(20.dp),
+        color = scheme.surfaceContainer,
+        modifier = Modifier.size(72.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Canvas(modifier = Modifier.size(48.dp)) {
+                drawArc(
+                    color = scheme.primaryContainer,
+                    startAngle = 180f,
+                    sweepAngle = 180f,
+                    useCenter = true,
+                )
+                drawArc(
+                    color = scheme.tertiaryContainer,
+                    startAngle = 0f,
+                    sweepAngle = 180f,
+                    useCenter = true,
+                )
+            }
+            val scale by animateFloatAsState(
+                targetValue = if (selected) 1.1f else 1f,
+                label = "seedColorScale",
+            )
+            Box(
+                modifier = Modifier.graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
+                contentAlignment = Alignment.Center,
+            ) {
+                if (selected) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .border(2.dp, scheme.primary, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(scheme.primary),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.TwoTone.Check,
+                                contentDescription = null,
+                                tint = scheme.onPrimary,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .background(scheme.primary, CircleShape)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BackgroundSettings(
+    state: SettingsUiState,
+    viewModel: SettingsViewModel,
+    pickImageLauncher: ManagedActivityResultLauncher<String, Uri?>,
+    coroutineScope: CoroutineScope,
+) {
+    SegmentedColumn(title = stringResource(R.string.theme_category_background)) {
+        expandableItem(
+            expanded = ThemeConfig.customBackgroundUri != null,
+            topContent = {
+                CustomBackgroundSettings(
+                    state = state,
+                    viewModel = viewModel,
+                    pickImageLauncher = pickImageLauncher,
+                )
+            },
+            bottomContent = {
+                backgroundAdjustmentControls(state, viewModel, coroutineScope)
+            }
+        )
+
+        item(
+            topPadding = 1.dp
+        ) {
+            ModuleBannerAlphaSlider(
+                state = state,
+                viewModel = viewModel,
+                coroutineScope = coroutineScope
+            )
+        }
+    }
+}
+
+@Composable
+private fun IconTextSettings(
+    state: SettingsUiState,
+    viewModel: SettingsViewModel,
+    coroutineScope: CoroutineScope,
+) {
+    val context = LocalContext.current
+    SegmentedColumn(title = stringResource(R.string.theme_category_icon_text)) {
+        item {
+            SettingsSwitchWidget(
+                icon = Icons.TwoTone.Android,
+                title = stringResource(R.string.icon_switch_title),
+                description = stringResource(R.string.icon_switch_summary),
+                checked = state.useAltIcon,
+                onCheckedChange = { viewModel.handleIconChange(context, it) }
+            )
+        }
+
+        item {
+            SettingsSwitchWidget(
+                icon = Icons.TwoTone.FormatSize,
+                title = stringResource(R.string.settings_custom_monospace_font),
+                description = stringResource(R.string.settings_custom_monospace_font_summary),
+                checked = state.useBuiltinMonoFont,
+                onCheckedChange = { viewModel.handleBuiltinMonospaceFontChange(context, it) }
             )
         }
 
@@ -630,13 +886,14 @@ private fun AppearanceSettings(
                 }
             }
         }
+    }
+}
 
-        item(
-            visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
-            topPadding = 1.dp,
-        ) {
-            val context = LocalContext.current
-
+@Composable
+private fun TopBarSettings() {
+    val context = LocalContext.current
+    SegmentedColumn(title = stringResource(R.string.theme_category_top_bar)) {
+        item(visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             SettingsSwitchWidget(
                 icon = Icons.TwoTone.BlurOn,
                 title = stringResource(id = R.string.settings_config_enable_blur),
@@ -649,29 +906,87 @@ private fun AppearanceSettings(
                 }
             )
         }
+    }
+}
 
-        expandableItem(
-            expanded = ThemeConfig.customBackgroundUri != null,
-            topContent = {
-                CustomBackgroundSettings(
-                    state = state,
-                    viewModel = viewModel,
-                    pickImageLauncher = pickImageLauncher,
-                )
-            },
-            bottomContent = {
-                backgroundAdjustmentControls(state, viewModel, coroutineScope)
-            }
-        )
-
-        item(
-            topPadding = 1.dp
-        ) {
-            ModuleBannerAlphaSlider(
-                state = state,
-                viewModel = viewModel,
-                coroutineScope = coroutineScope
+@Composable
+private fun BottomBarSettings(
+    homeUiState: HomeUiState,
+    homeViewModel: HomeViewModel,
+) {
+    val context = LocalContext.current
+    SegmentedColumn(title = stringResource(R.string.theme_category_bottom_bar)) {
+        item {
+            SettingsSwitchWidget(
+                icon = Icons.TwoTone.Pin,
+                title = stringResource(R.string.navigation_bar_badge),
+                description = stringResource(R.string.navigation_bar_badge_summary),
+                checked = homeUiState.showNavigationBarBadge,
+                onCheckedChange = { homeViewModel.handleNavigationBarBadgeChange(context, it) }
             )
+        }
+    }
+}
+
+@Composable
+private fun GestureSettings(
+    settingsState: SettingsUiState,
+    settingsViewModel: SettingsViewModel,
+) {
+    val context = LocalContext.current
+    SegmentedColumn(title = stringResource(R.string.predictive_back_settings)) {
+        item {
+            PredictiveBackAnimationWidget(settingsState) { animation ->
+                settingsViewModel.setPredictiveBackAnimation(context, animation)
+            }
+        }
+        item(
+            visible = settingsState.predictiveBackAnimation == PredictiveBackAnimation.Scale ||
+                    settingsState.predictiveBackAnimation == PredictiveBackAnimation.AOSP
+        ) {
+            PredictiveBackAnimationDirectionWidget(settingsState) { direction ->
+                settingsViewModel.setPredictiveBackExitDirection(context, direction)
+            }
+        }
+    }
+
+    SegmentedColumn(title = stringResource(R.string.settings_pager_gesture_mode)) {
+        item {
+            SettingsSwitchWidget(
+                icon = Icons.TwoTone.Swipe,
+                title = stringResource(R.string.settings_enable_swipe_dismiss),
+                description = stringResource(R.string.settings_enable_swipe_dismiss_summary),
+                checked = settingsState.enableSwipeDismiss,
+                onCheckedChange = { settingsViewModel.handleSwipeDismissChange(context, it) }
+            )
+        }
+
+        item {
+            SettingsChooseWidget(
+                icon = Icons.TwoTone.ViewCarousel,
+                title = stringResource(R.string.settings_pager_gesture_mode),
+                items = listOf(
+                    stringResource(R.string.settings_pager_gesture_native),
+                    stringResource(R.string.settings_pager_gesture_cross_axis),
+                    stringResource(R.string.settings_pager_gesture_ios_like),
+                ),
+                selectedIndex = settingsState.pagerGestureMode.coerceIn(0, 2),
+                onSelectedIndexChange = { index ->
+                    settingsViewModel.handlePagerGestureModeChange(context, index)
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun LanguageSettings(
+    state: SettingsUiState,
+    viewModel: SettingsViewModel,
+) {
+    SegmentedColumn(title = stringResource(R.string.theme_category_language)) {
+        item {
+            LanguageSetting(state = state, viewModel = viewModel)
         }
     }
 }
@@ -762,50 +1077,13 @@ private fun HomeLayoutSettings(
 }
 
 @Composable
-private fun CustomizationSettings(
+private fun HomeCardSettings(
     homeUiState: HomeUiState,
-    moduleUiState: ModuleUiState,
-    settingsUiState: SettingsUiState,
-    settingsViewModel: SettingsViewModel,
     homeViewModel: HomeViewModel,
-    moduleViewModel: ModuleViewModel,
 ) {
     val context = LocalContext.current
-    SegmentedColumn(title = stringResource(R.string.custom_settings)) {
+    SegmentedColumn(title = stringResource(R.string.theme_category_home_card)) {
         item {
-            // 图标切换
-            SettingsSwitchWidget(
-                icon = Icons.TwoTone.Android,
-                title = stringResource(R.string.icon_switch_title),
-                description = stringResource(R.string.icon_switch_summary),
-                checked = settingsUiState.useAltIcon,
-                onCheckedChange = { settingsViewModel.handleIconChange(context, it) }
-            )
-        }
-
-        item {
-            // 显示更多模块信息
-            SettingsSwitchWidget(
-                icon = Icons.TwoTone.Info,
-                title = stringResource(R.string.show_more_module_info),
-                description = stringResource(R.string.show_more_module_info_summary),
-                checked = moduleUiState.showMoreModuleInfo,
-                onCheckedChange = { moduleViewModel.handleShowMoreModuleInfoChange(context, it) }
-            )
-        }
-
-        item {
-            SettingsSwitchWidget(
-                icon = Icons.TwoTone.FormatSize,
-                title = stringResource(R.string.settings_custom_monospace_font),
-                description = stringResource(R.string.settings_custom_monospace_font_summary),
-                checked = settingsUiState.useBuiltinMonoFont,
-                onCheckedChange = { settingsViewModel.handleBuiltinMonospaceFontChange(context, it) }
-            )
-        }
-
-        item {
-            // 简洁模式开关
             SettingsSwitchWidget(
                 icon = Icons.TwoTone.Brush,
                 title = stringResource(R.string.simple_mode),
@@ -817,21 +1095,32 @@ private fun CustomizationSettings(
 
         item {
             SettingsSwitchWidget(
-                icon = Icons.TwoTone.Pin,
-                title = stringResource(R.string.navigation_bar_badge),
-                description = stringResource(R.string.navigation_bar_badge_summary),
-                checked = homeUiState.showNavigationBarBadge,
-                onCheckedChange = { homeViewModel.handleNavigationBarBadgeChange(context, it) }
-            )
-        }
-
-        item {
-            SettingsSwitchWidget(
                 icon = Icons.TwoTone.Badge,
                 title = stringResource(R.string.home_card_icons),
                 description = stringResource(R.string.home_card_icons_summary),
                 checked = homeUiState.showHomeCardIcons,
                 onCheckedChange = { homeViewModel.handleHomeCardIconsChange(context, it) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailsSettings(
+    homeUiState: HomeUiState,
+    homeViewModel: HomeViewModel,
+    moduleUiState: ModuleUiState,
+    moduleViewModel: ModuleViewModel,
+) {
+    val context = LocalContext.current
+    SegmentedColumn(title = stringResource(R.string.theme_category_details)) {
+        item {
+            SettingsSwitchWidget(
+                icon = Icons.TwoTone.Info,
+                title = stringResource(R.string.show_more_module_info),
+                description = stringResource(R.string.show_more_module_info_summary),
+                checked = moduleUiState.showMoreModuleInfo,
+                onCheckedChange = { moduleViewModel.handleShowMoreModuleInfoChange(context, it) }
             )
         }
 

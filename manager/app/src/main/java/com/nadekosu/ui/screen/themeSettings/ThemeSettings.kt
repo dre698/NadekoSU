@@ -1,5 +1,7 @@
 package com.nadekosu.ui.screen.themeSettings
 
+import com.nadekosu.ui.screen.themeSettings.component.ThemePreviewState
+import androidx.compose.material3.TopAppBar
 import com.nadekosu.ui.theme.ThemeSeedColors
 import com.nadekosu.ui.screen.themeSettings.component.ThemeSettingsCategory
 import com.nadekosu.ui.screen.themeSettings.component.ThemePreviewDialog
@@ -171,7 +173,7 @@ import kotlin.math.roundToInt
 fun ThemeSettingsScreen() {
     // 顶部滚动行为
     val topAppBarState = rememberTopAppBarState()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(topAppBarState)
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(topAppBarState)
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val systemIsDark = isSystemInDarkTheme()
@@ -333,16 +335,31 @@ fun ThemeSettingsScreen() {
         .getOrNull(settingsState.themeMode).orEmpty() +
             " · " + settingsState.dynamicPaletteStyle.displayName()
 
-    ThemePreviewDialog(show = showFullPreview, onDismiss = { showFullPreview = false })
+    val previewState = ThemePreviewState(
+        dashboardLayout = homeUiState.homeLayoutStyle == HomeLayoutStyle.DASHBOARD,
+        hasBanner = homeUiState.homeBannerFile != null,
+        simpleMode = homeUiState.isSimpleMode,
+        showHomeCardIcons = homeUiState.showHomeCardIcons,
+        hideLinkCard = homeUiState.isHideLinkCard,
+        hideOtherInfo = homeUiState.isHideOtherInfo,
+        showNavBadge = homeUiState.showNavigationBarBadge,
+        liquidGlass = ThemeConfig.isEnableLiquidGlass,
+        topBarBlur = ThemeConfig.isEnableBlur,
+        cardAlpha = CardConfig.cardAlpha,
+        backgroundUri = ThemeConfig.customBackgroundUri,
+        backgroundDim = ThemeConfig.backgroundDim,
+    )
 
-    LaunchedEffect(Unit) {
-        scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
-    }
+    ThemePreviewDialog(
+        show = showFullPreview,
+        previewState = previewState,
+        onDismiss = { showFullPreview = false },
+    )
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 modifier = Modifier
                     .blurEffect(),
                 title = {
@@ -383,6 +400,7 @@ fun ThemeSettingsScreen() {
         ) {
             ThemePreviewCard(
                 modeLabel = previewModeLabel,
+                previewState = previewState,
                 onClick = { showFullPreview = true },
                 modifier = Modifier
                     .padding(horizontal = 16.dp)
@@ -541,7 +559,7 @@ private fun SettingsSurface(shape: Shape, content: @Composable () -> Unit) {
 @Composable
 private fun ColorsSettings(state: SettingsUiState, viewModel: SettingsViewModel) {
     val context = LocalContext.current
-    SegmentedColumn(title = stringResource(R.string.theme_category_colors)) {
+    SegmentedColumn {
         item { shape ->
             SettingsSurface(shape) {
                 ThemeModeToggleRow(
@@ -795,7 +813,7 @@ private fun BackgroundSettings(
     pickImageLauncher: ManagedActivityResultLauncher<String, Uri?>,
     coroutineScope: CoroutineScope,
 ) {
-    SegmentedColumn(title = stringResource(R.string.theme_category_background)) {
+    SegmentedColumn {
         expandableItem(
             expanded = ThemeConfig.customBackgroundUri != null,
             topContent = {
@@ -829,7 +847,7 @@ private fun IconTextSettings(
     coroutineScope: CoroutineScope,
 ) {
     val context = LocalContext.current
-    SegmentedColumn(title = stringResource(R.string.theme_category_icon_text)) {
+    SegmentedColumn {
         item {
             SettingsSwitchWidget(
                 icon = Icons.TwoTone.Android,
@@ -892,7 +910,7 @@ private fun IconTextSettings(
 @Composable
 private fun TopBarSettings() {
     val context = LocalContext.current
-    SegmentedColumn(title = stringResource(R.string.theme_category_top_bar)) {
+    SegmentedColumn {
         item(visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             SettingsSwitchWidget(
                 icon = Icons.TwoTone.BlurOn,
@@ -915,7 +933,7 @@ private fun BottomBarSettings(
     homeViewModel: HomeViewModel,
 ) {
     val context = LocalContext.current
-    SegmentedColumn(title = stringResource(R.string.theme_category_bottom_bar)) {
+    SegmentedColumn {
         item(visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             SettingsSwitchWidget(
                 icon = Icons.TwoTone.BlurOn,
@@ -948,7 +966,7 @@ private fun GestureSettings(
     settingsViewModel: SettingsViewModel,
 ) {
     val context = LocalContext.current
-    SegmentedColumn(title = stringResource(R.string.predictive_back_settings)) {
+    SegmentedColumn {
         item {
             PredictiveBackAnimationWidget(settingsState) { animation ->
                 settingsViewModel.setPredictiveBackAnimation(context, animation)
@@ -964,7 +982,7 @@ private fun GestureSettings(
         }
     }
 
-    SegmentedColumn(title = stringResource(R.string.settings_pager_gesture_mode)) {
+    SegmentedColumn {
         item {
             SettingsSwitchWidget(
                 icon = Icons.TwoTone.Swipe,
@@ -998,7 +1016,7 @@ private fun LanguageSettings(
     state: SettingsUiState,
     viewModel: SettingsViewModel,
 ) {
-    SegmentedColumn(title = stringResource(R.string.theme_category_language)) {
+    SegmentedColumn {
         item {
             LanguageSetting(state = state, viewModel = viewModel)
         }
@@ -1045,7 +1063,7 @@ private fun HomeLayoutSettings(
             bannerCropLauncher.launch(intent)
         }
     }
-    SegmentedColumn(title = stringResource(R.string.home_layout_section)) {
+    SegmentedColumn {
         item {
             SettingsChooseWidget(
                 icon = Icons.TwoTone.Dashboard,
@@ -1096,7 +1114,7 @@ private fun HomeCardSettings(
     homeViewModel: HomeViewModel,
 ) {
     val context = LocalContext.current
-    SegmentedColumn(title = stringResource(R.string.theme_category_home_card)) {
+    SegmentedColumn {
         item {
             SettingsSwitchWidget(
                 icon = Icons.TwoTone.Brush,
@@ -1127,7 +1145,7 @@ private fun DetailsSettings(
     moduleViewModel: ModuleViewModel,
 ) {
     val context = LocalContext.current
-    SegmentedColumn(title = stringResource(R.string.theme_category_details)) {
+    SegmentedColumn {
         item {
             SettingsSwitchWidget(
                 icon = Icons.TwoTone.Info,

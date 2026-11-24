@@ -1272,7 +1272,7 @@ private fun ThemePackageSettings(
                 icon = Icons.TwoTone.FileDownload,
                 title = stringResource(R.string.theme_import),
                 description = stringResource(R.string.theme_import_summary),
-                onClick = actions.importTheme,
+                onClick = { actions.importTheme() },
             )
         }
 
@@ -1281,7 +1281,7 @@ private fun ThemePackageSettings(
                 icon = Icons.TwoTone.FileUpload,
                 title = stringResource(R.string.theme_export),
                 description = stringResource(R.string.theme_export_summary),
-                onClick = actions.exportTheme,
+                onClick = { actions.exportTheme() },
             )
         }
 
@@ -1290,7 +1290,7 @@ private fun ThemePackageSettings(
                 icon = Icons.TwoTone.Restore,
                 title = stringResource(R.string.theme_reset),
                 description = stringResource(R.string.theme_reset_summary),
-                onClick = actions.resetTheme,
+                onClick = { actions.resetTheme() },
             )
         }
     }

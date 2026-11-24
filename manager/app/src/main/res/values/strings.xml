@@ -839,4 +839,20 @@ Important Note:\n
     <string name="settings_top_bar_blur_summary">Blur the top bars and search bar</string>
     <string name="settings_bottom_bar_liquid_glass">Liquid glass</string>
     <string name="settings_bottom_bar_liquid_glass_summary">Use the liquid glass bottom bar (Android 12+)</string>
+    <string name="theme_category_theme">Theme</string>
+    <string name="theme_import">Import theme</string>
+    <string name="theme_import_summary">Apply colors, background and home layout from a theme package</string>
+    <string name="theme_export">Export theme</string>
+    <string name="theme_export_summary">Save your current look as a theme package</string>
+    <string name="theme_reset">Reset theme</string>
+    <string name="theme_reset_summary">Restore colors, background and home layout to default</string>
+    <string name="theme_import_confirm_title">Import this theme?</string>
+    <string name="theme_import_confirm_text">Your current colors, background and home layout will be replaced.</string>
+    <string name="theme_import_invalid">Not a valid theme package</string>
+    <string name="theme_import_success">Theme applied</string>
+    <string name="theme_export_success">Theme exported</string>
+    <string name="theme_export_failed">Failed to export theme</string>
+    <string name="theme_reset_confirm_title">Reset theme?</string>
+    <string name="theme_reset_confirm_text">Colors, background and home layout will go back to default. Language, icon and other app settings stay as they are.</string>
+    <string name="theme_reset_done">Theme reset</string>
 </resources>

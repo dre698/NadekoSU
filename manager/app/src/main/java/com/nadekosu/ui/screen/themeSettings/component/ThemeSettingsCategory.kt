@@ -34,7 +34,7 @@ import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Swipe
-import androidx.compose.material.icons.rounded.Translate
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.VerticalAlignTop
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.ButtonGroupDefaults
@@ -77,7 +77,7 @@ enum class ThemeSettingsCategory(
     BOTTOM_BAR(R.string.theme_category_bottom_bar, Icons.Rounded.CallToAction),
     GESTURES(R.string.theme_category_gestures, Icons.Rounded.Swipe),
     DETAILS(R.string.theme_category_details, Icons.Rounded.Description),
-    LANGUAGE(R.string.theme_category_language, Icons.Rounded.Translate);
+    THEME(R.string.theme_category_theme, Icons.Rounded.Palette);
 }
 
 /**

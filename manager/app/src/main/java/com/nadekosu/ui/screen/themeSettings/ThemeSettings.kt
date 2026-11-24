@@ -1,5 +1,15 @@
 package com.nadekosu.ui.screen.themeSettings
 
+import com.nadekosu.ui.util.ThemePackageStorage
+import com.nadekosu.ui.util.ThemePackageApplier
+import com.nadekosu.ui.util.ThemePackage
+import com.nadekosu.ui.util.ImportedTheme
+import androidx.lifecycle.viewModelScope
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.twotone.Restore
+import androidx.compose.material.icons.twotone.FileUpload
+import androidx.compose.material.icons.twotone.FileDownload
 import com.nadekosu.ui.screen.themeSettings.component.ThemePreviewState
 import androidx.compose.material3.TopAppBar
 import com.nadekosu.ui.theme.ThemeSeedColors
@@ -451,7 +461,12 @@ fun ThemeSettingsScreen() {
                             moduleUiState = moduleUiState,
                             moduleViewModel = moduleViewModel,
                         )
-                        ThemeSettingsCategory.LANGUAGE -> LanguageSettings(settingsState, settingsViewModel)
+                        ThemeSettingsCategory.THEME -> ThemePackageSettings(
+                            settingsState = settingsState,
+                            homeUiState = homeUiState,
+                            settingsViewModel = settingsViewModel,
+                            homeViewModel = homeViewModel,
+                        )
                     }
                 }
 
@@ -869,6 +884,10 @@ private fun IconTextSettings(
         }
 
         item {
+            LanguageSetting(state = state, viewModel = viewModel)
+        }
+
+        item {
             SettingsBaseWidget(
                 icon = Icons.TwoTone.FormatSize,
                 title = stringResource(R.string.app_dpi_title),
@@ -1012,18 +1031,6 @@ private fun GestureSettings(
 }
 
 @Composable
-private fun LanguageSettings(
-    state: SettingsUiState,
-    viewModel: SettingsViewModel,
-) {
-    SegmentedColumn {
-        item {
-            LanguageSetting(state = state, viewModel = viewModel)
-        }
-    }
-}
-
-@Composable
 private fun HomeLayoutSettings(
     homeUiState: HomeUiState,
     homeViewModel: HomeViewModel,
@@ -1105,6 +1112,145 @@ private fun HomeLayoutSettings(
                 onClick = { homeViewModel.handleHomeBannerReset(context) }
             )
         }
+    }
+}
+
+@Composable
+private fun ThemePackageSettings(
+    settingsState: SettingsUiState,
+    homeUiState: HomeUiState,
+    settingsViewModel: SettingsViewModel,
+    homeViewModel: HomeViewModel,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    // Applying must outlive this category being left, so it runs in the view model's scope.
+    val applyScope = homeViewModel.viewModelScope
+    var pendingImport by remember { mutableStateOf<ImportedTheme?>(null) }
+    var showResetDialog by remember { mutableStateOf(false) }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            ThemePackageStorage.import(context, uri)
+                .onSuccess { pendingImport = it }
+                .onFailure {
+                    Toast.makeText(context, R.string.theme_import_invalid, Toast.LENGTH_SHORT).show()
+                }
+        }
+    }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(ThemePackageStorage.MIME_TYPE)
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            ThemePackageStorage.export(
+                context = context,
+                outputUri = uri,
+                data = ThemePackageApplier.snapshot(settingsState, homeUiState),
+                backgroundUri = ThemePackageApplier.currentBackgroundUri(),
+                bannerFile = HomeBannerStorage.fileOf(context, homeUiState.homeBannerFile),
+            ).onSuccess {
+                Toast.makeText(context, R.string.theme_export_success, Toast.LENGTH_SHORT).show()
+            }.onFailure {
+                Toast.makeText(context, R.string.theme_export_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    SegmentedColumn {
+        item {
+            SettingsBaseWidget(
+                icon = Icons.TwoTone.FileDownload,
+                title = stringResource(R.string.theme_import),
+                description = stringResource(R.string.theme_import_summary),
+                onClick = {
+                    importLauncher.launch(
+                        arrayOf(ThemePackageStorage.MIME_TYPE, "application/x-zip-compressed", "*/*")
+                    )
+                },
+            )
+        }
+
+        item {
+            SettingsBaseWidget(
+                icon = Icons.TwoTone.FileUpload,
+                title = stringResource(R.string.theme_export),
+                description = stringResource(R.string.theme_export_summary),
+                onClick = { exportLauncher.launch(ThemePackageStorage.packageFileName()) },
+            )
+        }
+
+        item {
+            SettingsBaseWidget(
+                icon = Icons.TwoTone.Restore,
+                title = stringResource(R.string.theme_reset),
+                description = stringResource(R.string.theme_reset_summary),
+                onClick = { showResetDialog = true },
+            )
+        }
+    }
+
+    pendingImport?.let { imported ->
+        AlertDialog(
+            onDismissRequest = { pendingImport = null },
+            title = { Text(stringResource(R.string.theme_import_confirm_title)) },
+            text = { Text(stringResource(R.string.theme_import_confirm_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingImport = null
+                    applyScope.launch {
+                        ThemePackageApplier.apply(
+                            context = context,
+                            data = imported.data,
+                            background = imported.backgroundFile,
+                            banner = imported.bannerFile,
+                            settingsViewModel = settingsViewModel,
+                            homeViewModel = homeViewModel,
+                        )
+                        Toast.makeText(context, R.string.theme_import_success, Toast.LENGTH_SHORT).show()
+                    }
+                }) { Text(stringResource(R.string.confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingImport = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            title = { Text(stringResource(R.string.theme_reset_confirm_title)) },
+            text = { Text(stringResource(R.string.theme_reset_confirm_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showResetDialog = false
+                    applyScope.launch {
+                        ThemePackageApplier.apply(
+                            context = context,
+                            data = ThemePackage(),
+                            background = null,
+                            banner = null,
+                            settingsViewModel = settingsViewModel,
+                            homeViewModel = homeViewModel,
+                            isReset = true,
+                        )
+                        Toast.makeText(context, R.string.theme_reset_done, Toast.LENGTH_SHORT).show()
+                    }
+                }) { Text(stringResource(R.string.confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 }
 

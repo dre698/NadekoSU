@@ -165,7 +165,7 @@ fun NavContainer(
             }
         }
     }
-    val useBlur = ThemeConfig.isEnableBlur
+    val useBlur = ThemeConfig.isEnableBlur || ThemeConfig.isEnableLiquidGlass
 
     lateinit var permissionRequestHandler: ManagedActivityResultLauncher<Array<String>, Map<String, @JvmSuppressWildcards Boolean>>
 

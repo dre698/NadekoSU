@@ -835,4 +835,8 @@ Important Note:\n
     <string name="theme_category_language">Language</string>
     <string name="theme_preview_caption">Preview · Material 3 Expressive</string>
     <string name="theme_preview_compact_summary">Settings below update this preview · Tap to enlarge</string>
+    <string name="settings_top_bar_blur">Top bar blur</string>
+    <string name="settings_top_bar_blur_summary">Blur the top bars and search bar</string>
+    <string name="settings_bottom_bar_liquid_glass">Liquid glass</string>
+    <string name="settings_bottom_bar_liquid_glass_summary">Use the liquid glass bottom bar (Android 12+)</string>
 </resources>

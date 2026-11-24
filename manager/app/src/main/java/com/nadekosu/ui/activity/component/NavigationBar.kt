@@ -121,7 +121,10 @@ fun NavigationBar(
     }
 
     if (isBottomBar) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && LocalBlurState.current != null) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            ThemeConfig.isEnableLiquidGlass &&
+            LocalBlurState.current != null
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

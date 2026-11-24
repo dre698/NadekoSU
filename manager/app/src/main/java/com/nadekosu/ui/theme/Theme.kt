@@ -122,6 +122,7 @@ object ThemeConfig {
     var isHighContrastMode by mutableStateOf(false)
     var isEnableBlur by mutableStateOf(false)
     var isEnableBlurExp by mutableStateOf(false)
+    var isEnableLiquidGlass by mutableStateOf(false)
     var isUseBackgroundSeedColor by mutableStateOf(false)
 
     // 主题变化检测
@@ -289,6 +290,11 @@ object BackgroundManager {
         context.appPreferences.putBoolean("enable_blur", enable)
     }
 
+    fun saveEnableLiquidGlass(context: Context, enable: Boolean) {
+        ThemeConfig.isEnableLiquidGlass = enable
+        context.appPreferences.putBoolean("enable_liquid_glass", enable)
+    }
+
     fun saveEnableBlurExp(context: Context, enable: Boolean) {
         ThemeConfig.isEnableBlurExp = enable
         context.appPreferences.putBoolean("enable_blur_exp", enable)
@@ -349,6 +355,11 @@ object BackgroundManager {
         ThemeConfig.backgroundDim = prefs.getFloat("background_dim", 0f).coerceIn(0f, 1f)
         ThemeConfig.isEnableBlur = prefs.getBoolean("enable_blur", false)
         ThemeConfig.isEnableBlurExp = prefs.getBoolean("enable_blur_exp", false)
+        // Liquid glass used to share the blur switch, so fall back to it until the user sets this one.
+        ThemeConfig.isEnableLiquidGlass = prefs.getBoolean(
+            "enable_liquid_glass",
+            prefs.getBoolean("enable_blur", false)
+        )
         ThemeConfig.isUseBackgroundSeedColor = prefs.getBoolean("use_background_seed_color", false)
         ThemeConfig.isHighContrastMode = prefs.getBoolean("high_contrast_mode", false)
     }
@@ -619,6 +630,8 @@ fun Modifier.blurSource(): Modifier {
 @Composable
 fun Modifier.blurEffect(): Modifier {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return this
+    // The backdrop also exists when only the bottom bar glass is on; top bars follow the blur switch.
+    if (!ThemeConfig.isEnableBlur) return this
 
     return LocalBlurState.current?.let { backdrop ->
         val blendColor =

@@ -896,12 +896,12 @@ private fun TopBarSettings() {
         item(visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             SettingsSwitchWidget(
                 icon = Icons.TwoTone.BlurOn,
-                title = stringResource(id = R.string.settings_config_enable_blur),
-                description = stringResource(id = R.string.settings_config_enable_blur_summary),
+                title = stringResource(id = R.string.settings_top_bar_blur),
+                description = stringResource(id = R.string.settings_top_bar_blur_summary),
                 checked = ThemeConfig.isEnableBlur,
                 onCheckedChange = { isChecked ->
                     BackgroundManager.saveEnableBlur(context, isChecked)
-                    if (!isChecked)
+                    if (!isChecked && !ThemeConfig.isEnableLiquidGlass)
                         BackgroundManager.saveEnableBlurExp(context, false)
                 }
             )
@@ -916,6 +916,20 @@ private fun BottomBarSettings(
 ) {
     val context = LocalContext.current
     SegmentedColumn(title = stringResource(R.string.theme_category_bottom_bar)) {
+        item(visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            SettingsSwitchWidget(
+                icon = Icons.TwoTone.BlurOn,
+                title = stringResource(id = R.string.settings_bottom_bar_liquid_glass),
+                description = stringResource(id = R.string.settings_bottom_bar_liquid_glass_summary),
+                checked = ThemeConfig.isEnableLiquidGlass,
+                onCheckedChange = { isChecked ->
+                    BackgroundManager.saveEnableLiquidGlass(context, isChecked)
+                    if (!isChecked && !ThemeConfig.isEnableBlur)
+                        BackgroundManager.saveEnableBlurExp(context, false)
+                }
+            )
+        }
+
         item {
             SettingsSwitchWidget(
                 icon = Icons.TwoTone.Pin,
@@ -1377,7 +1391,7 @@ private fun SegmentedColumnScope.backgroundAdjustmentControls(
     }
 
     item(
-        visible = ThemeConfig.isEnableBlur,
+        visible = ThemeConfig.isEnableBlur || ThemeConfig.isEnableLiquidGlass,
         topPadding = 1.dp,
     ) {
         val context = LocalContext.current

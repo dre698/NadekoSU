@@ -162,7 +162,7 @@ fun MainScreen(pagerGestureMode: Int = 0) {
                         val snackBarHostState = remember { SnackbarHostState() }
                         CompositionLocalProvider(
                             LocalSnackbarHost provides snackBarHostState,
-                            LocalBlurState provides rememberMaterial3BlurBackdrop(ThemeConfig.isEnableBlur),
+                            LocalBlurState provides rememberMaterial3BlurBackdrop(ThemeConfig.isEnableBlur || ThemeConfig.isEnableLiquidGlass),
                             LocalIsCurrentPage provides isCurrentPage,
                         ) {
                             val destination = pages[pageIndex]

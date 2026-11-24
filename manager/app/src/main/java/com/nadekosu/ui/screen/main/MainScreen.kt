@@ -9,6 +9,7 @@ import androidx.compose.animation.core.spring
 import kotlin.math.abs
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
+import top.yukonga.miuix.kmp.utils.PagerInterceptionMode
 import top.yukonga.miuix.kmp.utils.pagerGestureOverride
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Scaffold
@@ -144,7 +145,8 @@ fun MainScreen(pagerGestureMode: Int = 0) {
                         .blurSource()
                         .pagerGestureOverride(
                             pagerState = pagerState,
-                            mode = pagerGestureMode,
+                            mode = PagerInterceptionMode.entries
+                                .getOrElse(pagerGestureMode) { PagerInterceptionMode.Native },
                             enabled = true,
                         ),
                     state = pagerState,

@@ -855,4 +855,10 @@ Important Note:\n
     <string name="theme_reset_confirm_title">Reset theme?</string>
     <string name="theme_reset_confirm_text">Colors, background and home layout will go back to default. Language, icon and other app settings stay as they are.</string>
     <string name="theme_reset_done">Theme reset</string>
+    <string name="ui_style_title">UI style</string>
+    <string name="ui_style_material">Material</string>
+    <string name="ui_style_miuix">Miuix</string>
+    <string name="theme_remove_background">Remove background</string>
+    <string name="miuix_more_options">More options</string>
+    <string name="miuix_more_options_summary">Language, display size, banner, background crop and predictive back are only in the Material UI. Tap to switch.</string>
 </resources>

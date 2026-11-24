@@ -1,5 +1,6 @@
 package com.nadekosu.ui.screen.themeSettings
 
+import com.nadekosu.data.UiStyle
 import com.nadekosu.ui.util.ThemePackageStorage
 import com.nadekosu.ui.util.ThemePackageApplier
 import com.nadekosu.ui.util.ThemePackage
@@ -180,7 +181,7 @@ import kotlin.math.roundToInt
 )
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun ThemeSettingsScreen() {
+private fun MaterialThemeSettingsScreen() {
     // 顶部滚动行为
     val topAppBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(topAppBarState)
@@ -478,7 +479,7 @@ fun ThemeSettingsScreen() {
     }
 }
 
-private fun PaletteStyle.displayName(): String = when (this) {
+internal fun PaletteStyle.displayName(): String = when (this) {
     PaletteStyle.TonalSpot -> "Tonal Spot"
     PaletteStyle.Neutral -> "Neutral"
     PaletteStyle.Vibrant -> "Vibrant"
@@ -490,7 +491,7 @@ private fun PaletteStyle.displayName(): String = when (this) {
     PaletteStyle.Content -> "Content"
 }
 
-private fun ColorSpec.SpecVersion.displayName(): String = when (this) {
+internal fun ColorSpec.SpecVersion.displayName(): String = when (this) {
     ColorSpec.SpecVersion.SPEC_2021 -> "Spec 2021"
     ColorSpec.SpecVersion.SPEC_2025 -> "Spec 2025"
 }
@@ -714,7 +715,7 @@ private val seedColorOptions: List<Int> = listOf(
 )
 
 @Composable
-private fun SeedColorRow(state: SettingsUiState, viewModel: SettingsViewModel) {
+internal fun SeedColorRow(state: SettingsUiState, viewModel: SettingsViewModel) {
     val context = LocalContext.current
     val isDark = ThemeConfig.forceDarkMode ?: isSystemInDarkTheme()
     LazyRow(
@@ -1115,13 +1116,19 @@ private fun HomeLayoutSettings(
     }
 }
 
+internal class ThemePackageActions(
+    val importTheme: () -> Unit,
+    val exportTheme: () -> Unit,
+    val resetTheme: () -> Unit,
+)
+
 @Composable
-private fun ThemePackageSettings(
+internal fun rememberThemePackageActions(
     settingsState: SettingsUiState,
     homeUiState: HomeUiState,
     settingsViewModel: SettingsViewModel,
     homeViewModel: HomeViewModel,
-) {
+): ThemePackageActions {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     // Applying must outlive this category being left, so it runs in the view model's scope.
@@ -1158,39 +1165,6 @@ private fun ThemePackageSettings(
             }.onFailure {
                 Toast.makeText(context, R.string.theme_export_failed, Toast.LENGTH_SHORT).show()
             }
-        }
-    }
-
-    SegmentedColumn {
-        item {
-            SettingsBaseWidget(
-                icon = Icons.TwoTone.FileDownload,
-                title = stringResource(R.string.theme_import),
-                description = stringResource(R.string.theme_import_summary),
-                onClick = {
-                    importLauncher.launch(
-                        arrayOf(ThemePackageStorage.MIME_TYPE, "application/x-zip-compressed", "*/*")
-                    )
-                },
-            )
-        }
-
-        item {
-            SettingsBaseWidget(
-                icon = Icons.TwoTone.FileUpload,
-                title = stringResource(R.string.theme_export),
-                description = stringResource(R.string.theme_export_summary),
-                onClick = { exportLauncher.launch(ThemePackageStorage.packageFileName()) },
-            )
-        }
-
-        item {
-            SettingsBaseWidget(
-                icon = Icons.TwoTone.Restore,
-                title = stringResource(R.string.theme_reset),
-                description = stringResource(R.string.theme_reset_summary),
-                onClick = { showResetDialog = true },
-            )
         }
     }
 
@@ -1251,6 +1225,74 @@ private fun ThemePackageSettings(
                 }
             },
         )
+    }
+
+    return ThemePackageActions(
+        importTheme = {
+            importLauncher.launch(
+                arrayOf(ThemePackageStorage.MIME_TYPE, "application/x-zip-compressed", "*/*")
+            )
+        },
+        exportTheme = { exportLauncher.launch(ThemePackageStorage.packageFileName()) },
+        resetTheme = { showResetDialog = true },
+    )
+}
+
+@Composable
+private fun ThemePackageSettings(
+    settingsState: SettingsUiState,
+    homeUiState: HomeUiState,
+    settingsViewModel: SettingsViewModel,
+    homeViewModel: HomeViewModel,
+) {
+    val context = LocalContext.current
+    val actions = rememberThemePackageActions(settingsState, homeUiState, settingsViewModel, homeViewModel)
+
+    SegmentedColumn {
+        item {
+            SettingsChooseWidget(
+                icon = Icons.TwoTone.Style,
+                title = stringResource(R.string.ui_style_title),
+                items = listOf(
+                    stringResource(R.string.ui_style_material),
+                    stringResource(R.string.ui_style_miuix),
+                ),
+                selectedIndex = UiStyle.supported.indexOf(ThemeConfig.uiStyle).coerceAtLeast(0),
+                onSelectedIndexChange = { index ->
+                    BackgroundManager.saveUiStyle(
+                        context,
+                        UiStyle.supported.getOrElse(index) { UiStyle.DEFAULT }
+                    )
+                }
+            )
+        }
+
+        item {
+            SettingsBaseWidget(
+                icon = Icons.TwoTone.FileDownload,
+                title = stringResource(R.string.theme_import),
+                description = stringResource(R.string.theme_import_summary),
+                onClick = actions.importTheme,
+            )
+        }
+
+        item {
+            SettingsBaseWidget(
+                icon = Icons.TwoTone.FileUpload,
+                title = stringResource(R.string.theme_export),
+                description = stringResource(R.string.theme_export_summary),
+                onClick = actions.exportTheme,
+            )
+        }
+
+        item {
+            SettingsBaseWidget(
+                icon = Icons.TwoTone.Restore,
+                title = stringResource(R.string.theme_reset),
+                description = stringResource(R.string.theme_reset_summary),
+                onClick = actions.resetTheme,
+            )
+        }
     }
 }
 
@@ -1777,5 +1819,15 @@ private fun LanguageSetting(state: SettingsUiState, viewModel: SettingsViewModel
             },
             onDismiss = { viewModel.setLanguageDialogVisible(false) }
         )
+    }
+}
+
+/** Entry point: draws the theme settings with the component set picked in Theme > UI style. */
+@Composable
+fun ThemeSettingsScreen() {
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        MiuixThemeSettingsScreen()
+    } else {
+        MaterialThemeSettingsScreen()
     }
 }

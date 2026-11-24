@@ -1,5 +1,6 @@
 package com.nadekosu.ui.theme
 
+import com.nadekosu.data.UiStyle
 import android.R
 import android.content.Context
 import android.graphics.Bitmap
@@ -123,6 +124,7 @@ object ThemeConfig {
     var isEnableBlur by mutableStateOf(false)
     var isEnableBlurExp by mutableStateOf(false)
     var isEnableLiquidGlass by mutableStateOf(false)
+    var uiStyle by mutableStateOf(UiStyle.DEFAULT)
     var isUseBackgroundSeedColor by mutableStateOf(false)
 
     // 主题变化检测
@@ -290,6 +292,12 @@ object BackgroundManager {
         context.appPreferences.putBoolean("enable_blur", enable)
     }
 
+    fun saveUiStyle(context: Context, style: String) {
+        val value = UiStyle.fromValue(style)
+        ThemeConfig.uiStyle = value
+        context.appPreferences.putString(UiStyle.PREF_KEY, value)
+    }
+
     fun saveEnableLiquidGlass(context: Context, enable: Boolean) {
         ThemeConfig.isEnableLiquidGlass = enable
         context.appPreferences.putBoolean("enable_liquid_glass", enable)
@@ -355,6 +363,7 @@ object BackgroundManager {
         ThemeConfig.backgroundDim = prefs.getFloat("background_dim", 0f).coerceIn(0f, 1f)
         ThemeConfig.isEnableBlur = prefs.getBoolean("enable_blur", false)
         ThemeConfig.isEnableBlurExp = prefs.getBoolean("enable_blur_exp", false)
+        ThemeConfig.uiStyle = UiStyle.fromValue(prefs.getString(UiStyle.PREF_KEY, null))
         // Liquid glass used to share the blur switch, so fall back to it until the user sets this one.
         ThemeConfig.isEnableLiquidGlass = prefs.getBoolean(
             "enable_liquid_glass",

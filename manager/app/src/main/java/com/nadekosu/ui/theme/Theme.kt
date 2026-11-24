@@ -125,6 +125,7 @@ object ThemeConfig {
     var isEnableBlurExp by mutableStateOf(false)
     var isEnableLiquidGlass by mutableStateOf(false)
     var uiStyle by mutableStateOf(UiStyle.DEFAULT)
+    var miuixMonet by mutableStateOf(false)
     var isUseBackgroundSeedColor by mutableStateOf(false)
 
     // 主题变化检测
@@ -292,6 +293,11 @@ object BackgroundManager {
         context.appPreferences.putBoolean("enable_blur", enable)
     }
 
+    fun saveMiuixMonet(context: Context, enable: Boolean) {
+        ThemeConfig.miuixMonet = enable
+        context.appPreferences.putBoolean("miuix_monet", enable)
+    }
+
     fun saveUiStyle(context: Context, style: String) {
         val value = UiStyle.fromValue(style)
         ThemeConfig.uiStyle = value
@@ -364,6 +370,7 @@ object BackgroundManager {
         ThemeConfig.isEnableBlur = prefs.getBoolean("enable_blur", false)
         ThemeConfig.isEnableBlurExp = prefs.getBoolean("enable_blur_exp", false)
         ThemeConfig.uiStyle = UiStyle.fromValue(prefs.getString(UiStyle.PREF_KEY, null))
+        ThemeConfig.miuixMonet = prefs.getBoolean("miuix_monet", false)
         // Liquid glass used to share the blur switch, so fall back to it until the user sets this one.
         ThemeConfig.isEnableLiquidGlass = prefs.getBoolean(
             "enable_liquid_glass",

@@ -17,8 +17,8 @@ import top.yukonga.miuix.kmp.theme.ThemeController
 import top.yukonga.miuix.kmp.theme.ThemePaletteStyle
 
 /**
- * Miuix theme driven by the same settings as the Material one (mode, dynamic color, seed color,
- * palette style, color spec), so both styles always show the same palette.
+ * Miuix theme. Light/dark follows the app setting. With "Enable Monet" off it is the plain Miuix
+ * palette; with it on, the page is tinted from the app's theme color, palette style and spec.
  */
 @Composable
 fun NadekoMiuixTheme(content: @Composable () -> Unit) {
@@ -42,13 +42,15 @@ fun NadekoMiuixTheme(content: @Composable () -> Unit) {
         Color(ThemeConfig.seedColor)
     }
 
+    val monet = ThemeConfig.miuixMonet
+    val mode = when (ThemeConfig.forceDarkMode) {
+        null -> if (monet) ColorSchemeMode.MonetSystem else ColorSchemeMode.System
+        false -> if (monet) ColorSchemeMode.MonetLight else ColorSchemeMode.Light
+        true -> if (monet) ColorSchemeMode.MonetDark else ColorSchemeMode.Dark
+    }
     val controller = ThemeController(
-        when (ThemeConfig.forceDarkMode) {
-            null -> ColorSchemeMode.MonetSystem
-            false -> ColorSchemeMode.MonetLight
-            true -> ColorSchemeMode.MonetDark
-        },
-        keyColor = keyColor,
+        mode,
+        keyColor = if (monet) keyColor else null,
         isDark = darkTheme,
         paletteStyle = paletteStyle,
         colorSpec = colorSpec,

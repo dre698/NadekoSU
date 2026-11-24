@@ -1,5 +1,19 @@
 package com.nadekosu.ui.screen.themeSettings
 
+import top.yukonga.miuix.kmp.utils.PressFeedbackType
+import com.nadekosu.ui.screen.themeSettings.component.MiniPhonePreview
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.material.icons.rounded.Colorize
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.animation.animateColorAsState
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -74,7 +88,6 @@ import com.nadekosu.data.HomeLayoutStyle
 import com.nadekosu.data.UiStyle
 import com.nadekosu.ksuApp
 import com.nadekosu.ui.navigation.LocalNavigator
-import com.nadekosu.ui.screen.themeSettings.component.ThemePreviewCard
 import com.nadekosu.ui.screen.themeSettings.component.ThemePreviewDialog
 import com.nadekosu.ui.screen.themeSettings.component.ThemePreviewState
 import com.nadekosu.ui.screen.themeSettings.component.ThemeSettingsCategory
@@ -205,7 +218,7 @@ private fun MiuixThemeSettingsContent() {
             ),
         ) {
             item {
-                ThemePreviewCard(
+                MiuixPreviewCard(
                     modeLabel = modeLabel,
                     previewState = previewState,
                     onClick = { showFullPreview = true },
@@ -267,15 +280,38 @@ private fun miuixCardColors(): CardColors {
 }
 
 @Composable
-private fun SectionCard(content: @Composable ColumnScope.() -> Unit) {
+private fun SectionCard(
+    category: ThemeSettingsCategory? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     Card(
         modifier = Modifier
             .padding(horizontal = 12.dp)
             .padding(bottom = 12.dp)
             .fillMaxWidth(),
         colors = miuixCardColors(),
-        content = content,
-    )
+    ) {
+        if (category != null) {
+            BasicComponent(
+                title = stringResource(category.labelRes),
+                summary = stringResource(categorySummaryRes(category)),
+                startAction = { PrefIcon(category.icon) },
+            )
+        }
+        content()
+    }
+}
+
+private fun categorySummaryRes(category: ThemeSettingsCategory): Int = when (category) {
+    ThemeSettingsCategory.COLORS -> R.string.theme_category_colors_summary
+    ThemeSettingsCategory.BACKGROUND -> R.string.theme_category_background_summary
+    ThemeSettingsCategory.ICON_TEXT -> R.string.theme_category_icon_text_summary
+    ThemeSettingsCategory.HOME_CARD -> R.string.theme_category_home_card_summary
+    ThemeSettingsCategory.TOP_BAR -> R.string.theme_category_top_bar_summary
+    ThemeSettingsCategory.BOTTOM_BAR -> R.string.theme_category_bottom_bar_summary
+    ThemeSettingsCategory.GESTURES -> R.string.theme_category_gestures_summary
+    ThemeSettingsCategory.DETAILS -> R.string.theme_category_details_summary
+    ThemeSettingsCategory.THEME -> R.string.theme_category_theme_summary
 }
 
 @Composable
@@ -289,53 +325,146 @@ private fun PrefIcon(icon: ImageVector) {
 }
 
 @Composable
+private fun MiuixPreviewCard(
+    modeLabel: String,
+    previewState: ThemePreviewState,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MiuixTheme.colorScheme
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        insideMargin = PaddingValues(0.dp),
+        colors = miuixCardColors(),
+        onClick = onClick,
+        pressFeedbackType = PressFeedbackType.Sink,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            MiniPhonePreview(state = previewState, modifier = Modifier.width(88.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.theme_preview_caption_current),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.onSurface,
+                )
+                Text(
+                    text = modeLabel,
+                    fontSize = 12.sp,
+                    color = colors.onSurfaceVariantSummary,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(
+                        colors.primary,
+                        colors.secondaryContainer,
+                        colors.tertiaryContainer,
+                        colors.surfaceContainerHighest,
+                    ).forEach { color ->
+                        Spacer(
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                        )
+                    }
+                }
+                Text(
+                    text = stringResource(R.string.theme_preview_compact_summary),
+                    fontSize = 11.sp,
+                    color = colors.onSurfaceVariantSummary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun MiuixCategoryGrid(
     selected: ThemeSettingsCategory,
     onSelect: (ThemeSettingsCategory) -> Unit,
 ) {
-    val colors = MiuixTheme.colorScheme
-    Column(
+    Card(
         modifier = Modifier
             .padding(horizontal = 12.dp)
-            .padding(top = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(top = 4.dp)
+            .fillMaxWidth(),
+        insideMargin = PaddingValues(8.dp),
+        colors = miuixCardColors(),
     ) {
-        ThemeSettingsCategory.entries.chunked(3).forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                row.forEach { category ->
-                    val isSelected = category == selected
-                    val content = if (isSelected) colors.onPrimaryContainer else colors.onSurface
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(
-                                if (isSelected) colors.primaryContainer else colors.surfaceContainer
-                            )
-                            .clickable { onSelect(category) }
-                            .padding(vertical = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Icon(
-                            imageVector = category.icon,
-                            contentDescription = null,
-                            tint = content,
-                            modifier = Modifier.size(22.dp),
-                        )
-                        Text(
-                            text = stringResource(category.labelRes),
-                            fontSize = 12.sp,
-                            color = content,
-                            maxLines = 1,
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            ThemeSettingsCategory.entries.chunked(3).forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    row.forEach { category ->
+                        MiuixCategoryTile(
+                            category = category,
+                            selected = category == selected,
+                            onClick = { onSelect(category) },
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MiuixCategoryTile(
+    category: ThemeSettingsCategory,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MiuixTheme.colorScheme
+    val background by animateColorAsState(
+        targetValue = if (selected) colors.primary else colors.surfaceContainerHighest,
+        label = "ThemeCategoryBackground",
+    )
+    val contentColor = if (selected) colors.onPrimary else colors.onSurface
+    val haptic = LocalHapticFeedback.current
+    Column(
+        modifier = modifier
+            .height(48.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(background)
+            .selectable(
+                selected = selected,
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
+                    onClick()
+                },
+                role = Role.Tab,
+            )
+            .padding(horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = category.icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = stringResource(category.labelRes),
+            fontSize = 11.sp,
+            color = contentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -373,7 +502,23 @@ private fun MiuixColorsCategory(state: SettingsUiState, viewModel: SettingsViewM
     val context = LocalContext.current
     val styles = PaletteStyle.entries
     val specs = ColorSpec.SpecVersion.entries
-    SectionCard {
+    val colorNames = listOf(
+        stringResource(R.string.miuix_color_default),
+        stringResource(R.string.miuix_color_red),
+        stringResource(R.string.miuix_color_pink),
+        stringResource(R.string.miuix_color_purple),
+        stringResource(R.string.miuix_color_deep_purple),
+        stringResource(R.string.miuix_color_indigo),
+        stringResource(R.string.miuix_color_blue),
+        stringResource(R.string.miuix_color_cyan),
+        stringResource(R.string.miuix_color_teal),
+        stringResource(R.string.miuix_color_green),
+        stringResource(R.string.miuix_color_yellow),
+        stringResource(R.string.miuix_color_orange),
+        stringResource(R.string.miuix_color_brown),
+        stringResource(R.string.miuix_color_blue_grey),
+    )
+    SectionCard(ThemeSettingsCategory.COLORS) {
         TabRowWithContour(
             tabs = state.themeOptions,
             selectedTabIndex = state.themeMode.coerceIn(0, 2),
@@ -386,39 +531,57 @@ private fun MiuixColorsCategory(state: SettingsUiState, viewModel: SettingsViewM
         )
         HorizontalDivider()
         SwitchPreference(
-            title = stringResource(R.string.dynamic_color_title),
-            summary = stringResource(R.string.dynamic_color_summary),
-            startAction = { PrefIcon(Icons.Rounded.Palette) },
-            checked = state.useDynamicColor,
-            onCheckedChange = { viewModel.handleDynamicColorChange(context, it) },
+            title = stringResource(R.string.miuix_enable_monet),
+            summary = stringResource(R.string.miuix_enable_monet_summary),
+            startAction = { PrefIcon(Icons.Rounded.Wallpaper) },
+            checked = ThemeConfig.miuixMonet,
+            onCheckedChange = { BackgroundManager.saveMiuixMonet(context, it) },
         )
-        if (!state.useDynamicColor) {
-            SeedColorRow(state = state, viewModel = viewModel)
+        if (ThemeConfig.miuixMonet) {
+            SwitchPreference(
+                title = stringResource(R.string.dynamic_color_title),
+                summary = stringResource(R.string.dynamic_color_summary),
+                startAction = { PrefIcon(Icons.Rounded.Palette) },
+                checked = state.useDynamicColor,
+                onCheckedChange = { viewModel.handleDynamicColorChange(context, it) },
+            )
+            if (!state.useDynamicColor) {
+                OverlayDropdownPreference(
+                    title = stringResource(R.string.miuix_key_color),
+                    items = colorNames,
+                    startAction = { PrefIcon(Icons.Rounded.Colorize) },
+                    selectedIndex = seedColorOptions.indexOf(ThemeConfig.seedColor)
+                        .coerceAtLeast(0),
+                    onSelectedIndexChange = { index ->
+                        viewModel.handleThemeColorChange(context, seedColorOptions[index])
+                    },
+                )
+            }
+            OverlayDropdownPreference(
+                title = stringResource(R.string.dynamic_palette_style),
+                items = styles.map { it.displayName() },
+                startAction = { PrefIcon(Icons.Rounded.Style) },
+                selectedIndex = styles.indexOf(state.dynamicPaletteStyle).coerceAtLeast(0),
+                onSelectedIndexChange = { index ->
+                    viewModel.handleDynamicPaletteStyleChange(
+                        context,
+                        styles.getOrElse(index) { PaletteStyle.TonalSpot }
+                    )
+                },
+            )
+            OverlayDropdownPreference(
+                title = stringResource(R.string.dynamic_color_spec),
+                items = specs.map { it.displayName() },
+                startAction = { PrefIcon(Icons.Rounded.DesignServices) },
+                selectedIndex = specs.indexOf(state.dynamicColorSpec).coerceAtLeast(0),
+                onSelectedIndexChange = { index ->
+                    viewModel.handleDynamicColorSpecChange(
+                        context,
+                        specs.getOrElse(index) { ColorSpec.SpecVersion.SPEC_2021 }
+                    )
+                },
+            )
         }
-        OverlayDropdownPreference(
-            title = stringResource(R.string.dynamic_palette_style),
-            items = styles.map { it.displayName() },
-            startAction = { PrefIcon(Icons.Rounded.Style) },
-            selectedIndex = styles.indexOf(state.dynamicPaletteStyle).coerceAtLeast(0),
-            onSelectedIndexChange = { index ->
-                viewModel.handleDynamicPaletteStyleChange(
-                    context,
-                    styles.getOrElse(index) { PaletteStyle.TonalSpot }
-                )
-            },
-        )
-        OverlayDropdownPreference(
-            title = stringResource(R.string.dynamic_color_spec),
-            items = specs.map { it.displayName() },
-            startAction = { PrefIcon(Icons.Rounded.DesignServices) },
-            selectedIndex = specs.indexOf(state.dynamicColorSpec).coerceAtLeast(0),
-            onSelectedIndexChange = { index ->
-                viewModel.handleDynamicColorSpecChange(
-                    context,
-                    specs.getOrElse(index) { ColorSpec.SpecVersion.SPEC_2021 }
-                )
-            },
-        )
     }
 }
 
@@ -429,7 +592,7 @@ private fun MiuixBackgroundCategory(
 ) {
     val context = LocalContext.current
     val hasBackground = ThemeConfig.customBackgroundUri != null
-    SectionCard {
+    SectionCard(ThemeSettingsCategory.BACKGROUND) {
         ArrowPreference(
             title = stringResource(R.string.settings_custom_background),
             summary = stringResource(R.string.settings_custom_background_summary),
@@ -491,7 +654,7 @@ private fun MiuixBackgroundCategory(
 @Composable
 private fun MiuixIconTextCategory(state: SettingsUiState, viewModel: SettingsViewModel) {
     val context = LocalContext.current
-    SectionCard {
+    SectionCard(ThemeSettingsCategory.ICON_TEXT) {
         SwitchPreference(
             title = stringResource(R.string.icon_switch_title),
             summary = stringResource(R.string.icon_switch_summary),
@@ -512,7 +675,7 @@ private fun MiuixIconTextCategory(state: SettingsUiState, viewModel: SettingsVie
 @Composable
 private fun MiuixHomeCardCategory(homeUiState: HomeUiState, homeViewModel: HomeViewModel) {
     val context = LocalContext.current
-    SectionCard {
+    SectionCard(ThemeSettingsCategory.HOME_CARD) {
         OverlayDropdownPreference(
             title = stringResource(R.string.home_layout_style),
             items = listOf(
@@ -549,7 +712,7 @@ private fun MiuixHomeCardCategory(homeUiState: HomeUiState, homeViewModel: HomeV
 @Composable
 private fun MiuixTopBarCategory() {
     val context = LocalContext.current
-    SectionCard {
+    SectionCard(ThemeSettingsCategory.TOP_BAR) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             SwitchPreference(
                 title = stringResource(R.string.settings_top_bar_blur),
@@ -570,7 +733,7 @@ private fun MiuixTopBarCategory() {
 @Composable
 private fun MiuixBottomBarCategory(homeUiState: HomeUiState, homeViewModel: HomeViewModel) {
     val context = LocalContext.current
-    SectionCard {
+    SectionCard(ThemeSettingsCategory.BOTTOM_BAR) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             SwitchPreference(
                 title = stringResource(R.string.settings_bottom_bar_liquid_glass),
@@ -598,7 +761,7 @@ private fun MiuixBottomBarCategory(homeUiState: HomeUiState, homeViewModel: Home
 @Composable
 private fun MiuixGesturesCategory(state: SettingsUiState, viewModel: SettingsViewModel) {
     val context = LocalContext.current
-    SectionCard {
+    SectionCard(ThemeSettingsCategory.GESTURES) {
         SwitchPreference(
             title = stringResource(R.string.settings_enable_swipe_dismiss),
             summary = stringResource(R.string.settings_enable_swipe_dismiss_summary),
@@ -628,7 +791,7 @@ private fun MiuixDetailsCategory(
     moduleViewModel: ModuleViewModel,
 ) {
     val context = LocalContext.current
-    SectionCard {
+    SectionCard(ThemeSettingsCategory.DETAILS) {
         SwitchPreference(
             title = stringResource(R.string.show_more_module_info),
             summary = stringResource(R.string.show_more_module_info_summary),
@@ -684,7 +847,7 @@ private fun MiuixDetailsCategory(
 @Composable
 private fun MiuixThemeCategory(actions: ThemePackageActions) {
     val context = LocalContext.current
-    SectionCard {
+    SectionCard(ThemeSettingsCategory.THEME) {
         OverlayDropdownPreference(
             title = stringResource(R.string.ui_style_title),
             items = listOf(

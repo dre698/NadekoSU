@@ -193,7 +193,7 @@ private val PreviewDesignWidth = 88.dp
  * gets, so the compact card and the enlarged dialog show the same thing.
  */
 @Composable
-private fun MiniPhonePreview(state: ThemePreviewState, modifier: Modifier = Modifier) {
+internal fun MiniPhonePreview(state: ThemePreviewState, modifier: Modifier = Modifier) {
     val designHeight = PreviewDesignWidth * 19f / 9f
     Box(
         modifier = modifier

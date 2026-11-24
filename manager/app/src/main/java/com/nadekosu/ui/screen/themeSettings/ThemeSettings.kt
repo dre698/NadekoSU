@@ -697,7 +697,7 @@ private fun ThemeModeToggleRow(
     }
 }
 
-private val seedColorOptions: List<Int> = listOf(
+internal val seedColorOptions: List<Int> = listOf(
     ThemeSeedColors.Default.toArgb(),
     Color(0xFFF44336).toArgb(),
     Color(0xFFE91E63).toArgb(),

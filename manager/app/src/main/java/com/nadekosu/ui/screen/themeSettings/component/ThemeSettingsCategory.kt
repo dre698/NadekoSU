@@ -1,5 +1,8 @@
 package com.nadekosu.ui.screen.themeSettings.component
 
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.layout
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Brush
@@ -182,24 +185,49 @@ fun ThemePreviewDialog(
     }
 }
 
+private val PreviewDesignWidth = 88.dp
+
 /**
  * A phone-shaped mock of the real home screen, drawn from the live color scheme and
- * [ThemePreviewState]: layout (circle / dashboard), banner, simple mode, card icons, link card,
- * badge, top bar blur, liquid glass bottom bar, card alpha and custom background all show up here.
+ * [ThemePreviewState]. It is laid out once at a fixed design size and scaled to whatever room it
+ * gets, so the compact card and the enlarged dialog show the same thing.
  */
 @Composable
 private fun MiniPhonePreview(state: ThemePreviewState, modifier: Modifier = Modifier) {
+    val designHeight = PreviewDesignWidth * 19f / 9f
+    Box(
+        modifier = modifier
+            .aspectRatio(9f / 19f)
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(
+                    Constraints.fixed(PreviewDesignWidth.roundToPx(), designHeight.roundToPx())
+                )
+                val scale = constraints.maxWidth.toFloat() / placeable.width
+                layout(constraints.maxWidth, constraints.maxHeight) {
+                    placeable.placeWithLayer(0, 0) {
+                        transformOrigin = TransformOrigin(0f, 0f)
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                }
+            }
+    ) {
+        PhoneContent(state)
+    }
+}
+
+@Composable
+private fun PhoneContent(state: ThemePreviewState) {
     val colors = MaterialTheme.colorScheme
     val cardAlpha = state.cardAlpha.coerceIn(0.1f, 1f)
-    val hasBackground = state.backgroundUri != null
     Surface(
-        modifier = modifier.aspectRatio(9f / 19f),
+        modifier = Modifier.fillMaxSize(),
         shape = RoundedCornerShape(14.dp),
         color = colors.surfaceContainerLow,
         border = BorderStroke(2.dp, colors.outlineVariant),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            if (hasBackground) {
+            if (state.backgroundUri != null) {
                 AsyncImage(
                     model = state.backgroundUri,
                     contentDescription = null,
@@ -216,175 +244,202 @@ private fun MiniPhonePreview(state: ThemePreviewState, modifier: Modifier = Modi
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 8.dp)
-                    .padding(top = 30.dp, bottom = 30.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                    .padding(horizontal = 7.dp)
+                    .padding(top = 28.dp, bottom = 30.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 if (state.dashboardLayout) {
-                    // Hero with banner image, then the counters
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                if (state.hasBanner) Brush.linearGradient(
-                                    listOf(colors.primary, colors.tertiary)
-                                ) else Brush.linearGradient(
-                                    listOf(colors.primaryContainer, colors.primaryContainer)
-                                )
-                            )
-                            .padding(6.dp)
-                    ) {
-                        PreviewBar(
-                            width = 0.45f,
-                            height = 5.dp,
-                            color = if (state.hasBanner) colors.onPrimary else colors.onPrimaryContainer,
-                            modifier = Modifier.align(Alignment.BottomStart),
-                        )
-                    }
-                    if (!state.hideOtherInfo) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            repeat(3) {
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(16.dp)
-                                        .clip(RoundedCornerShape(5.dp))
-                                        .background(colors.surfaceContainerHighest.copy(alpha = cardAlpha))
-                                )
-                            }
-                        }
-                    }
+                    DashboardHome(state, cardAlpha)
                 } else {
-                    // Circle UI: one status card with a ring on the left
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(40.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(colors.primaryContainer.copy(alpha = cardAlpha))
-                            .padding(horizontal = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(22.dp)
-                                .border(3.dp, colors.onPrimaryContainer, CircleShape)
-                        )
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            PreviewBar(width = 1f, height = 5.dp, color = colors.onPrimaryContainer,
-                                modifier = Modifier.width(34.dp))
-                            PreviewBar(width = 1f, height = 4.dp,
-                                color = colors.onPrimaryContainer.copy(alpha = 0.6f),
-                                modifier = Modifier.width(22.dp))
-                        }
-                    }
+                    CircleHome(state, cardAlpha)
                 }
 
-                // Info card: fewer rows in simple mode, optional leading icons
-                val rows = if (state.simpleMode) 2 else 4
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(colors.surfaceContainer.copy(alpha = cardAlpha))
-                        .padding(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(5.dp),
-                ) {
-                    repeat(rows) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            if (state.showHomeCardIcons) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(7.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.primary)
-                                )
-                            }
-                            PreviewBar(width = 1f, height = 4.dp,
-                                color = colors.onSurfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.weight(1f))
-                        }
-                    }
-                }
-
-                // Link card
                 if (!state.simpleMode && !state.hideLinkCard) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(12.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(colors.tertiaryContainer.copy(alpha = cardAlpha))
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(colors.surfaceContainer.copy(alpha = cardAlpha))
                     )
                 }
             }
 
             // Top bar: translucent when blur is on, solid otherwise
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(24.dp)
+                    .height(22.dp)
                     .background(
                         colors.surfaceContainer.copy(alpha = if (state.topBarBlur) 0.45f else cardAlpha)
                     )
                     .padding(horizontal = 8.dp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                PreviewBar(width = 0.4f, height = 5.dp, color = colors.onSurface)
-            }
-
-            // Bottom bar: glass capsule (translucent + highlight edge) or standard solid capsule
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
-                    .fillMaxWidth()
-                    .height(18.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (state.liquidGlass) colors.surfaceContainerHighest.copy(alpha = 0.4f)
-                        else colors.surfaceContainerHighest
-                    )
-                    .then(
-                        if (state.liquidGlass) Modifier.border(
-                            1.dp,
-                            colors.onSurface.copy(alpha = 0.25f),
-                            CircleShape,
-                        ) else Modifier
-                    )
-                    .padding(horizontal = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
+                Bar(28.dp, 5.dp, colors.onSurface)
+                Dot(5.dp, colors.onSurfaceVariant)
+            }
+
+            PreviewBottomBar(state, Modifier.align(Alignment.BottomCenter))
+        }
+    }
+}
+
+/** Dashboard UI: banner hero with stats, two counters, one info card with icons. */
+@Composable
+private fun DashboardHome(state: ThemePreviewState, cardAlpha: Float) {
+    val colors = MaterialTheme.colorScheme
+    val heroText = if (state.hasBanner) colors.onPrimary else colors.onPrimaryContainer
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clip(RoundedCornerShape(7.dp))
+            .background(
+                if (state.hasBanner) Brush.linearGradient(listOf(colors.primary, colors.tertiary))
+                else Brush.linearGradient(listOf(colors.primaryContainer, colors.primaryContainer))
+            )
+    ) {
+        Row(
+            modifier = Modifier.padding(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Box(modifier = Modifier.size(9.dp).border(1.5.dp, heroText, CircleShape))
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Bar(26.dp, 4.dp, heroText)
+                Bar(18.dp, 3.dp, heroText.copy(alpha = 0.7f))
+            }
+        }
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            repeat(3) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Bar(14.dp, 2.5.dp, heroText.copy(alpha = 0.7f))
+                    Bar(17.dp, 3.5.dp, heroText)
+                }
+            }
+        }
+    }
+
+    if (!state.hideOtherInfo) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            repeat(2) {
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(15.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(colors.surfaceContainer.copy(alpha = cardAlpha))
+                        .padding(horizontal = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Dot(7.dp, colors.primary.copy(alpha = 0.8f))
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Bar(16.dp, 3.dp, colors.onSurface.copy(alpha = 0.8f))
+                        Bar(8.dp, 2.5.dp, colors.onSurfaceVariant.copy(alpha = 0.6f))
+                    }
+                }
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(7.dp))
+            .background(colors.surfaceContainer.copy(alpha = cardAlpha))
+            .padding(horizontal = 5.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        repeat(if (state.simpleMode) 2 else 3) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                // The dashboard info card always shows leading icons
+                Dot(6.dp, colors.onSurfaceVariant.copy(alpha = 0.7f))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Bar(24.dp, 3.dp, colors.onSurface.copy(alpha = 0.8f))
+                    Bar(38.dp, 2.5.dp, colors.onSurfaceVariant.copy(alpha = 0.5f))
+                }
+            }
+        }
+    }
+}
+
+/** Circle UI: compact status card with chips, then titled groups of separate rows. */
+@Composable
+private fun CircleHome(state: ThemePreviewState, cardAlpha: Float) {
+    val colors = MaterialTheme.colorScheme
+    val onCard = colors.onPrimaryContainer
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(28.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(colors.primaryContainer.copy(alpha = cardAlpha))
+            .padding(horizontal = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        Box(modifier = Modifier.size(10.dp).border(1.5.dp, onCard, CircleShape))
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Bar(18.dp, 4.dp, onCard)
                 Box(
                     modifier = Modifier
-                        .fillMaxHeight(0.7f)
-                        .width(24.dp)
-                        .clip(CircleShape)
-                        .background(colors.secondaryContainer)
+                        .size(width = 9.dp, height = 5.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(onCard.copy(alpha = 0.25f))
                 )
-                repeat(3) { index ->
-                    Box(contentAlignment = Alignment.TopEnd) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(colors.onSurfaceVariant)
-                        )
-                        if (index == 0 && state.showNavBadge && !state.hideOtherInfo) {
-                            Box(
-                                modifier = Modifier
-                                    .size(4.dp)
-                                    .clip(CircleShape)
-                                    .background(colors.primary)
+                Box(
+                    modifier = Modifier
+                        .size(width = 15.dp, height = 5.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(onCard.copy(alpha = 0.25f))
+                )
+            }
+            Bar(28.dp, 3.dp, onCard.copy(alpha = 0.7f))
+        }
+    }
+
+    repeat(2) { group ->
+        Bar(18.dp, 3.dp, colors.primary)
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            repeat(if (state.simpleMode) 1 else 2) { index ->
+                val last = if (state.simpleMode) 0 else 1
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(12.dp)
+                        .clip(
+                            RoundedCornerShape(
+                                topStart = if (index == 0) 6.dp else 2.dp,
+                                topEnd = if (index == 0) 6.dp else 2.dp,
+                                bottomStart = if (index == last) 6.dp else 2.dp,
+                                bottomEnd = if (index == last) 6.dp else 2.dp,
                             )
-                        }
+                        )
+                        .background(colors.surfaceContainer.copy(alpha = cardAlpha))
+                        .padding(horizontal = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    if (state.showHomeCardIcons) {
+                        Dot(6.dp, colors.onSurfaceVariant.copy(alpha = 0.7f))
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Bar(if (group == 0) 22.dp else 26.dp, 3.dp, colors.onSurface.copy(alpha = 0.8f))
+                        Bar(34.dp, 2.5.dp, colors.onSurfaceVariant.copy(alpha = 0.5f))
                     }
                 }
             }
@@ -392,17 +447,82 @@ private fun MiniPhonePreview(state: ThemePreviewState, modifier: Modifier = Modi
     }
 }
 
+/**
+ * Standard: solid capsule, selected item is a pill with icon + label.
+ * Liquid glass: translucent capsule with a light edge, selected item is just a lit circle.
+ */
 @Composable
-private fun PreviewBar(
-    width: Float,
-    height: Dp,
-    color: Color,
-    modifier: Modifier = Modifier,
-) {
-    Box(
+private fun PreviewBottomBar(state: ThemePreviewState, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Row(
         modifier = modifier
-            .then(if (width < 1f) Modifier.fillMaxWidth(width) else Modifier)
-            .height(height)
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .fillMaxWidth()
+            .height(18.dp)
+            .clip(CircleShape)
+            .background(
+                if (state.liquidGlass) colors.surfaceContainerHighest.copy(alpha = 0.4f)
+                else colors.surfaceContainerHighest
+            )
+            .then(
+                if (state.liquidGlass) Modifier.border(
+                    1.dp, colors.onSurface.copy(alpha = 0.25f), CircleShape
+                ) else Modifier
+            )
+            .padding(horizontal = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        if (state.liquidGlass) {
+            Box(
+                modifier = Modifier
+                    .size(13.dp)
+                    .clip(CircleShape)
+                    .background(colors.onSurface.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Dot(5.dp, colors.primary)
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .height(13.dp)
+                    .clip(CircleShape)
+                    .background(colors.secondaryContainer)
+                    .padding(horizontal = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Dot(5.dp, colors.onSecondaryContainer)
+                Bar(9.dp, 2.5.dp, colors.onSecondaryContainer)
+            }
+        }
+        repeat(3) { index ->
+            Box(contentAlignment = Alignment.TopEnd) {
+                Dot(6.dp, colors.onSurfaceVariant)
+                if (index < 2 && state.showNavBadge && !state.hideOtherInfo) {
+                    Dot(4.dp, colors.primary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Dot(size: Dp, color: Color) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(color)
+    )
+}
+
+@Composable
+private fun Bar(width: Dp, height: Dp, color: Color) {
+    Box(
+        modifier = Modifier
+            .size(width = width, height = height)
             .clip(CircleShape)
             .background(color)
     )

@@ -1,5 +1,8 @@
 package com.nadekosu.ui.activity.component
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import com.nadekosu.ui.theme.NadekoMiuixTheme
+import com.nadekosu.data.UiStyle
 import android.annotation.SuppressLint
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
@@ -121,6 +124,87 @@ fun NavigationBar(
     }
 
     if (isBottomBar) {
+        // Miuix style: floating capsule with icon + label, drawn with the Miuix palette
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && ThemeConfig.uiStyle == UiStyle.MIUIX) {
+            NadekoMiuixTheme {
+                val miuix = MiuixTheme.colorScheme
+                MaterialTheme(
+                    colorScheme = MaterialTheme.colorScheme.copy(
+                        primary = miuix.primary,
+                        onPrimary = miuix.onPrimary,
+                        onSurface = miuix.onSurface,
+                        surfaceContainer = miuix.surfaceContainer,
+                    ),
+                    typography = MaterialTheme.typography,
+                    shapes = MaterialTheme.shapes,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(
+                                WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
+                            )
+                            .padding(
+                                bottom = 12.dp + WindowInsets.navigationBars.asPaddingValues()
+                                    .calculateBottomPadding()
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        FloatingBottomBar(
+                            selectedIndex = page,
+                            onSelected = { handlePageChange(it) },
+                            tabsCount = destinations.size,
+                            isBlurEnabled = LocalBlurState.current != null,
+                        ) { activateTab ->
+                            destinations.forEachIndexed { index, destination ->
+                                FloatingBottomBarItem(
+                                    selected = index == page,
+                                    onClick = { activateTab(index) },
+                                    modifier = Modifier.defaultMinSize(minWidth = 76.dp)
+                                ) {
+                                    val contentColor = LocalContentColor.current
+                                    val count = when (destination) {
+                                        BottomBarDestination.SuperUser -> superuserCount
+                                        BottomBarDestination.Module -> moduleCount
+                                        else -> 0
+                                    }
+                                    val icon: @Composable () -> Unit = {
+                                        Icon(
+                                            imageVector = if (index == page) destination.iconSelected else destination.iconNotSelected,
+                                            contentDescription = stringResource(destination.label),
+                                            tint = contentColor
+                                        )
+                                    }
+                                    if (count > 0 && !isHideOtherInfo && showNavigationBarBadge) {
+                                        BadgedBox(
+                                            badge = {
+                                                Badge(
+                                                    containerColor = miuix.primaryContainer,
+                                                    contentColor = miuix.onPrimaryContainer
+                                                ) {
+                                                    Text(count.toString())
+                                                }
+                                            }
+                                        ) { icon() }
+                                    } else {
+                                        icon()
+                                    }
+                                    Text(
+                                        text = stringResource(destination.label),
+                                        fontSize = 11.sp,
+                                        lineHeight = 14.sp,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             ThemeConfig.isEnableLiquidGlass &&
             LocalBlurState.current != null

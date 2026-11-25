@@ -1,5 +1,6 @@
 package com.nadekosu.ui.screen.main
 
+import top.yukonga.miuix.kmp.utils.MiuixPopupUtils.Companion.MiuixPopupHost
 import androidx.compose.foundation.layout.fillMaxSize
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -189,7 +190,7 @@ private fun MiuixSettingsContent(bottomPadding: Dp) {
                 hostState = snackBarHost
             )
         },
-        popupHost = { },
+        popupHost = { MiuixPopupHost() },
         containerColor = if (hasBackground) Color.Transparent else surface,
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
     ) { innerPadding ->

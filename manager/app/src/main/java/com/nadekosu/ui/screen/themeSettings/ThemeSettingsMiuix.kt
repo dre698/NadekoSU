@@ -1,5 +1,6 @@
 package com.nadekosu.ui.screen.themeSettings
 
+import top.yukonga.miuix.kmp.utils.MiuixPopupUtils.Companion.MiuixPopupHost
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
 import com.nadekosu.ui.screen.themeSettings.component.MiniPhonePreview
 import androidx.compose.ui.text.style.TextOverflow
@@ -200,7 +201,7 @@ private fun MiuixThemeSettingsContent() {
                 scrollBehavior = scrollBehavior,
             )
         },
-        popupHost = { },
+        popupHost = { MiuixPopupHost() },
         containerColor = if (hasBackground) Color.Transparent else surface,
         contentWindowInsets = WindowInsets.systemBars
             .add(WindowInsets.displayCutout)

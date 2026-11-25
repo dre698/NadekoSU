@@ -1,5 +1,6 @@
 package com.nadekosu.ui.screen.main
 
+import com.nadekosu.data.UiStyle
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -128,7 +129,7 @@ import kotlinx.coroutines.withContext
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun HomePage(
+private fun MaterialHomePage(
     bottomPadding: Dp,
 ) {
     val context = LocalContext.current
@@ -714,7 +715,6 @@ fun LearnMoreCard(showHomeCardIcons: Boolean) {
 
     SegmentedColumn(
         modifier = Modifier.fillMaxWidth(),
-        title = stringResource(R.string.learn_more),
         contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)
     ) {
         item {
@@ -744,7 +744,6 @@ private fun InfoCard(
     val managersList = systemInfo.managersList
 
     SegmentedColumn(
-        title = stringResource(R.string.home_version_info),
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)
     ) {
@@ -811,7 +810,6 @@ private fun InfoCard(
     }
 
     SegmentedColumn(
-        title = stringResource(R.string.home_status_info),
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)
     ) {
@@ -906,5 +904,17 @@ private fun InfoCard(
                 description = systemInfo.metaModuleImplement,
             )
         }
+    }
+}
+
+/** Draws the home tab with the component set picked in Settings > UI style. */
+@Composable
+fun HomePage(
+    bottomPadding: Dp,
+) {
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        MiuixHomePage(bottomPadding)
+    } else {
+        MaterialHomePage(bottomPadding)
     }
 }

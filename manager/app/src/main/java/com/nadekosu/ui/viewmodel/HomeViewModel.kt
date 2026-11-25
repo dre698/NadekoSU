@@ -51,7 +51,7 @@ data class HomeUiState(
     val isHideMetaModuleImplement: Boolean = false,
     val isHideLinkCard: Boolean = false,
     val showNavigationBarBadge: Boolean = true,
-    val showHomeCardIcons: Boolean = false,
+    val showHomeCardIcons: Boolean = true,
     val homeLayoutStyle: String = HomeLayoutStyle.DEFAULT,
     val homeBannerFile: String? = null,
     val isInitialDataLoaded: Boolean = false,
@@ -461,7 +461,7 @@ class HomeViewModel : ViewModel() {
                 ),
                 showHomeCardIcons = settingsPrefs.getBoolean(
                     "show_home_card_icons",
-                    false
+                    true
                 ),
                 homeLayoutStyle = HomeLayoutStyle.fromValue(
                     settingsPrefs.getString(HomeLayoutStyle.PREF_KEY)

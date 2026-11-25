@@ -38,7 +38,7 @@ data class ThemePackage(
     val useBackgroundSeedColor: Boolean = false,
     val highContrast: Boolean = false,
     val homeLayoutStyle: String = HomeLayoutStyle.DEFAULT,
-    val showHomeCardIcons: Boolean = false,
+    val showHomeCardIcons: Boolean = true,
     val showNavigationBarBadge: Boolean = true,
 )
 

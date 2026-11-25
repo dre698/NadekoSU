@@ -1,5 +1,11 @@
 package com.nadekosu.ui.screen.main
 
+import com.nadekosu.ui.theme.BackgroundManager
+import com.nadekosu.ui.screen.themeSettings.util.restartActivity
+import com.nadekosu.ui.screen.themeSettings.component.LanguageSelectionDialog
+import androidx.compose.material.icons.twotone.Palette
+import androidx.compose.material.icons.twotone.Translate
+import androidx.compose.material.icons.twotone.DisplaySettings
 import com.nadekosu.data.UiStyle
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -196,18 +202,103 @@ private fun MaterialSettingsPage(bottomPadding: Dp) {
                 bottom = innerPadding.calculateBottomPadding() + bottomPadding + 15.dp
             )
         ) {
-            // 配置卡片
+            // Update checks
+            item {
+                SegmentedColumn {
+                        expandableItem(
+                            expanded = uiState.checkUpdate,
+                            topContent = {
+                                SettingsSwitchWidget(
+                                    icon = Icons.TwoTone.Update,
+                                    title = stringResource(R.string.settings_check_update),
+                                    description = stringResource(R.string.settings_check_update_summary),
+                                    checked = uiState.checkUpdate,
+                                    onCheckedChange = { enabled ->
+                                        settingsViewModel.handleCheckUpdateChange(context, enabled)
+                                    }
+                                )
+                            }
+                        ) {
+                            item(
+                                topPadding = 1.dp
+                            ) {
+                                SettingsSwitchWidget(
+                                    title = stringResource(R.string.settings_check_beta_update),
+                                    description = stringResource(R.string.settings_check_beta_update_summary),
+                                    checked = uiState.checkBetaUpdate,
+                                    onCheckedChange = { enabled ->
+                                        settingsViewModel.handleCheckBetaUpdateChange(
+                                            context,
+                                            enabled
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                }
+            }
+
+            // Interface: UI style, language, theme
+            item {
+                SegmentedColumn {
+                    item {
+                        SettingsChooseWidget(
+                            icon = Icons.TwoTone.DisplaySettings,
+                            title = stringResource(R.string.ui_style_title),
+                            description = stringResource(R.string.ui_style_summary),
+                            items = listOf(
+                                stringResource(R.string.ui_style_material),
+                                stringResource(R.string.ui_style_miuix),
+                            ),
+                            selectedIndex = UiStyle.supported.indexOf(ThemeConfig.uiStyle).coerceAtLeast(0),
+                            onSelectedIndexChange = { index ->
+                                BackgroundManager.saveUiStyle(
+                                    context,
+                                    UiStyle.supported.getOrElse(index) { UiStyle.DEFAULT }
+                                )
+                            },
+                        )
+                    }
+
+                    item {
+                        val languageSystemDefault = stringResource(R.string.language_system_default)
+                        val currentLanguageDisplay = remember(uiState.currentAppLocale) {
+                            uiState.currentAppLocale?.let { it.getDisplayName(it) } ?: languageSystemDefault
+                        }
+                        SettingsJumpPageWidget(
+                            icon = Icons.TwoTone.Translate,
+                            title = stringResource(R.string.settings_language),
+                            description = currentLanguageDisplay,
+                            onClick = { settingsViewModel.setLanguageDialogVisible(true) }
+                        )
+                    }
+
+                        item {
+                            // 更多设置
+                            SettingsJumpPageWidget(
+                                icon = Icons.TwoTone.Palette,
+                                title = stringResource(R.string.theme_settings),
+                                description = stringResource(R.string.theme_settings_summary),
+                                onClick = {
+                                    navigator.push(Route.ThemeSettings)
+                                }
+                            )
+                        }
+                }
+                if (uiState.showLanguageDialog) {
+                    LanguageSelectionDialog(
+                        onLanguageSelected = {
+                            settingsViewModel.refreshCurrentLocale(context)
+                            restartActivity(context)
+                        },
+                        onDismiss = { settingsViewModel.setLanguageDialogVisible(false) }
+                    )
+                }
+            }
+
             if (ksuIsValid()) {
                 item {
-                    val modeItems = listOf(
-                        stringResource(id = R.string.settings_mode_default),
-                        stringResource(id = R.string.settings_mode_disable_until_reboot),
-                        stringResource(id = R.string.settings_mode_disable_always),
-                    )
-
-                    SegmentedColumn(
-                        title = stringResource(R.string.configuration),
-                        content = {
+                    SegmentedColumn {
                             item {
                                 // 配置文件模板入口
                                 SettingsJumpPageWidget(
@@ -219,7 +310,17 @@ private fun MaterialSettingsPage(bottomPadding: Dp) {
                                     }
                                 )
                             }
+                    }
+                }
 
+                item {
+                    val modeItems = listOf(
+                        stringResource(id = R.string.settings_mode_default),
+                        stringResource(id = R.string.settings_mode_disable_until_reboot),
+                        stringResource(id = R.string.settings_mode_disable_always),
+                    )
+
+                    SegmentedColumn {
                             item {
                                 val suSummary = when (uiState.suStatus) {
                                     "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
@@ -238,7 +339,6 @@ private fun MaterialSettingsPage(bottomPadding: Dp) {
                                     },
                                 )
                             }
-
                             item {
                                 val umountSummary = when (uiState.kernelUmountStatus) {
                                     "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
@@ -254,36 +354,38 @@ private fun MaterialSettingsPage(bottomPadding: Dp) {
                                     onCheckedChange = settingsViewModel::handleKernelUmountChange,
                                 )
                             }
-
-                            item(
-                                visible = Natives.isLateLoadMode
-                            ) {
-                                SettingsSwitchWidget(
-                                    icon = Icons.TwoTone.ElectricalServices,
-                                    title = stringResource(id = R.string.settings_auto_jailbreak),
-                                    description = stringResource(id = R.string.settings_auto_jailbreak_summary),
-                                    checked = uiState.autoJailbreakEnabled,
-                                    onCheckedChange = { value ->
-                                        settingsViewModel.handleAutoJailbreakChange(context, value)
-                                    }
-                                )
-                            }
-
                             item {
-                                // Jailbreak (late-load) mode forces soft reboot on, since a full
-                                // reboot there would lose the jailbreak session and root access
+                                val selinuxHideSummary = when (uiState.selinuxHideStatus) {
+                                    "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
+                                    "managed" -> stringResource(id = R.string.feature_status_managed_summary)
+                                    else -> stringResource(id = R.string.settings_selinux_hide_summary)
+                                }
                                 SettingsSwitchWidget(
-                                    icon = Icons.TwoTone.RestartAlt,
-                                    title = stringResource(id = R.string.settings_soft_reboot),
-                                    description = stringResource(id = R.string.settings_soft_reboot_summary),
-                                    enabled = !Natives.isLateLoadMode,
-                                    checked = Natives.isLateLoadMode || uiState.useSoftReboot,
-                                    onCheckedChange = { value ->
-                                        settingsViewModel.handleUseSoftRebootChange(context, value)
-                                    }
+                                    icon = Icons.TwoTone.Policy,
+                                    title = stringResource(id = R.string.settings_selinux_hide),
+                                    description = selinuxHideSummary,
+                                    enabled = uiState.selinuxHideStatus == "supported",
+                                    checked = uiState.isSelinuxHideEnabled,
+                                    onCheckedChange = { checked ->
+                                        settingsViewModel.handleSelinuxHideChange(context, checked)
+                                    },
                                 )
                             }
-
+                            item {
+                                val sulogSummary = when (uiState.sulogStatus) {
+                                    "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
+                                    "managed" -> stringResource(id = R.string.feature_status_managed_summary)
+                                    else -> stringResource(id = R.string.settings_sulog_summary)
+                                }
+                                SettingsSwitchWidget(
+                                    icon = Icons.AutoMirrored.TwoTone.Article,
+                                    title = stringResource(id = R.string.settings_sulog),
+                                    description = sulogSummary,
+                                    enabled = uiState.sulogStatus == "supported",
+                                    checked = uiState.isSuLogEnabled,
+                                    onCheckedChange = settingsViewModel::handleSuLogChange,
+                                )
+                            }
                             item(
                                 visible = Build.VERSION.SDK_INT > Build.VERSION_CODES.Q
                             ) {
@@ -302,8 +404,59 @@ private fun MaterialSettingsPage(bottomPadding: Dp) {
                                     onCheckedChange = settingsViewModel::handleAdbRootChange,
                                 )
                             }
+                            item {
+                                // Jailbreak (late-load) mode forces soft reboot on, since a full
+                                // reboot there would lose the jailbreak session and root access
+                                SettingsSwitchWidget(
+                                    icon = Icons.TwoTone.RestartAlt,
+                                    title = stringResource(id = R.string.settings_soft_reboot),
+                                    description = stringResource(id = R.string.settings_soft_reboot_summary),
+                                    enabled = !Natives.isLateLoadMode,
+                                    checked = Natives.isLateLoadMode || uiState.useSoftReboot,
+                                    onCheckedChange = { value ->
+                                        settingsViewModel.handleUseSoftRebootChange(context, value)
+                                    }
+                                )
+                            }
+                    }
+                }
 
-
+                item {
+                    SegmentedColumn {
+                            item {
+                                // 卸载模块开关
+                                SettingsSwitchWidget(
+                                    icon = Icons.TwoTone.FolderDelete,
+                                    title = stringResource(id = R.string.settings_umount_modules_default),
+                                    description = stringResource(id = R.string.settings_umount_modules_default_summary),
+                                    checked = uiState.defaultUmountModules,
+                                    onCheckedChange = settingsViewModel::handleDefaultUmountModulesChange,
+                                )
+                            }
+                            item(
+                                visible = Natives.isLateLoadMode
+                            ) {
+                                SettingsSwitchWidget(
+                                    icon = Icons.TwoTone.ElectricalServices,
+                                    title = stringResource(id = R.string.settings_auto_jailbreak),
+                                    description = stringResource(id = R.string.settings_auto_jailbreak_summary),
+                                    checked = uiState.autoJailbreakEnabled,
+                                    onCheckedChange = { value ->
+                                        settingsViewModel.handleAutoJailbreakChange(context, value)
+                                    }
+                                )
+                            }
+                            item {
+                                SettingsSwitchWidget(
+                                    icon = Icons.TwoTone.VisibilityOff,
+                                    title = stringResource(id = R.string.settings_nadeko_hide),
+                                    description = stringResource(id = R.string.settings_nadeko_hide_summary),
+                                    checked = uiState.isBootHideEnabled,
+                                    onCheckedChange = { checked ->
+                                        settingsViewModel.handleBootHideChange(context, checked)
+                                    },
+                                )
+                            }
                             item(
                                 visible = Build.SUPPORTED_ABIS.contains("arm64-v8a")
                             ) {
@@ -341,7 +494,6 @@ private fun MaterialSettingsPage(bottomPadding: Dp) {
                                     }
                                 )
                             }
-
                             item(
                                 visible = Build.SUPPORTED_ABIS.contains("arm64-v8a") &&
                                     susfsLkm?.let { !it.kernelProvided } == true
@@ -373,136 +525,11 @@ private fun MaterialSettingsPage(bottomPadding: Dp) {
                                     }
                                 ) {}
                             }
-
-                            item {
-                                val sulogSummary = when (uiState.sulogStatus) {
-                                    "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
-                                    "managed" -> stringResource(id = R.string.feature_status_managed_summary)
-                                    else -> stringResource(id = R.string.settings_sulog_summary)
-                                }
-                                SettingsSwitchWidget(
-                                    icon = Icons.AutoMirrored.TwoTone.Article,
-                                    title = stringResource(id = R.string.settings_sulog),
-                                    description = sulogSummary,
-                                    enabled = uiState.sulogStatus == "supported",
-                                    checked = uiState.isSuLogEnabled,
-                                    onCheckedChange = settingsViewModel::handleSuLogChange,
-                                )
-                            }
-
-
-                            item {
-                                val selinuxHideSummary = when (uiState.selinuxHideStatus) {
-                                    "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
-                                    "managed" -> stringResource(id = R.string.feature_status_managed_summary)
-                                    else -> stringResource(id = R.string.settings_selinux_hide_summary)
-                                }
-                                SettingsSwitchWidget(
-                                    icon = Icons.TwoTone.Policy,
-                                    title = stringResource(id = R.string.settings_selinux_hide),
-                                    description = selinuxHideSummary,
-                                    enabled = uiState.selinuxHideStatus == "supported",
-                                    checked = uiState.isSelinuxHideEnabled,
-                                    onCheckedChange = { checked ->
-                                        settingsViewModel.handleSelinuxHideChange(context, checked)
-                                    },
-                                )
-                            }
-
-                            item {
-                                SettingsSwitchWidget(
-                                    icon = Icons.TwoTone.VisibilityOff,
-                                    title = stringResource(id = R.string.settings_nadeko_hide),
-                                    description = stringResource(id = R.string.settings_nadeko_hide_summary),
-                                    checked = uiState.isBootHideEnabled,
-                                    onCheckedChange = { checked ->
-                                        settingsViewModel.handleBootHideChange(context, checked)
-                                    },
-                                )
-                            }
-
-                            item {
-                                // 卸载模块开关
-                                SettingsSwitchWidget(
-                                    icon = Icons.TwoTone.FolderDelete,
-                                    title = stringResource(id = R.string.settings_umount_modules_default),
-                                    description = stringResource(id = R.string.settings_umount_modules_default_summary),
-                                    checked = uiState.defaultUmountModules,
-                                    onCheckedChange = settingsViewModel::handleDefaultUmountModulesChange,
-                                )
-                            }
-                        }
-                    )
-                }
-            }
-
-            item {
-                // 应用设置卡片
-                SegmentedColumn(
-                    title = stringResource(R.string.app_settings),
-                    content = {
-                        expandableItem(
-                            expanded = uiState.checkUpdate,
-                            topContent = {
-                                SettingsSwitchWidget(
-                                    icon = Icons.TwoTone.Update,
-                                    title = stringResource(R.string.settings_check_update),
-                                    description = stringResource(R.string.settings_check_update_summary),
-                                    checked = uiState.checkUpdate,
-                                    onCheckedChange = { enabled ->
-                                        settingsViewModel.handleCheckUpdateChange(context, enabled)
-                                    }
-                                )
-                            }
-                        ) {
-                            item(
-                                topPadding = 1.dp
-                            ) {
-                                SettingsSwitchWidget(
-                                    title = stringResource(R.string.settings_check_beta_update),
-                                    description = stringResource(R.string.settings_check_beta_update_summary),
-                                    checked = uiState.checkBetaUpdate,
-                                    onCheckedChange = { enabled ->
-                                        settingsViewModel.handleCheckBetaUpdateChange(
-                                            context,
-                                            enabled
-                                        )
-                                    }
-                                )
-                            }
-                        }
-
-                        item {
-                            // 更多设置
-                            SettingsJumpPageWidget(
-                                icon = Icons.TwoTone.Settings,
-                                title = stringResource(R.string.theme_settings),
-                                description = stringResource(R.string.theme_settings),
-                                onClick = {
-                                    navigator.push(Route.ThemeSettings)
-                                }
-                            )
-                        }
                     }
-                )
-            }
+                }
 
-            item {
-                // 工具卡片
-                SegmentedColumn(
-                    title = stringResource(R.string.tools),
-                    content = {
-                        item {
-                            SettingsBaseWidget(
-                                icon = Icons.TwoTone.BugReport,
-                                title = stringResource(R.string.send_log),
-                                onClick = {
-                                    showBottomsheet = true
-                                }
-                            ) {}
-                        }
-
-                        if (ksuIsValid()) {
+                item {
+                    SegmentedColumn {
                             item {
                                 SettingsJumpPageWidget(
                                     icon = Icons.TwoTone.Security,
@@ -513,7 +540,6 @@ private fun MaterialSettingsPage(bottomPadding: Dp) {
                                     }
                                 )
                             }
-
                             item(visible = uiState.isKernelUmountEnabled) {
                                 SettingsJumpPageWidget(
                                     icon = Icons.TwoTone.FolderOff,
@@ -524,17 +550,44 @@ private fun MaterialSettingsPage(bottomPadding: Dp) {
                                     }
                                 )
                             }
-                        }
+                    }
+                }
+            }
 
-                        if (Natives.isLkmMode) {
-                            item {
-                                UninstallItem {
-                                    loadingDialog.withLoading(it)
-                                }
+            if (Natives.isLkmMode) {
+                item {
+                    SegmentedColumn {
+                        item {
+                            UninstallItem {
+                                loadingDialog.withLoading(it)
                             }
                         }
                     }
-                )
+                }
+            }
+
+            item {
+                SegmentedColumn {
+                    item {
+                        SettingsBaseWidget(
+                            icon = Icons.TwoTone.BugReport,
+                            title = stringResource(R.string.send_log),
+                            onClick = {
+                                showBottomsheet = true
+                            }
+                        ) {}
+                    }
+
+                    item {
+                        SettingsJumpPageWidget(
+                            icon = Icons.TwoTone.Info,
+                            title = stringResource(R.string.about),
+                            onClick = {
+                                navigator.push(Route.About)
+                            }
+                        )
+                    }
+                }
             }
 
             if (showBottomsheet) {
@@ -580,24 +633,6 @@ private fun MaterialSettingsPage(bottomPadding: Dp) {
                         }
                     )
                 }
-            }
-
-            // 关于卡片
-            item {
-                SegmentedColumn(
-                    title = stringResource(R.string.about),
-                    content = {
-                        item {
-                            SettingsJumpPageWidget(
-                                icon = Icons.TwoTone.Info,
-                                title = stringResource(R.string.about),
-                                onClick = {
-                                    navigator.push(Route.About)
-                                }
-                            )
-                        }
-                    }
-                )
             }
         }
     }

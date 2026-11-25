@@ -1,5 +1,11 @@
 package com.nadekosu.ui.activity.component
 
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material.icons.rounded.Settings as MiuixSettings
+import androidx.compose.material.icons.rounded.Extension as MiuixExtension
+import androidx.compose.material.icons.rounded.AdminPanelSettings as MiuixAdminPanelSettings
+import androidx.compose.material.icons.rounded.Cottage as MiuixCottage
+import androidx.compose.material.icons.Icons
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.nadekosu.ui.theme.NadekoMiuixTheme
 import com.nadekosu.data.UiStyle
@@ -170,7 +176,7 @@ fun NavigationBar(
                                     }
                                     val icon: @Composable () -> Unit = {
                                         Icon(
-                                            imageVector = if (index == page) destination.iconSelected else destination.iconNotSelected,
+                                            imageVector = miuixNavIcon(destination),
                                             contentDescription = stringResource(destination.label),
                                             tint = contentColor
                                         )
@@ -192,6 +198,7 @@ fun NavigationBar(
                                     Text(
                                         text = stringResource(destination.label),
                                         fontSize = 11.sp,
+                                        letterSpacing = 0.sp,
                                         lineHeight = 14.sp,
                                         maxLines = 1,
                                         softWrap = false,
@@ -410,4 +417,12 @@ private fun DestinationBadge(
             Text(count.toString())
         }
     }
+}
+
+/** Filled rounded icons used by the Miuix floating bar for every tab state. */
+private fun miuixNavIcon(destination: BottomBarDestination): ImageVector = when (destination) {
+    BottomBarDestination.Home -> Icons.Rounded.MiuixCottage
+    BottomBarDestination.SuperUser -> Icons.Rounded.MiuixAdminPanelSettings
+    BottomBarDestination.Module -> Icons.Rounded.MiuixExtension
+    BottomBarDestination.Settings -> Icons.Rounded.MiuixSettings
 }

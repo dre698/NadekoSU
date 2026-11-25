@@ -1,5 +1,18 @@
 package com.nadekosu.ui.screen.main
 
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.theme.BackgroundManager
+import com.nadekosu.ui.screen.themeSettings.util.restartActivity
+import com.nadekosu.ui.screen.themeSettings.component.LanguageSelectionDialog
+import androidx.compose.material.icons.rounded.VerifiedUser
+import androidx.compose.material.icons.rounded.Translate
+import androidx.compose.material.icons.rounded.SystemUpdateAlt
+import androidx.compose.material.icons.rounded.LayersClear
+import androidx.compose.material.icons.rounded.FlashOn
+import androidx.compose.material.icons.rounded.DisplaySettings
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.AdminPanelSettings
+import androidx.compose.material.icons.automirrored.rounded.Rule
 import top.yukonga.miuix.kmp.utils.MiuixPopupUtils.Companion.MiuixPopupHost
 import androidx.compose.foundation.layout.fillMaxSize
 import android.annotation.SuppressLint
@@ -118,12 +131,13 @@ internal fun MiuixSettingsPage(bottomPadding: Dp) {
 }
 
 @Composable
-private fun MiuixPrefIcon(icon: ImageVector) {
+private fun MiuixPrefIcon(icon: ImageVector, enabled: Boolean = true) {
     Icon(
         imageVector = icon,
         contentDescription = null,
         modifier = Modifier.padding(end = 6.dp),
-        tint = MiuixTheme.colorScheme.onBackground,
+        tint = if (enabled) MiuixTheme.colorScheme.onBackground
+        else MiuixTheme.colorScheme.disabledOnSecondaryVariant,
     )
 }
 
@@ -200,29 +214,108 @@ private fun MiuixSettingsContent(bottomPadding: Dp) {
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = PaddingValues(
-                top = innerPadding.calculateTopPadding() + 5.dp,
-                bottom = innerPadding.calculateBottomPadding() + bottomPadding + 15.dp,
+                top = innerPadding.calculateTopPadding() + 12.dp,
+                bottom = innerPadding.calculateBottomPadding() + bottomPadding + 3.dp,
             ),
         ) {
+            // Module / app update checks
+            item {
+                MiuixGroupCard {
+                    SwitchPreference(
+                        title = stringResource(R.string.settings_check_update),
+                        summary = stringResource(R.string.settings_check_update_summary),
+                        startAction = { MiuixPrefIcon(Icons.Rounded.SystemUpdateAlt) },
+                        checked = uiState.checkUpdate,
+                        onCheckedChange = { enabled ->
+                            settingsViewModel.handleCheckUpdateChange(context, enabled)
+                        },
+                    )
+                    if (uiState.checkUpdate) {
+                        SwitchPreference(
+                            title = stringResource(R.string.settings_check_beta_update),
+                            summary = stringResource(R.string.settings_check_beta_update_summary),
+                            startAction = { MiuixPrefIcon(Icons.Rounded.SystemUpdateAlt) },
+                            checked = uiState.checkBetaUpdate,
+                            onCheckedChange = { enabled ->
+                                settingsViewModel.handleCheckBetaUpdateChange(context, enabled)
+                            },
+                        )
+                    }
+                }
+            }
+
+            // Interface: UI style, language, theme
+            item {
+                val languageSystemDefault = stringResource(R.string.language_system_default)
+                val currentLanguageDisplay = remember(uiState.currentAppLocale) {
+                    uiState.currentAppLocale?.let { it.getDisplayName(it) } ?: languageSystemDefault
+                }
+                MiuixGroupCard {
+                    ChoicePreference(
+                        title = stringResource(R.string.ui_style_title),
+                        summary = stringResource(R.string.ui_style_summary),
+                        startAction = { MiuixPrefIcon(Icons.Rounded.DisplaySettings) },
+                        items = listOf(
+                            stringResource(R.string.ui_style_material),
+                            stringResource(R.string.ui_style_miuix),
+                        ),
+                        selectedIndex = UiStyle.supported.indexOf(ThemeConfig.uiStyle).coerceAtLeast(0),
+                        onSelectedIndexChange = { index ->
+                            BackgroundManager.saveUiStyle(
+                                context,
+                                UiStyle.supported.getOrElse(index) { UiStyle.DEFAULT }
+                            )
+                        },
+                    )
+                    ArrowPreference(
+                        title = stringResource(R.string.settings_language),
+                        summary = currentLanguageDisplay,
+                        startAction = { MiuixPrefIcon(Icons.Rounded.Translate) },
+                        onClick = { settingsViewModel.setLanguageDialogVisible(true) },
+                    )
+                    ArrowPreference(
+                        title = stringResource(R.string.theme_settings),
+                        summary = stringResource(R.string.theme_settings_summary),
+                        startAction = { MiuixPrefIcon(Icons.Rounded.Palette) },
+                        onClick = { navigator.push(Route.ThemeSettings) },
+                    )
+                }
+                if (uiState.showLanguageDialog) {
+                    LanguageSelectionDialog(
+                        onLanguageSelected = {
+                            settingsViewModel.refreshCurrentLocale(context)
+                            restartActivity(context)
+                        },
+                        onDismiss = { settingsViewModel.setLanguageDialogVisible(false) },
+                    )
+                }
+            }
+
             if (ksuIsValid()) {
+                item {
+                    MiuixGroupCard {
+                        ArrowPreference(
+                            title = stringResource(R.string.settings_profile_template),
+                            summary = stringResource(R.string.settings_profile_template_summary),
+                            startAction = { MiuixPrefIcon(Icons.Rounded.Description) },
+                            onClick = { navigator.push(Route.AppProfileTemplate) },
+                        )
+                    }
+                }
+
                 item {
                     val modeItems = listOf(
                         stringResource(id = R.string.settings_mode_default),
                         stringResource(id = R.string.settings_mode_disable_until_reboot),
                         stringResource(id = R.string.settings_mode_disable_always),
                     )
-                    SmallTitle(text = stringResource(R.string.configuration))
                     MiuixGroupCard {
-                        ArrowPreference(
-                            title = stringResource(R.string.settings_profile_template),
-                            summary = stringResource(R.string.settings_profile_template_summary),
-                            startAction = { MiuixPrefIcon(Icons.Rounded.Fence) },
-                            onClick = { navigator.push(Route.AppProfileTemplate) },
-                        )
                         ChoicePreference(
                             title = stringResource(R.string.settings_sucompat),
                             summary = featureSummary(uiState.suStatus, R.string.settings_sucompat_summary),
-                            startAction = { MiuixPrefIcon(Icons.Rounded.RemoveModerator) },
+                            startAction = {
+                                MiuixPrefIcon(Icons.Rounded.AdminPanelSettings, uiState.suStatus == "supported")
+                            },
                             enabled = uiState.suStatus == "supported",
                             items = modeItems,
                             selectedIndex = uiState.suCompatMode,
@@ -233,20 +326,45 @@ private fun MiuixSettingsContent(bottomPadding: Dp) {
                         SwitchPreference(
                             title = stringResource(R.string.settings_kernel_umount),
                             summary = featureSummary(uiState.kernelUmountStatus, R.string.settings_kernel_umount_summary),
-                            startAction = { MiuixPrefIcon(Icons.Rounded.RemoveCircle) },
+                            startAction = {
+                                MiuixPrefIcon(Icons.Rounded.LayersClear, uiState.kernelUmountStatus == "supported")
+                            },
                             enabled = uiState.kernelUmountStatus == "supported",
                             checked = uiState.isKernelUmountEnabled,
                             onCheckedChange = settingsViewModel::handleKernelUmountChange,
                         )
-                        if (Natives.isLateLoadMode) {
+                        SwitchPreference(
+                            title = stringResource(R.string.settings_selinux_hide),
+                            summary = featureSummary(uiState.selinuxHideStatus, R.string.settings_selinux_hide_summary),
+                            startAction = {
+                                MiuixPrefIcon(Icons.Rounded.Security, uiState.selinuxHideStatus == "supported")
+                            },
+                            enabled = uiState.selinuxHideStatus == "supported",
+                            checked = uiState.isSelinuxHideEnabled,
+                            onCheckedChange = { checked ->
+                                settingsViewModel.handleSelinuxHideChange(context, checked)
+                            },
+                        )
+                        SwitchPreference(
+                            title = stringResource(R.string.settings_sulog),
+                            summary = featureSummary(uiState.sulogStatus, R.string.settings_sulog_summary),
+                            startAction = {
+                                MiuixPrefIcon(Icons.AutoMirrored.Rounded.Article, uiState.sulogStatus == "supported")
+                            },
+                            enabled = uiState.sulogStatus == "supported",
+                            checked = uiState.isSuLogEnabled,
+                            onCheckedChange = settingsViewModel::handleSuLogChange,
+                        )
+                        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
                             SwitchPreference(
-                                title = stringResource(R.string.settings_auto_jailbreak),
-                                summary = stringResource(R.string.settings_auto_jailbreak_summary),
-                                startAction = { MiuixPrefIcon(Icons.Rounded.ElectricalServices) },
-                                checked = uiState.autoJailbreakEnabled,
-                                onCheckedChange = { value ->
-                                    settingsViewModel.handleAutoJailbreakChange(context, value)
+                                title = stringResource(R.string.settings_adb_root),
+                                summary = featureSummary(uiState.adbRootStatus, R.string.settings_adb_root_summary),
+                                startAction = {
+                                    MiuixPrefIcon(Icons.Rounded.Adb, uiState.adbRootStatus == "supported")
                                 },
+                                enabled = uiState.adbRootStatus == "supported",
+                                checked = uiState.isAdbRootEnabled,
+                                onCheckedChange = settingsViewModel::handleAdbRootChange,
                             )
                         }
                         // Jailbreak (late-load) mode forces soft reboot on, since a full reboot
@@ -254,23 +372,45 @@ private fun MiuixSettingsContent(bottomPadding: Dp) {
                         SwitchPreference(
                             title = stringResource(R.string.settings_soft_reboot),
                             summary = stringResource(R.string.settings_soft_reboot_summary),
-                            startAction = { MiuixPrefIcon(Icons.Rounded.RestartAlt) },
+                            startAction = { MiuixPrefIcon(Icons.Rounded.RestartAlt, !Natives.isLateLoadMode) },
                             enabled = !Natives.isLateLoadMode,
                             checked = Natives.isLateLoadMode || uiState.useSoftReboot,
                             onCheckedChange = { value ->
                                 settingsViewModel.handleUseSoftRebootChange(context, value)
                             },
                         )
-                        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
+                    }
+                }
+
+                item {
+                    MiuixGroupCard {
+                        SwitchPreference(
+                            title = stringResource(R.string.settings_umount_modules_default),
+                            summary = stringResource(R.string.settings_umount_modules_default_summary),
+                            startAction = { MiuixPrefIcon(Icons.AutoMirrored.Rounded.Rule) },
+                            checked = uiState.defaultUmountModules,
+                            onCheckedChange = settingsViewModel::handleDefaultUmountModulesChange,
+                        )
+                        if (Natives.isLateLoadMode) {
                             SwitchPreference(
-                                title = stringResource(R.string.settings_adb_root),
-                                summary = featureSummary(uiState.adbRootStatus, R.string.settings_adb_root_summary),
-                                startAction = { MiuixPrefIcon(Icons.Rounded.Adb) },
-                                enabled = uiState.adbRootStatus == "supported",
-                                checked = uiState.isAdbRootEnabled,
-                                onCheckedChange = settingsViewModel::handleAdbRootChange,
+                                title = stringResource(R.string.settings_auto_jailbreak),
+                                summary = stringResource(R.string.settings_auto_jailbreak_summary),
+                                startAction = { MiuixPrefIcon(Icons.Rounded.FlashOn) },
+                                checked = uiState.autoJailbreakEnabled,
+                                onCheckedChange = { value ->
+                                    settingsViewModel.handleAutoJailbreakChange(context, value)
+                                },
                             )
                         }
+                        SwitchPreference(
+                            title = stringResource(R.string.settings_nadeko_hide),
+                            summary = stringResource(R.string.settings_nadeko_hide_summary),
+                            startAction = { MiuixPrefIcon(Icons.Rounded.VisibilityOff) },
+                            checked = uiState.isBootHideEnabled,
+                            onCheckedChange = { checked ->
+                                settingsViewModel.handleBootHideChange(context, checked)
+                            },
+                        )
                         if (Build.SUPPORTED_ABIS.contains("arm64-v8a")) {
                             val lkmState = susfsLkm
                             SwitchPreference(
@@ -310,7 +450,7 @@ private fun MiuixSettingsContent(bottomPadding: Dp) {
                                         if (lkmLoaded) R.string.settings_susfs_lkm_load_now_done
                                         else R.string.settings_susfs_lkm_load_now_summary
                                     ),
-                                    startAction = { MiuixPrefIcon(Icons.Rounded.Security) },
+                                    startAction = { MiuixPrefIcon(Icons.Rounded.Security, !lkmLoaded && !susfsLkmBusy) },
                                     enabled = !lkmLoaded && !susfsLkmBusy,
                                     onClick = {
                                         susfsLkmBusy = true
@@ -331,87 +471,15 @@ private fun MiuixSettingsContent(bottomPadding: Dp) {
                                 )
                             }
                         }
-                        SwitchPreference(
-                            title = stringResource(R.string.settings_sulog),
-                            summary = featureSummary(uiState.sulogStatus, R.string.settings_sulog_summary),
-                            startAction = { MiuixPrefIcon(Icons.AutoMirrored.Rounded.Article) },
-                            enabled = uiState.sulogStatus == "supported",
-                            checked = uiState.isSuLogEnabled,
-                            onCheckedChange = settingsViewModel::handleSuLogChange,
-                        )
-                        SwitchPreference(
-                            title = stringResource(R.string.settings_selinux_hide),
-                            summary = featureSummary(uiState.selinuxHideStatus, R.string.settings_selinux_hide_summary),
-                            startAction = { MiuixPrefIcon(Icons.Rounded.Policy) },
-                            enabled = uiState.selinuxHideStatus == "supported",
-                            checked = uiState.isSelinuxHideEnabled,
-                            onCheckedChange = { checked ->
-                                settingsViewModel.handleSelinuxHideChange(context, checked)
-                            },
-                        )
-                        SwitchPreference(
-                            title = stringResource(R.string.settings_nadeko_hide),
-                            summary = stringResource(R.string.settings_nadeko_hide_summary),
-                            startAction = { MiuixPrefIcon(Icons.Rounded.VisibilityOff) },
-                            checked = uiState.isBootHideEnabled,
-                            onCheckedChange = { checked ->
-                                settingsViewModel.handleBootHideChange(context, checked)
-                            },
-                        )
-                        SwitchPreference(
-                            title = stringResource(R.string.settings_umount_modules_default),
-                            summary = stringResource(R.string.settings_umount_modules_default_summary),
-                            startAction = { MiuixPrefIcon(Icons.Rounded.FolderDelete) },
-                            checked = uiState.defaultUmountModules,
-                            onCheckedChange = settingsViewModel::handleDefaultUmountModulesChange,
-                        )
                     }
                 }
-            }
 
-            item {
-                SmallTitle(text = stringResource(R.string.app_settings))
-                MiuixGroupCard {
-                    SwitchPreference(
-                        title = stringResource(R.string.settings_check_update),
-                        summary = stringResource(R.string.settings_check_update_summary),
-                        startAction = { MiuixPrefIcon(Icons.Rounded.Update) },
-                        checked = uiState.checkUpdate,
-                        onCheckedChange = { enabled ->
-                            settingsViewModel.handleCheckUpdateChange(context, enabled)
-                        },
-                    )
-                    if (uiState.checkUpdate) {
-                        SwitchPreference(
-                            title = stringResource(R.string.settings_check_beta_update),
-                            summary = stringResource(R.string.settings_check_beta_update_summary),
-                            checked = uiState.checkBetaUpdate,
-                            onCheckedChange = { enabled ->
-                                settingsViewModel.handleCheckBetaUpdateChange(context, enabled)
-                            },
-                        )
-                    }
-                    ArrowPreference(
-                        title = stringResource(R.string.theme_settings),
-                        startAction = { MiuixPrefIcon(Icons.Rounded.Palette) },
-                        onClick = { navigator.push(Route.ThemeSettings) },
-                    )
-                }
-            }
-
-            item {
-                SmallTitle(text = stringResource(R.string.tools))
-                MiuixGroupCard {
-                    ArrowPreference(
-                        title = stringResource(R.string.send_log),
-                        startAction = { MiuixPrefIcon(Icons.Rounded.BugReport) },
-                        onClick = { showBottomsheet = true },
-                    )
-                    if (ksuIsValid()) {
+                item {
+                    MiuixGroupCard {
                         ArrowPreference(
                             title = stringResource(R.string.dynamic_manager_title),
                             summary = stringResource(R.string.dynamic_manager_settings_summary),
-                            startAction = { MiuixPrefIcon(Icons.Rounded.Security) },
+                            startAction = { MiuixPrefIcon(Icons.Rounded.VerifiedUser) },
                             onClick = { navigator.push(Route.DynamicManager) },
                         )
                         if (uiState.isKernelUmountEnabled) {
@@ -423,9 +491,29 @@ private fun MiuixSettingsContent(bottomPadding: Dp) {
                             )
                         }
                     }
-                    if (Natives.isLkmMode) {
+                }
+            }
+
+            if (Natives.isLkmMode) {
+                item {
+                    MiuixGroupCard {
                         MiuixUninstallItem { loadingDialog.withLoading(it) }
                     }
+                }
+            }
+
+            item {
+                MiuixGroupCard {
+                    ArrowPreference(
+                        title = stringResource(R.string.send_log),
+                        startAction = { MiuixPrefIcon(Icons.Rounded.BugReport) },
+                        onClick = { showBottomsheet = true },
+                    )
+                    ArrowPreference(
+                        title = stringResource(R.string.about),
+                        startAction = { MiuixPrefIcon(Icons.Rounded.Info) },
+                        onClick = { navigator.push(Route.About) },
+                    )
                 }
             }
 
@@ -459,17 +547,6 @@ private fun MiuixSettingsContent(bottomPadding: Dp) {
                                 showBottomsheet = false
                             }
                         },
-                    )
-                }
-            }
-
-            item {
-                SmallTitle(text = stringResource(R.string.about))
-                MiuixGroupCard {
-                    ArrowPreference(
-                        title = stringResource(R.string.about),
-                        startAction = { MiuixPrefIcon(Icons.Rounded.Info) },
-                        onClick = { navigator.push(Route.About) },
                     )
                 }
             }

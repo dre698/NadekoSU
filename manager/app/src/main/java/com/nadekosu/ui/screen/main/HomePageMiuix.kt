@@ -464,6 +464,10 @@ private fun MiuixStatusCard(
                 )
             }
             val hasBanner = bannerFile != null
+            val versionText = buildString {
+                append(systemStatus.ksuVersion ?: 0)
+                systemStatus.kernelUAPIVersion?.let { append("-").append(it) }
+            }
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -529,7 +533,9 @@ private fun MiuixStatusCard(
                                 color = if (hasBanner) Color.White else colors.onSurface,
                             )
                             Text(
-                                text = if (big) systemStatus.ksuFullVersion.orEmpty() else summary,
+                                text = if (big) versionText else summary,
+                                // keep the long version string clear of the big check icon
+                                modifier = if (big && !hasBanner) Modifier.fillMaxWidth(0.66f) else Modifier,
                                 fontSize = 14.sp,
                                 fontFamily = if (big) FontFamily.Monospace else FontFamily.Default,
                                 color = if (hasBanner) Color.White.copy(alpha = 0.85f)

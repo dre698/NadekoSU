@@ -10,8 +10,6 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,9 +23,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.nadekosu.R
+import com.nadekosu.ui.screen.susfs.component.*
 import com.nadekosu.data.susfs.SuSFSConfigHelper
-import com.nadekosu.ui.component.settings.SettingsJumpPageWidget
-import com.nadekosu.ui.component.settings.SettingsTextFieldWidget
 import com.nadekosu.ui.screen.susfs.RegisterSuSFSRefresh
 import com.nadekosu.ui.screen.susfs.SuSFSRefreshRegistrar
 import com.nadekosu.ui.screen.susfs.component.EntryDetailDialog
@@ -91,14 +88,8 @@ fun SusMapTab(
                 title = stringResource(R.string.sus_maps_description_title),
                 description = stringResource(R.string.sus_maps_description_text),
             ) {
-                Text(
-                    text = stringResource(R.string.sus_maps_warning),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Text(
-                    text = stringResource(R.string.sus_maps_debug_info),
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                SuSFSDescriptionText(stringResource(R.string.sus_maps_warning))
+                SuSFSDescriptionText(stringResource(R.string.sus_maps_debug_info))
             }
         }
 
@@ -110,7 +101,7 @@ fun SusMapTab(
             entryKey = { it },
             onAddEntry = { showManualAdd = true },
         ) { path ->
-            SettingsJumpPageWidget(
+            SuSFSJumpItem(
                 iconPlaceholder = false,
                 title = path,
                 onClick = { detailItem = path },
@@ -167,16 +158,14 @@ fun SusMapTab(
         },
         formContent = {
             item {
-                SettingsTextFieldWidget(
+                SuSFSTextField(
                     state = manualPath,
                     title = pathLabel,
-                    useLabelAsPlaceholder = true,
                     enabled = !isLoading,
                     lineLimits = TextFieldLineLimits.MultiLine(
                         minHeightInLines = 4,
                         maxHeightInLines = 8
-                    ),
-                    renderBackgroundBlur = false
+                    )
                 )
             }
         }

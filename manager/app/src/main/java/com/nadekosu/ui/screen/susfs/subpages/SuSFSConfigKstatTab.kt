@@ -10,8 +10,6 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,12 +23,10 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.nadekosu.R
+import com.nadekosu.ui.screen.susfs.component.*
 import com.nadekosu.data.susfs.SuSFSConfigHelper
 import com.nadekosu.data.susfs.SusKstatItem
 import com.nadekosu.data.susfs.SusKstatType
-import com.nadekosu.ui.component.settings.SettingsBaseWidget
-import com.nadekosu.ui.component.settings.SettingsJumpPageWidget
-import com.nadekosu.ui.component.settings.SettingsTextFieldWidget
 import com.nadekosu.ui.screen.susfs.RegisterSuSFSRefresh
 import com.nadekosu.ui.screen.susfs.SuSFSRefreshRegistrar
 import com.nadekosu.ui.screen.susfs.component.EntryDetailDialog
@@ -148,22 +144,10 @@ fun SusKstatTab(
             SuSFSDescriptionCard(
                 title = stringResource(R.string.kstat_config_description_title),
             ) {
-                Text(
-                    text = stringResource(R.string.kstat_config_description_add),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Text(
-                    text = stringResource(R.string.kstat_config_description_update),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Text(
-                    text = stringResource(R.string.kstat_config_description_update_full_clone),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Text(
-                    text = stringResource(R.string.kstat_config_description_add_statically),
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                SuSFSDescriptionText(stringResource(R.string.kstat_config_description_add))
+                SuSFSDescriptionText(stringResource(R.string.kstat_config_description_update))
+                SuSFSDescriptionText(stringResource(R.string.kstat_config_description_update_full_clone))
+                SuSFSDescriptionText(stringResource(R.string.kstat_config_description_add_statically))
             }
         }
 
@@ -175,7 +159,7 @@ fun SusKstatTab(
             entryKey = { it.path },
             onAddEntry = { showManualAdd = true },
         ) { item ->
-            SettingsJumpPageWidget(
+            SuSFSJumpItem(
                 iconPlaceholder = false,
                 title = item.path,
                 description = item.spoof_type.localizedLabel(),
@@ -254,24 +238,22 @@ fun SusKstatTab(
         },
         formContent = {
             item(key = "susfs_kstat_path") {
-                SettingsTextFieldWidget(
+                SuSFSTextField(
                     state = manualPath,
                     title = pathLabel,
-                    useLabelAsPlaceholder = true,
                     enabled = !isLoading,
                     lineLimits = if (selectedSubtype == subtypeStatically) {
                         TextFieldLineLimits.MultiLine(minHeightInLines = 4, maxHeightInLines = 8)
                     } else {
                         TextFieldLineLimits.SingleLine
-                    },
-                    renderBackgroundBlur = false
+                    }
                 )
             }
             item(
                 key = "susfs_kstat_static_fields",
                 visible = selectedSubtype == subtypeStatically
             ) {
-                SettingsBaseWidget(
+                SuSFSInfoItem(
                     iconPlaceholder = false,
                     title = staticallyFieldsLabel,
                     renderBackgroundBlur = false,
@@ -292,13 +274,11 @@ fun SusKstatTab(
                 fieldBlksizeLabel to statBlksize
             ).forEachIndexed { index, (label, state) ->
                 item(key = "susfs_kstat_static_$index") {
-                    SettingsTextFieldWidget(
+                    SuSFSTextField(
                         state = state,
                         title = label,
-                        useLabelAsPlaceholder = true,
                         enabled = !isLoading,
-                        lineLimits = TextFieldLineLimits.SingleLine,
-                        renderBackgroundBlur = false
+                        lineLimits = TextFieldLineLimits.SingleLine
                     )
                 }
             }

@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import com.nadekosu.R
 import com.nadekosu.data.UiStyle
 import com.nadekosu.ui.component.miuix.MiuixBarAction
-import com.nadekosu.ui.component.miuix.MiuixMaterialBridge
 import com.nadekosu.ui.component.miuix.MiuixPageScaffold
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.Icons
@@ -251,7 +250,7 @@ fun SuSFSConfigScreen() {
                 if (isRefreshing) {
                     MiuixLinearProgress(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp))
                 }
-                MiuixMaterialBridge {
+                run {
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),

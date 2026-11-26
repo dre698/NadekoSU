@@ -62,6 +62,8 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.nadekosu.Natives
 import com.nadekosu.R
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.component.SwipeableSnackbarHost
 import com.nadekosu.ui.component.profile.AppProfileConfig
 import com.nadekosu.ui.component.profile.RootProfileConfig
@@ -158,7 +160,44 @@ private fun AppProfileContent(
     LaunchedEffect(Unit) {
         scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
     }
-    
+
+    val updateProfile: (Natives.Profile) -> Unit = {
+        scope.launch {
+            if (it.allowSu) {
+                // sync with allowlist.c - forbid_system_uid
+                if (appGroup.uid < 2000 && appGroup.uid != 1000) {
+                    snackBarHost.showSnackbar(suNotAllowed)
+                    return@launch
+                }
+                if (!it.rootUseDefault && it.rules.isNotEmpty() && !setSepolicy(profile.name, it.rules)) {
+                    snackBarHost.showSnackbar(failToUpdateSepolicy)
+                    return@launch
+                }
+            }
+            if (!Natives.setAppProfile(it)) {
+                snackBarHost.showSnackbar(failToUpdateAppProfile.format(appGroup.uid))
+            } else {
+                profile = it
+            }
+        }
+    }
+    val onViewTemplate: (String) -> Unit = {
+        if (getTemplateInfoById(it) != null) {
+            navigator.push(Route.TemplateEditor(templateId = it, readOnly = true, isCreation = false))
+        }
+    }
+
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        MiuixAppProfileContent(
+            appGroup = appGroup,
+            profile = profile,
+            onViewTemplate = onViewTemplate,
+            onManageTemplate = { navigator.push(Route.AppProfileTemplate) },
+            onProfileChange = updateProfile,
+        )
+        return
+    }
+
     Scaffold(
         topBar = {
             TopBar(
@@ -204,26 +243,7 @@ private fun AppProfileContent(
             onManageTemplate = {
                 navigator.push(Route.AppProfileTemplate)
             },
-            onProfileChange = {
-                scope.launch {
-                    if (it.allowSu) {
-                        // sync with allowlist.c - forbid_system_uid
-                        if (appGroup.uid < 2000 && appGroup.uid != 1000) {
-                            snackBarHost.showSnackbar(suNotAllowed)
-                            return@launch
-                        }
-                        if (!it.rootUseDefault && it.rules.isNotEmpty() && !setSepolicy(profile.name, it.rules)) {
-                            snackBarHost.showSnackbar(failToUpdateSepolicy)
-                            return@launch
-                        }
-                    }
-                    if (!Natives.setAppProfile(it)) {
-                        snackBarHost.showSnackbar(failToUpdateAppProfile.format(appGroup.uid))
-                    } else {
-                        profile = it
-                    }
-                }
-            },
+            onProfileChange = updateProfile,
         )
     }
 }

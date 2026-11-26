@@ -59,6 +59,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.nadekosu.R
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import com.nadekosu.ui.theme.ThemeConfig
+import com.nadekosu.data.UiStyle
+import androidx.compose.runtime.Immutable
 import com.nadekosu.ui.theme.CardConfig
 
 /**
@@ -172,7 +176,11 @@ fun ThemePreviewDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(32.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            color = if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+                MiuixTheme.colorScheme.surfaceContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
             onClick = onDismiss,
         ) {
             Box(
@@ -183,6 +191,62 @@ fun ThemePreviewDialog(
             }
         }
     }
+}
+
+/** Colors the mini phone is drawn with: the Miuix palette in Miuix mode, Material otherwise. */
+@Immutable
+internal class PreviewColors(
+    val surfaceContainerLow: Color,
+    val outlineVariant: Color,
+    val surfaceContainer: Color,
+    val surfaceContainerHighest: Color,
+    val onSurface: Color,
+    val onSurfaceVariant: Color,
+    val primary: Color,
+    val onPrimary: Color,
+    val tertiary: Color,
+    val primaryContainer: Color,
+    val onPrimaryContainer: Color,
+    val secondaryContainer: Color,
+    val onSecondaryContainer: Color,
+)
+
+@Composable
+internal fun previewColors(): PreviewColors {
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        val m = MiuixTheme.colorScheme
+        return PreviewColors(
+            surfaceContainerLow = m.surface,
+            outlineVariant = m.onSurfaceVariantActions.copy(alpha = 0.35f),
+            surfaceContainer = m.surfaceContainer,
+            surfaceContainerHighest = m.surfaceContainerHighest,
+            onSurface = m.onSurface,
+            onSurfaceVariant = m.onSurfaceVariantSummary,
+            primary = m.primary,
+            onPrimary = m.onPrimary,
+            tertiary = m.primary,
+            primaryContainer = m.tertiaryContainer,
+            onPrimaryContainer = m.onTertiaryContainer,
+            secondaryContainer = m.secondaryContainer,
+            onSecondaryContainer = m.onSecondaryContainer,
+        )
+    }
+    val c = MaterialTheme.colorScheme
+    return PreviewColors(
+        surfaceContainerLow = c.surfaceContainerLow,
+        outlineVariant = c.outlineVariant,
+        surfaceContainer = c.surfaceContainer,
+        surfaceContainerHighest = c.surfaceContainerHighest,
+        onSurface = c.onSurface,
+        onSurfaceVariant = c.onSurfaceVariant,
+        primary = c.primary,
+        onPrimary = c.onPrimary,
+        tertiary = c.tertiary,
+        primaryContainer = c.primaryContainer,
+        onPrimaryContainer = c.onPrimaryContainer,
+        secondaryContainer = c.secondaryContainer,
+        onSecondaryContainer = c.onSecondaryContainer,
+    )
 }
 
 private val PreviewDesignWidth = 88.dp
@@ -218,7 +282,7 @@ internal fun MiniPhonePreview(state: ThemePreviewState, modifier: Modifier = Mod
 
 @Composable
 private fun PhoneContent(state: ThemePreviewState) {
-    val colors = MaterialTheme.colorScheme
+    val colors = previewColors()
     val cardAlpha = state.cardAlpha.coerceIn(0.1f, 1f)
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -289,7 +353,7 @@ private fun PhoneContent(state: ThemePreviewState) {
 /** Dashboard UI: banner hero with stats, two counters, one info card with icons. */
 @Composable
 private fun DashboardHome(state: ThemePreviewState, cardAlpha: Float) {
-    val colors = MaterialTheme.colorScheme
+    val colors = previewColors()
     val heroText = if (state.hasBanner) colors.onPrimary else colors.onPrimaryContainer
     Box(
         modifier = Modifier
@@ -376,7 +440,7 @@ private fun DashboardHome(state: ThemePreviewState, cardAlpha: Float) {
 /** Circle UI: compact status card with chips, then titled groups of separate rows. */
 @Composable
 private fun CircleHome(state: ThemePreviewState, cardAlpha: Float) {
-    val colors = MaterialTheme.colorScheme
+    val colors = previewColors()
     val onCard = colors.onPrimaryContainer
     Row(
         modifier = Modifier
@@ -453,7 +517,7 @@ private fun CircleHome(state: ThemePreviewState, cardAlpha: Float) {
  */
 @Composable
 private fun PreviewBottomBar(state: ThemePreviewState, modifier: Modifier = Modifier) {
-    val colors = MaterialTheme.colorScheme
+    val colors = previewColors()
     Row(
         modifier = modifier
             .padding(horizontal = 8.dp, vertical = 6.dp)

@@ -1,6 +1,10 @@
 package com.nadekosu.ui.screen.main
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,10 +24,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -35,6 +43,8 @@ import com.nadekosu.R
 import com.nadekosu.ksuApp
 import com.nadekosu.ui.component.miuix.MiuixEmptyState
 import com.nadekosu.ui.component.miuix.MiuixGroupCard
+import com.nadekosu.ui.theme.ThemeConfig
+import com.nadekosu.ui.component.miuix.miuixCardColors
 import com.nadekosu.ui.component.miuix.MiuixListPage
 import com.nadekosu.ui.component.miuix.MiuixLoadingBox
 import com.nadekosu.ui.component.miuix.MiuixSearchField
@@ -49,6 +59,7 @@ import com.nadekosu.ui.viewmodel.SortType
 import com.nadekosu.ui.viewmodel.SuperUserViewModel
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon
@@ -192,15 +203,11 @@ internal fun MiuixSuperUserPage(bottomPadding: Dp) {
                 )
             }
 
-            else -> item(key = "apps") {
-                MiuixGroupCard {
-                    apps.forEach { group ->
-                        MiuixAppGroupRow(group) {
-                            navigator.push(
-                                Route.AppProfile(uid = group.uid, packageName = group.mainApp.packageName)
-                            )
-                        }
-                    }
+            else -> items(apps, key = { it.uid }, contentType = { "app-group" }) { group ->
+                MiuixAppGroupCard(group) {
+                    navigator.push(
+                        Route.AppProfile(uid = group.uid, packageName = group.mainApp.packageName)
+                    )
                 }
             }
         }
@@ -209,15 +216,25 @@ internal fun MiuixSuperUserPage(bottomPadding: Dp) {
 }
 
 @Composable
-private fun MiuixAppGroupRow(
+private fun MiuixAppGroupCard(
     group: SuperUserViewModel.AppGroup,
     onClick: () -> Unit,
 ) {
     val app = group.mainApp
     val colors = MiuixTheme.colorScheme
-    BasicComponent(
+    val userId = group.uid / 100000
+    val shouldUmount = remember(group.uid) { Natives.uidShouldUmount(group.uid) }
+    val isDark = ThemeConfig.forceDarkMode ?: isSystemInDarkTheme()
+    Card(
+        modifier = Modifier
+            .padding(horizontal = 12.dp)
+            .padding(bottom = 12.dp),
+        colors = miuixCardColors(),
         onClick = onClick,
-        startAction = {
+        showIndication = true,
+        insideMargin = PaddingValues(start = 10.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(app.packageInfo)
@@ -226,59 +243,75 @@ private fun MiuixAppGroupRow(
                     .build(),
                 contentDescription = app.label,
                 modifier = Modifier
-                    .padding(end = 12.dp)
-                    .size(44.dp),
+                    .padding(end = 10.dp)
+                    .size(48.dp),
             )
-        },
-        endActions = {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = app.label,
+                    color = colors.onSurface,
+                    fontWeight = FontWeight(550),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = if (group.apps.size > 1) {
+                        stringResource(R.string.group_contains_apps, group.apps.size)
+                    } else {
+                        app.packageName
+                    },
+                    color = colors.onSurfaceVariantSummary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight(550),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            val showTags = group.allowSu || shouldUmount || group.hasCustomProfile || userId != 0
+            if (showTags) {
+                Column(
+                    modifier = Modifier.padding(start = 16.dp),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    if (group.allowSu) {
+                        MiuixStatusTag(
+                            "ROOT",
+                            colors.tertiaryContainer.copy(alpha = 0.6f),
+                            colors.onTertiaryContainer.copy(alpha = 0.8f),
+                        )
+                    }
+                    if (shouldUmount) {
+                        MiuixStatusTag(
+                            "UMOUNT",
+                            if (isDark) Color.White.copy(alpha = 0.4f) else Color.Black.copy(alpha = 0.3f),
+                            if (isDark) Color.Black.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.8f),
+                        )
+                    }
+                    if (group.hasCustomProfile) {
+                        MiuixStatusTag(
+                            "CUSTOM",
+                            colors.secondaryContainer.copy(alpha = 0.8f),
+                            colors.onSecondaryContainer,
+                        )
+                    }
+                    if (userId != 0) {
+                        MiuixStatusTag(
+                            "USER $userId",
+                            colors.secondaryContainer.copy(alpha = 0.8f),
+                            colors.onSecondaryContainer,
+                        )
+                    }
+                }
+            }
             Icon(
                 imageVector = MiuixIcons.Basic.ArrowRight,
                 contentDescription = null,
                 tint = colors.onSurfaceVariantActions,
+                modifier = Modifier
+                    .padding(start = 8.dp)
+                    .size(width = 10.dp, height = 16.dp),
             )
-        },
-    ) {
-        Text(
-            text = app.label,
-            color = colors.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = MiuixTheme.textStyles.headline1,
-        )
-        Text(
-            text = if (group.apps.size > 1) {
-                stringResource(R.string.group_contains_apps, group.apps.size)
-            } else {
-                app.packageName
-            },
-            color = colors.onSurfaceVariantSummary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = MiuixTheme.textStyles.body2,
-        )
-        FlowRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            if (group.allowSu) {
-                MiuixStatusTag("ROOT", colors.primary, colors.onPrimary)
-            } else if (Natives.uidShouldUmount(group.uid)) {
-                MiuixStatusTag("UMOUNT")
-            }
-            if (group.hasCustomProfile) {
-                MiuixStatusTag("CUSTOM", colors.tertiaryContainer, colors.onTertiaryContainer)
-            } else if (!group.allowSu) {
-                MiuixStatusTag("DEFAULT", colors.surfaceContainerHigh, colors.onSurfaceContainerHigh)
-            }
-            if (group.apps.size > 1) {
-                group.userName?.let { MiuixStatusTag(it) }
-            }
-            if (group.isRecentlyInstalled) {
-                MiuixStatusTag(stringResource(R.string.recently_installed))
-            }
         }
     }
 }

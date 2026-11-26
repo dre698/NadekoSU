@@ -890,4 +890,6 @@ Important Note:\n
     <string name="miuix_color_blue_grey">Blue grey</string>
     <string name="ui_style_summary">Choose the interface style.</string>
     <string name="theme_settings_summary">Colors, background and home layout</string>
+    <string name="open" translatable="false">Open</string>
+    <string name="undo" translatable="false">Undo</string>
 </resources>

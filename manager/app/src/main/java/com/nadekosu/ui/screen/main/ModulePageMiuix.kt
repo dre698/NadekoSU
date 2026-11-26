@@ -20,10 +20,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Wysiwyg
 import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.CloudUpload
+import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Extension
@@ -263,32 +268,44 @@ private fun MiuixModuleMenuSheet(
     }
 }
 
+/** Pill button used on module cards: icon, plus a label when there is room for it. */
 @Composable
-private fun MiuixModuleActionButton(
+private fun MiuixModulePill(
     icon: ImageVector,
-    contentDescription: String?,
+    label: String,
+    showLabel: Boolean,
     enabled: Boolean = true,
-    primary: Boolean = false,
+    background: Color = MiuixTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f),
+    tint: Color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.8f),
     onClick: () -> Unit,
 ) {
-    val colors = MiuixTheme.colorScheme
     IconButton(
         onClick = onClick,
         enabled = enabled,
-        backgroundColor = if (primary) colors.primary else colors.secondaryContainer,
-        minHeight = 36.dp,
-        minWidth = 52.dp,
+        backgroundColor = background,
+        minHeight = 35.dp,
+        minWidth = 35.dp,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            modifier = Modifier.size(20.dp),
-            tint = when {
-                !enabled -> colors.disabledOnSecondaryVariant
-                primary -> colors.onPrimary
-                else -> colors.onSecondaryContainer
-            },
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = if (showLabel) 10.dp else 0.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier.size(20.dp),
+                tint = tint,
+            )
+            if (showLabel) {
+                Text(
+                    modifier = Modifier.padding(start = 4.dp, end = 3.dp),
+                    text = label,
+                    color = tint,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 15.sp,
+                )
+            }
+        }
     }
 }
 
@@ -368,22 +385,43 @@ internal fun MiuixModuleItem(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(
-                            text = module.name,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = colors.onSurface,
-                            textDecoration = textDecoration,
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = module.name,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight(550),
+                                color = colors.onSurface,
+                                textDecoration = textDecoration,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                            if (module.metamodule) {
+                                Text(
+                                    text = "META",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight(750),
+                                    color = colors.onTertiaryContainer.copy(alpha = 0.8f),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    modifier = Modifier
+                                        .padding(start = 6.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(colors.tertiaryContainer.copy(alpha = 0.6f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                )
+                            }
+                        }
                         Text(
                             text = "${stringResource(R.string.module_version)}: ${module.version}",
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight(550),
                             color = colors.onSurfaceVariantSummary,
                             textDecoration = textDecoration,
+                            modifier = Modifier.padding(top = 2.dp),
                         )
                         Text(
                             text = "${stringResource(R.string.module_author)}: ${module.author}",
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight(550),
                             color = colors.onSurfaceVariantSummary,
                             textDecoration = textDecoration,
                         )
@@ -422,7 +460,7 @@ internal fun MiuixModuleItem(
                     Text(
                         text = module.description,
                         fontSize = 14.sp,
-                        color = colors.onSurfaceSecondary,
+                        color = colors.onSurfaceVariantSummary,
                         maxLines = 4,
                         overflow = TextOverflow.Ellipsis,
                         textDecoration = textDecoration,
@@ -437,48 +475,54 @@ internal fun MiuixModuleItem(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         MiuixStatusTag(module.dirId, colors.primary.copy(alpha = 0.15f), colors.primary)
-                        if (module.metamodule) {
-                            MiuixStatusTag("META", colors.tertiaryContainer, colors.onTertiaryContainer)
-                        }
                         MiuixStatusTag(moduleSizes[module.dirId] ?: "0 KB")
                     }
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    thickness = 0.5.dp,
+                    color = colors.outline.copy(alpha = 0.5f),
+                )
 
+                val hasUpdate = updateUrl.isNotEmpty()
+                val canAct = module.enabled && !module.remove && !module.update
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (module.hasActionScript) {
-                        MiuixModuleActionButton(
+                    if (canAct && module.hasActionScript) {
+                        MiuixModulePill(
                             icon = Icons.Rounded.PlayArrow,
-                            contentDescription = stringResource(R.string.action),
-                            enabled = !module.remove && module.enabled,
+                            label = stringResource(R.string.action),
+                            showLabel = !module.hasWebUi && !hasUpdate,
                         ) {
                             navigator.push(Route.ExecuteModuleAction(module.dirId))
                             viewModel.markNeedRefresh()
                         }
                     }
-                    if (module.hasWebUi) {
-                        MiuixModuleActionButton(
-                            icon = Icons.AutoMirrored.Rounded.Wysiwyg,
-                            contentDescription = null,
-                            enabled = !module.remove && module.enabled,
+                    if (canAct && module.hasWebUi) {
+                        MiuixModulePill(
+                            icon = Icons.Rounded.Code,
+                            label = stringResource(R.string.open),
+                            showLabel = !module.hasActionScript && !hasUpdate,
                         ) { onClick(module) }
                     }
                     Spacer(Modifier.weight(1f))
-                    if (updateUrl.isNotEmpty()) {
-                        MiuixModuleActionButton(
-                            icon = Icons.Rounded.Download,
-                            contentDescription = stringResource(R.string.module_update),
+                    if (hasUpdate) {
+                        MiuixModulePill(
+                            icon = Icons.Rounded.CloudUpload,
+                            label = stringResource(R.string.module_update),
+                            showLabel = true,
                             enabled = !module.remove,
-                            primary = true,
+                            background = colors.tertiaryContainer.copy(alpha = 0.6f),
+                            tint = colors.onTertiaryContainer.copy(alpha = 0.8f),
                         ) { onUpdate(module) }
                     }
-                    MiuixModuleActionButton(
+                    MiuixModulePill(
                         icon = if (module.remove) Icons.Rounded.Restore else Icons.Rounded.Delete,
-                        contentDescription = stringResource(R.string.uninstall),
+                        label = stringResource(if (module.remove) R.string.undo else R.string.uninstall),
+                        showLabel = !hasUpdate,
                     ) { onUninstallClicked(module) }
                 }
             }

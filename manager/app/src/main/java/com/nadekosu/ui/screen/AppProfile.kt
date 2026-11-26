@@ -80,6 +80,7 @@ import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.blurEffect
 import com.nadekosu.ui.theme.blurSource
 import com.nadekosu.ui.util.LocalSnackbarHost
+import com.nadekosu.ui.util.cachedAppGroupForUid
 import com.nadekosu.ui.util.fetchAppGroupForUid
 import com.nadekosu.ui.util.forceStopApp
 import com.nadekosu.ui.util.getSepolicy
@@ -102,7 +103,7 @@ fun AppProfileScreen(
 ) {
     val navigator = LocalNavigator.current
     var appGroup by rememberSaveable(uid, packageName) {
-        mutableStateOf<SuperUserViewModel.AppGroup?>(null)
+        mutableStateOf(cachedAppGroupForUid(uid, packageName))
     }
     var lookupFailed by rememberSaveable(uid, packageName) { mutableStateOf(false) }
 
@@ -142,9 +143,12 @@ private fun AppProfileContent(
     val suNotAllowed = stringResource(R.string.su_not_allowed).format(appGroup.mainApp.label)
 
     val packageName = appGroup.mainApp.packageName
-    val initialProfile = Natives.getAppProfile(packageName, appGroup.uid)
-    if (initialProfile.allowSu) {
-        initialProfile.rules = getSepolicy(packageName)
+    val initialProfile = remember(packageName, appGroup.uid) {
+        Natives.getAppProfile(packageName, appGroup.uid).also {
+            if (it.allowSu) {
+                it.rules = getSepolicy(packageName)
+            }
+        }
     }
     var profile by rememberSaveable {
         mutableStateOf(initialProfile)

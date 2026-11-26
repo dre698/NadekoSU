@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,6 +46,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.TopDownloads
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -233,19 +239,46 @@ private fun MiuixSmallIconButton(icon: ImageVector, onClick: () -> Unit) {
     }
 }
 
-/** Miuix card for one module in the repo list. */
+/** Compact star count for list rows: "999", "1.2k", "12.3k", "123k", "1.2M". */
+private fun formatStarCount(count: Int): String {
+    fun compact(value: Int, unit: Int, suffix: String): String {
+        if (value >= unit * 100) return "${value / unit}$suffix"
+        val tenths = value / (unit / 10)
+        return if (tenths % 10 == 0) "${tenths / 10}$suffix" else "${tenths / 10}.${tenths % 10}$suffix"
+    }
+    return when {
+        count < 1_000 -> count.toString()
+        count < 1_000_000 -> compact(count, 1_000, "k")
+        else -> compact(count, 1_000_000, "M")
+    }
+}
+
+@Composable
+private fun MiuixRepoTag(text: String, background: Color, tint: Color) {
+    Text(
+        text = text,
+        fontSize = 12.sp,
+        color = tint,
+        modifier = Modifier
+            .padding(start = 6.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(background)
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+        fontWeight = FontWeight(750),
+        maxLines = 1,
+    )
+}
+
+/** Miuix card for one module in the repo list; tapping it opens the detail page. */
 @Composable
 fun MiuixOnlineModuleItem(
     module: RepoModule,
     viewModel: ModuleRepoViewModel,
     installState: MiuixRepoInstallState,
 ) {
-    val context = LocalContext.current
     val navigator = LocalNavigator.current
     val colors = MiuixTheme.colorScheme
-    val moduleVersion = stringResource(id = R.string.module_version)
     val moduleAuthor = stringResource(id = R.string.module_author)
-    val openDetail = { navigator.push(Route.ModuleRepoDetail(moduleId = module.moduleId)) }
 
     Card(
         modifier = Modifier
@@ -254,95 +287,104 @@ fun MiuixOnlineModuleItem(
             .fillMaxWidth(),
         colors = miuixCardColors(),
         insideMargin = PaddingValues(16.dp),
+        showIndication = true,
         pressFeedbackType = PressFeedbackType.Sink,
-        onClick = openDetail,
+        onClick = { navigator.push(Route.ModuleRepoDetail(moduleId = module.moduleId)) },
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = module.moduleName,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Medium,
-                color = colors.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            if (module.stargazerCount > 0) {
-                Spacer(Modifier.width(8.dp))
-                Icon(
-                    imageVector = Icons.TwoTone.Star,
-                    contentDescription = "stars",
-                    tint = colors.onSurfaceVariantSummary,
-                    modifier = Modifier.size(16.dp),
-                )
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = module.stargazerCount.toString(),
+                    text = module.moduleName,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight(550),
+                    color = colors.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (module.metamodule) {
+                    MiuixRepoTag(
+                        text = "META",
+                        background = colors.tertiaryContainer.copy(alpha = 0.6f),
+                        tint = colors.onTertiaryContainer.copy(alpha = 0.8f),
+                    )
+                }
+                if (module.installed) {
+                    MiuixRepoTag(
+                        text = stringResource(R.string.installed),
+                        background = colors.secondaryContainer.copy(alpha = 0.8f),
+                        tint = colors.onSecondaryContainer,
+                    )
+                }
+            }
+            if (module.moduleId.isNotEmpty()) {
+                Text(
+                    text = "ID: ${module.moduleId}",
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 2.dp),
+                    fontWeight = FontWeight(550),
+                    color = colors.onSurfaceVariantSummary,
+                )
+            }
+            if (module.authors.isNotEmpty()) {
+                Text(
+                    text = "$moduleAuthor: ${module.authors}",
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(bottom = 1.dp),
+                    fontWeight = FontWeight(550),
+                    color = colors.onSurfaceVariantSummary,
+                )
+            }
+            if (module.summary.isNotBlank()) {
+                Text(
+                    text = module.summary,
+                    fontSize = 14.sp,
+                    color = colors.onSurfaceVariantSummary,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp),
+                )
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                thickness = 0.5.dp,
+                color = colors.outline.copy(alpha = 0.5f),
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = module.latestRelease,
                     fontSize = 12.sp,
                     color = colors.onSurfaceVariantSummary,
-                    modifier = Modifier.padding(start = 4.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
-            }
-        }
-        Text(
-            text = "$moduleVersion: ${module.latestRelease} (${module.latestVersionCode})",
-            fontSize = 13.sp,
-            color = colors.onSurfaceVariantSummary,
-        )
-        Text(
-            text = "$moduleAuthor: ${module.authors}",
-            fontSize = 13.sp,
-            color = colors.onSurfaceVariantSummary,
-        )
-        if (module.summary.isNotBlank()) {
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = module.summary,
-                fontSize = 14.sp,
-                color = colors.onSurface,
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            MiuixStatusTag(label = module.moduleId)
-            if (module.metamodule) {
-                MiuixStatusTag(
-                    label = "META",
-                    backgroundColor = colors.tertiaryContainer,
-                    contentColor = colors.onTertiaryContainer,
-                )
-            }
-            if (module.installed) {
-                MiuixStatusTag(
-                    label = stringResource(R.string.installed),
-                    backgroundColor = colors.primary.copy(alpha = 0.15f),
-                    contentColor = colors.primary,
-                )
-            }
-        }
-        HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-        ) {
-            MiuixSmallIconButton(icon = Icons.TwoTone.WebAsset, onClick = openDetail)
-            if (module.latestVersionCode > 0 || module.latestAsset != null) {
-                MiuixSmallIconButton(icon = Icons.TwoTone.Download) {
-                    viewModel.viewModelScope.launch {
-                        val full = module.takeIf { it.latestAsset != null }
-                            ?: viewModel.loadDetail(module)
-                        val latest = full?.latestAsset
-                        if (full == null || latest == null) {
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.network_offline),
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                            return@launch
-                        }
-                        installState.request(full, latest)
-                    }
+                if (module.stargazerCount > 0) {
+                    Icon(
+                        imageVector = MiuixIcons.TopDownloads,
+                        contentDescription = "stars",
+                        tint = colors.onSurfaceVariantSummary,
+                        modifier = Modifier
+                            .padding(start = 12.dp)
+                            .size(16.dp),
+                    )
+                    Text(
+                        text = formatStarCount(module.stargazerCount),
+                        fontSize = 12.sp,
+                        color = colors.onSurfaceVariantSummary,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                if (module.latestReleaseTime.isNotEmpty()) {
+                    Text(
+                        text = module.latestReleaseTime,
+                        fontSize = 12.sp,
+                        color = colors.onSurfaceVariantSummary,
+                        textAlign = TextAlign.End,
+                    )
                 }
             }
         }

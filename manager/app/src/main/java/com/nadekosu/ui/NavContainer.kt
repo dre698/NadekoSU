@@ -59,6 +59,9 @@ import com.nadekosu.ui.navigation.LocalNavigator
 import com.nadekosu.ui.navigation.Navigator
 import com.nadekosu.ui.navigation.Route
 import com.nadekosu.ui.screen.AppProfileScreen
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import com.nadekosu.ui.theme.NadekoMiuixTheme
+import com.nadekosu.data.UiStyle
 import com.nadekosu.ui.screen.AppProfileTemplateScreen
 import com.nadekosu.ui.screen.DynamicManagerScreen
 import com.nadekosu.ui.screen.ExecuteModuleActionScreen
@@ -481,9 +484,9 @@ private fun ManagerNavEntry(
         modifier = Modifier
             .fillMaxSize()
             .then(
-                if (!ThemeConfig.backgroundImageLoaded) Modifier.background(
-                    MaterialTheme.colorScheme.surfaceContainer
-                ) else Modifier
+                if (!ThemeConfig.backgroundImageLoaded && ThemeConfig.uiStyle != UiStyle.MIUIX) {
+                    Modifier.background(MaterialTheme.colorScheme.surfaceContainer)
+                } else Modifier
             )
     ) {
         val isPortrait = maxWidth < maxHeight || (maxHeight / maxWidth > 1.4f)
@@ -496,6 +499,18 @@ private fun ManagerNavEntry(
             LocalSnackbarHost provides snackBarHostState,
             LocalBackgroundBlurAnchor provides backgroundBlurAnchorCoordinates,
         ) {
+            if (ThemeConfig.uiStyle == UiStyle.MIUIX && !ThemeConfig.backgroundImageLoaded) {
+                // Miuix pages paint their own surface; without this the Material tint shows
+                // through while a page is still composing or sliding in.
+                NadekoMiuixTheme {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .zIndex(-2f)
+                            .background(MiuixTheme.colorScheme.surface)
+                    )
+                }
+            }
             backgroundImagePainter?.let {
                 Box(
                     modifier = Modifier

@@ -45,6 +45,24 @@ suspend fun connectKsuServiceForLookup(onDisconnect: () -> Unit = {}): IBinder? 
     }
 
 /**
+ * Fast path for [fetchAppGroupForUid]: builds the group from the apps SuperUserViewModel has
+ * already loaded, so opening a profile from the list doesn't have to bind the root service and
+ * walk every package again. Returns null when the list isn't loaded yet.
+ */
+fun cachedAppGroupForUid(uid: Int, preferredPackageName: String): SuperUserViewModel.AppGroup? {
+    val matches = SuperUserViewModel.getCachedApps(includeManager = true).filter { it.uid == uid }
+    if (matches.isEmpty()) return null
+    val sortedApps = matches.sortedWith(
+        compareBy(
+            { it.packageName != preferredPackageName },
+            { it.label }
+        )
+    )
+    val profile = Natives.getAppProfile(sortedApps.first().packageName, uid)
+    return SuperUserViewModel.AppGroup(uid = uid, apps = sortedApps, profile = profile)
+}
+
+/**
  * Rebuilds a single [SuperUserViewModel.AppGroup] for [uid] via the KSU root service, the way
  * SuperUserViewModel.groupAppsByUid does for the whole app list - used by AppProfileScreen,
  * which (since the nav backstack route only carries uid + packageName, not the full AppGroup

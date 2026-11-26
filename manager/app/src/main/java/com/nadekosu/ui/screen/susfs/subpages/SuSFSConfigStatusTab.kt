@@ -17,12 +17,9 @@ import androidx.compose.material.icons.twotone.Restore
 import androidx.compose.material.icons.twotone.Save
 import androidx.compose.material.icons.twotone.Settings
 import androidx.compose.material.icons.twotone.TaskAlt
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,13 +32,10 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.nadekosu.R
+import com.nadekosu.ui.screen.susfs.component.*
 import com.nadekosu.data.susfs.SuSFSConfigHelper
 import com.nadekosu.data.susfs.SuSFSStatusInfo
 import com.nadekosu.ui.component.WarningCard
-import com.nadekosu.ui.component.settings.SegmentedColumn
-import com.nadekosu.ui.component.settings.SettingsBaseWidget
-import com.nadekosu.ui.component.settings.SettingsJumpPageWidget
-import com.nadekosu.ui.component.settings.SettingsSwitchWidget
 import com.nadekosu.ui.screen.susfs.RegisterSuSFSRefresh
 import com.nadekosu.ui.screen.susfs.SuSFSRefreshRegistrar
 import com.nadekosu.ui.util.LocalSnackbarHost
@@ -77,17 +71,14 @@ fun StatusTab(
             AnimatedVisibility(
                 visible = configEnabledLoaded && !configEnabled
             ) {
-                WarningCard(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    message = stringResource(R.string.susfs_management_disabled_warning),
-                )
+                SuSFSWarningCard(message = stringResource(R.string.susfs_management_disabled_warning))
             }
         }
 
         item {
-            SegmentedColumn {
+            SuSFSGroup {
                 item {
-                    SettingsSwitchWidget(
+                    SuSFSSwitchItem(
                         icon = Icons.TwoTone.Save,
                         title = stringResource(R.string.susfs_standard_config_enabled),
                         description = stringResource(R.string.susfs_standard_config_enabled_desc),
@@ -97,7 +88,7 @@ fun StatusTab(
                     )
                 }
                 item {
-                    SettingsBaseWidget(
+                    SuSFSInfoItem(
                         icon = Icons.TwoTone.Info,
                         title = stringResource(R.string.susfs_status_version),
                         description = statusInfo.version.ifBlank {
@@ -106,7 +97,7 @@ fun StatusTab(
                     )
                 }
                 item {
-                    SettingsBaseWidget(
+                    SuSFSInfoItem(
                         icon = Icons.TwoTone.Settings,
                         title = stringResource(R.string.susfs_status_variant),
                         description = statusInfo.variant.ifBlank {
@@ -115,7 +106,7 @@ fun StatusTab(
                     )
                 }
                 item {
-                    SettingsBaseWidget(
+                    SuSFSInfoItem(
                         icon = Icons.TwoTone.TaskAlt,
                         title = stringResource(R.string.susfs_status_enabled_features),
                         description = statusInfo.enabledFeatures.ifBlank {
@@ -186,9 +177,9 @@ fun BackupRestoreSection(
         showImportConfirm = true
     }
 
-    SegmentedColumn {
+    SuSFSGroup {
         item {
-            SettingsJumpPageWidget(
+            SuSFSJumpItem(
                 icon = Icons.TwoTone.Save,
                 title = exportTitle,
                 description = exportDesc,
@@ -198,7 +189,7 @@ fun BackupRestoreSection(
             )
         }
         item {
-            SettingsJumpPageWidget(
+            SuSFSJumpItem(
                 icon = Icons.TwoTone.Restore,
                 title = importTitle,
                 description = importDesc,
@@ -219,46 +210,33 @@ fun BackupRestoreSection(
         }
     }
 
-    if (showImportConfirm) {
-        AlertDialog(
-            onDismissRequest = {
-                showImportConfirm = false
-                pendingImportUri = null
-            },
-            title = { Text(confirmTitle) },
-            text = { Text(confirmMsg) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val uri = pendingImportUri
-                        showImportConfirm = false
-                        pendingImportUri = null
-                        if (uri != null) {
-                            scope.launch {
-                                val ok = SuSFSConfigHelper.importConfigFromUri(uri)
-                                if (ok) {
-                                    onConfigRestored()
-                                }
-                                scope.launch {
-                                    snackbarHost.showSnackbar(if (ok) importSuccessMsg else importFailedMsg)
-                                }
-                            }
-                        }
-                    }
-                ) {
-                    Text(importLabel)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showImportConfirm = false
-                    pendingImportUri = null
-                }) {
-                    Text(cancelLabel)
-                }
-            },
-        )
+    val dismissImport = {
+        showImportConfirm = false
+        pendingImportUri = null
     }
+    SuSFSDialog(
+        show = showImportConfirm,
+        title = confirmTitle,
+        message = confirmMsg,
+        onDismiss = dismissImport,
+        confirmText = importLabel,
+        dismissText = cancelLabel,
+        onConfirm = {
+            val uri = pendingImportUri
+            dismissImport()
+            if (uri != null) {
+                scope.launch {
+                    val ok = SuSFSConfigHelper.importConfigFromUri(uri)
+                    if (ok) {
+                        onConfigRestored()
+                    }
+                    scope.launch {
+                        snackbarHost.showSnackbar(if (ok) importSuccessMsg else importFailedMsg)
+                    }
+                }
+            }
+        },
+    )
 }
 
 @Composable
@@ -271,7 +249,7 @@ private fun RestoreDefaultRow(
     onConfigRestored: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    SettingsJumpPageWidget(
+    SuSFSJumpItem(
         icon = Icons.TwoTone.RestartAlt,
         title = title,
         description = description,

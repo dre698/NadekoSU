@@ -60,6 +60,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.component.miuix.MiuixLogPage
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -127,6 +129,36 @@ fun ExecuteModuleActionScreen(moduleId: String) {
             }
         }
         isActionRunning = false
+    }
+
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        KeyEventBlocker {
+            it.key == Key.VolumeDown || it.key == Key.VolumeUp
+        }
+        LaunchedEffect(text) {
+            state.animateScrollToItem(2)
+        }
+        MiuixLogPage(
+            title = stringResource(R.string.action),
+            text = text,
+            listState = state,
+            running = isActionRunning,
+            onBack = { navigator.pop() },
+            saveLabel = stringResource(R.string.save_log),
+            onSave = {
+                scope.launch {
+                    val format = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.getDefault())
+                    val date = format.format(Date())
+                    val file = File(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                        "KernelSU_module_action_log_${date}.log"
+                    )
+                    file.writeText(logContent.toString())
+                    Toast.makeText(context, "Log saved to ${file.absolutePath}", Toast.LENGTH_SHORT).show()
+                }
+            },
+        )
+        return
     }
 
     Scaffold(

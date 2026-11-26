@@ -23,10 +23,9 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.nadekosu.R
+import com.nadekosu.ui.screen.susfs.component.*
 import com.nadekosu.data.susfs.SuSFSConfigHelper
 import com.nadekosu.data.susfs.SusPathItem
-import com.nadekosu.ui.component.settings.SettingsJumpPageWidget
-import com.nadekosu.ui.component.settings.SettingsTextFieldWidget
 import com.nadekosu.ui.screen.susfs.RegisterSuSFSRefresh
 import com.nadekosu.ui.screen.susfs.SuSFSRefreshRegistrar
 import com.nadekosu.ui.screen.susfs.component.EntryDetailDialog
@@ -106,7 +105,7 @@ fun SusPathTab(
             entryKey = { it.path },
             onAddEntry = { showManualAdd = true },
         ) { item ->
-            SettingsJumpPageWidget(
+            SuSFSJumpItem(
                 iconPlaceholder = false,
                 title = item.path,
                 description = if (item.is_loop) isLoopLabel else null,
@@ -169,16 +168,14 @@ fun SusPathTab(
         },
         formContent = {
             item {
-                SettingsTextFieldWidget(
+                SuSFSTextField(
                     state = manualPath,
                     title = pathLabel,
-                    useLabelAsPlaceholder = true,
                     enabled = !isLoading,
                     lineLimits = TextFieldLineLimits.MultiLine(
                         minHeightInLines = 4,
                         maxHeightInLines = 8
-                    ),
-                    renderBackgroundBlur = false
+                    )
                 )
             }
         }

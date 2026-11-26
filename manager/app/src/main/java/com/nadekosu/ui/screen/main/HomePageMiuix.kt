@@ -95,6 +95,7 @@ import com.nadekosu.magica.MagicaService
 import com.nadekosu.ui.component.KsuIsValid
 import com.nadekosu.ui.component.SwipeableSnackbarHost
 import com.nadekosu.ui.component.ksuIsValid
+import com.nadekosu.ui.component.miuix.MiuixWarningCard
 import com.nadekosu.ui.component.miuix.MiuixGroupCard
 import com.nadekosu.ui.component.miuix.miuixCardColors
 import com.nadekosu.ui.component.rememberConfirmDialog
@@ -330,39 +331,6 @@ private fun MiuixRebootAction() {
     }
 }
 
-@Composable
-private fun MiuixWarningCard(message: String, onClick: (() -> Unit)? = null, neutral: Boolean = false) {
-    val colors = MiuixTheme.colorScheme
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = if (neutral) miuixCardColors() else CardDefaults.defaultColors(
-            color = colors.errorContainer,
-            contentColor = colors.onErrorContainer,
-        ),
-        onClick = onClick,
-        pressFeedbackType = PressFeedbackType.Sink,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Icon(
-                imageVector = if (neutral) Icons.Rounded.Info else Icons.Rounded.ErrorOutline,
-                contentDescription = null,
-                tint = if (neutral) colors.onSurface else colors.onErrorContainer,
-                modifier = Modifier.size(18.dp),
-            )
-            Text(
-                text = message,
-                fontSize = 14.sp,
-                color = if (neutral) colors.onSurface else colors.onErrorContainer,
-            )
-        }
-    }
-}
 
 @Composable
 private fun MiuixHomeWarnings(uiState: HomeUiState) {

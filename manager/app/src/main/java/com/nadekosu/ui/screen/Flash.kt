@@ -77,6 +77,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nadekosu.Natives
 import com.nadekosu.R
+import androidx.compose.ui.unit.sp
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.component.miuix.MiuixLogPage
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.nadekosu.ui.component.KeyEventBlocker
 import com.nadekosu.ui.component.SwipeableSnackbarHost
 import com.nadekosu.ui.component.rememberCustomDialog
@@ -488,6 +492,70 @@ fun FlashScreen(flashIt: FlashIt) {
 
     BackHandler(enabled = true) {
         onBack()
+    }
+
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        KeyEventBlocker {
+            it.key == Key.VolumeDown || it.key == Key.VolumeUp
+        }
+        val miuixListState = rememberLazyListState()
+        LaunchedEffect(text) {
+            miuixListState.animateScrollToItem(2)
+        }
+        val softReboot = (flashIt is FlashIt.FlashModule ||
+            flashIt is FlashIt.FlashModules ||
+            flashIt is FlashIt.FlashModuleUpdate) && isSoftRebootPreferred()
+        val status = currentFlashingStatus.value
+        MiuixLogPage(
+            title = stringResource(
+                when (status) {
+                    FlashingStatus.FLASHING -> R.string.flashing
+                    FlashingStatus.SUCCESS -> R.string.flash_success
+                    FlashingStatus.FAILED -> R.string.flash_failed
+                }
+            ),
+            subtitle = if (currentStatus.failedModules.isNotEmpty()) {
+                stringResource(R.string.module_failed_count, currentStatus.failedModules.size)
+            } else "",
+            text = text,
+            listState = miuixListState,
+            running = status == FlashingStatus.FLASHING,
+            onBack = onBack,
+            onSave = {
+                scope.launch {
+                    val format = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.getDefault())
+                    val date = format.format(Date())
+                    val file = File(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                        "KernelSU_install_log_${date}.log"
+                    )
+                    file.writeText(logContent.toString())
+                    snackBarHost.showSnackbar(logSavedString.format(file.absolutePath))
+                }
+            },
+            showFab = showFloatAction,
+            fabIcon = Icons.TwoTone.Refresh,
+            fabLabel = stringResource(if (softReboot) R.string.reboot_soft else R.string.reboot),
+            onFabClick = {
+                scope.launch {
+                    withContext(Dispatchers.IO) {
+                        reboot(if (softReboot) "soft_reboot" else "")
+                    }
+                }
+            },
+            header = {
+                if (flashIt is FlashIt.FlashModules) {
+                    MiuixModuleInstallProgress(
+                        currentIndex = flashIt.currentIndex + 1,
+                        totalCount = flashIt.uris.size,
+                        currentModuleName = currentStatus.currentModuleName,
+                        status = status,
+                        failedModules = currentStatus.failedModules,
+                    )
+                }
+            },
+        )
+        return
     }
 
     Scaffold(
@@ -919,4 +987,54 @@ fun flashIt(
 @Composable
 fun FlashScreenPreview() {
     FlashScreen(FlashIt.FlashUninstall)
+}
+
+@Composable
+private fun MiuixModuleInstallProgress(
+    currentIndex: Int,
+    totalCount: Int,
+    currentModuleName: String,
+    status: FlashingStatus,
+    failedModules: List<String>,
+) {
+    val colors = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
+    val progress = animateFloatAsState(
+        targetValue = currentIndex.toFloat() / totalCount.toFloat(),
+        label = "MiuixInstallProgress"
+    )
+    com.nadekosu.ui.component.miuix.MiuixGroupCard {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                top.yukonga.miuix.kmp.basic.Text(
+                    text = currentModuleName.ifEmpty { stringResource(R.string.module) },
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.onSurface,
+                )
+                top.yukonga.miuix.kmp.basic.Text(
+                    text = "$currentIndex/$totalCount",
+                    color = colors.onSurfaceVariantSummary,
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            top.yukonga.miuix.kmp.basic.LinearProgressIndicator(
+                progress = progress.value,
+                modifier = Modifier.fillMaxWidth(),
+                colors = top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults.progressIndicatorColors(
+                    foregroundColor = if (status == FlashingStatus.FAILED) colors.error else colors.primary,
+                ),
+            )
+            if (failedModules.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                top.yukonga.miuix.kmp.basic.Text(
+                    text = stringResource(R.string.module_failed_count, failedModules.size) +
+                        failedModules.joinToString(separator = "") { "\n• $it" },
+                    fontSize = 13.sp,
+                    color = colors.error,
+                )
+            }
+        }
+    }
 }

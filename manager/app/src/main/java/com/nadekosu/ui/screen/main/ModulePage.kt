@@ -131,6 +131,8 @@ import com.nadekosu.Natives
 import com.nadekosu.R
 import com.nadekosu.data.AppPreferencesRepository
 import com.nadekosu.data.appPreferences
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.component.miuix.MiuixWarningCard
 import com.nadekosu.ksuApp
 import com.nadekosu.ui.component.ConfirmResult
 import com.nadekosu.ui.component.InstallConfirmationDialog
@@ -311,6 +313,68 @@ fun ModulePage(bottomPadding: Dp) {
     val hasMagisk = hasMagisk()
     val hideInstallButton = isSafeMode || hasMagisk
 
+    val onInstallClick = {
+        selectZipLauncher.launch(
+            Intent(Intent.ACTION_GET_CONTENT).apply {
+                type = "application/zip"
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            }
+        )
+    }
+    val onClickModule: (String, String, Boolean) -> Unit = { id, name, hasWebUi ->
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastClickTime < 600) {
+            Log.d("ModuleScreen", "Click too fast, ignoring")
+        } else {
+            lastClickTime = currentTime
+            if (hasWebUi) {
+                try {
+                    context.startActivity(
+                        Intent(context, WebUIActivity::class.java)
+                            .setData("kernelsu://webui/$id".toUri())
+                            .putExtra("id", id)
+                            .putExtra("name", name)
+                    )
+                } catch (e: Exception) {
+                    Log.e("ModuleScreen", "Error launching WebUI: ${e.message}", e)
+                    scope.launch {
+                        snackBarHost.showSnackbar("Error launching WebUI: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        MiuixModuleScaffold(
+            viewModel = viewModel,
+            uiState = uiState,
+            prefs = prefs,
+            bottomPadding = bottomPadding,
+            hasMagisk = hasMagisk,
+            hideInstallButton = hideInstallButton,
+            onInstallClick = onInstallClick,
+        ) { listModifier, topPadding, listBottomPadding, header ->
+            ModuleList(
+                viewModel = viewModel,
+                uiState = uiState,
+                listState = listState,
+                modifier = listModifier,
+                onUpdateModule = {
+                    navigator.push(Route.Flash.moduleUpdate(it.toString()))
+                },
+                onClickModule = onClickModule,
+                context = context,
+                snackBarHost = snackBarHost,
+                bottomPadding = listBottomPadding,
+                topPadding = topPadding,
+                miuix = true,
+                header = header,
+            )
+        }
+        return
+    }
+
     val topAppBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(topAppBarState)
 
@@ -353,14 +417,7 @@ fun ModulePage(bottomPadding: Dp) {
                 modifier = Modifier.padding(bottom = bottomPadding + 5.dp),
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 containerColor = MaterialTheme.colorScheme.primary,
-                onClick = {
-                    selectZipLauncher.launch(
-                        Intent(Intent.ACTION_GET_CONTENT).apply {
-                            type = "application/zip"
-                            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-                        }
-                    )
-                },
+                onClick = onInstallClick,
                 content = {
                     Icon(
                         painter = painterResource(id = R.drawable.package_import),
@@ -446,31 +503,7 @@ fun ModulePage(bottomPadding: Dp) {
                     onUpdateModule = {
                         navigator.push(Route.Flash.moduleUpdate(it.toString()))
                     },
-                    onClickModule = { id, name, hasWebUi ->
-                        val currentTime = System.currentTimeMillis()
-                        if (currentTime - lastClickTime < 600) {
-                            Log.d("ModuleScreen", "Click too fast, ignoring")
-                            return@ModuleList
-                        }
-                        lastClickTime = currentTime
-
-                        if (hasWebUi) {
-                            try {
-                                context.startActivity(
-                                    Intent(context, WebUIActivity::class.java)
-                                    .setData("kernelsu://webui/$id".toUri())
-                                    .putExtra("id", id)
-                                        .putExtra("name", name)
-                                )
-                            } catch (e: Exception) {
-                                Log.e("ModuleScreen", "Error launching WebUI: ${e.message}", e)
-                                scope.launch {
-                                    snackBarHost.showSnackbar("Error launching WebUI: ${e.message}")
-                                }
-                            }
-                            return@ModuleList
-                        }
-                    },
+                    onClickModule = onClickModule,
                     context = context,
                     snackBarHost = snackBarHost,
                     bottomPadding = bottomPadding + innerPadding.calculateBottomPadding(),
@@ -740,6 +773,8 @@ private fun ModuleList(
     snackBarHost: SnackbarHostState,
     bottomPadding : Dp,
     topPadding : Dp,
+    miuix: Boolean = false,
+    header: @Composable () -> Unit = {},
 ) {
     val permissionRequestInterface = LocalPermissionRequestInterface.current
     val pullRefreshState = rememberPullToRefreshState()
@@ -1008,7 +1043,7 @@ private fun ModuleList(
         },
         modifier = boxModifier
             .fillMaxSize()
-            .blurSource(),
+            .then(if (miuix) Modifier else Modifier.blurSource()),
         indicator = {
             PullToRefreshDefaults.LoadingIndicator(
                 modifier = Modifier
@@ -1035,23 +1070,38 @@ private fun ModuleList(
             modifier = modifier,
             contentPadding = remember {
                 PaddingValues(
-                    start = 16.dp,
+                    start = if (miuix) 0.dp else 16.dp,
                     top = 0.dp,
-                    end = 16.dp,
+                    end = if (miuix) 0.dp else 16.dp,
                     bottom = 72.dp + 5.dp + 5.dp + 16.dp // FAB + bottom padding of FAB + default Scaffold FAB margin
                 )
             },
         ) {
             item {
-                Spacer(modifier = Modifier.height(topPadding + 1.dp))
+                Spacer(modifier = Modifier.height(topPadding + if (miuix) 12.dp else 1.dp))
+            }
+
+            if (miuix) {
+                item(key = "header") { header() }
             }
 
             if (metaModuleWarningText != null) {
                 item(
                     key = "warning"
                 ) {
-                    MetaModuleWarningCard(metaModuleWarningText!!)
-                    Spacer(modifier = Modifier.height(16.dp))
+                    if (miuix) {
+                        AnimatedVisibility(visible = showMetamoduleWarning) {
+                            Box(Modifier.padding(horizontal = 12.dp).padding(bottom = 12.dp)) {
+                                MiuixWarningCard(
+                                    message = metaModuleWarningText!!,
+                                    onClick = { showMetamoduleWarning = false },
+                                )
+                            }
+                        }
+                    } else {
+                        MetaModuleWarningCard(metaModuleWarningText!!)
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
                 }
             }
 
@@ -1059,66 +1109,126 @@ private fun ModuleList(
                 items = uiState.moduleList,
                 key = { "module-$it.id" }
             ) { module ->
-                ModuleItem(
-                    viewModel = viewModel,
-                    module = module,
-                    moduleSizes = uiState.moduleSizes,
-                    moduleBanners = uiState.moduleBanners,
-                    updateUrl = module.moduleUpdate?.zipUrl.orEmpty(),
-                    onUninstallClicked = {
-                        viewModel.viewModelScope.launch {
-                            withContext(Dispatchers.IO) {
-                                onModuleUninstallClicked(module)
-                            }
-                        }
-                    },
-                    onCheckChanged = {
-                        viewModel.viewModelScope.launch {
-                            withContext(Dispatchers.IO) {
-                                val success = withContext(Dispatchers.IO) {
-                                    toggleModule(module.dirId, !module.enabled)
+                if (miuix) {
+                    MiuixModuleItem(
+                        viewModel = viewModel,
+                        module = module,
+                        moduleSizes = uiState.moduleSizes,
+                        moduleBanners = uiState.moduleBanners,
+                        updateUrl = module.moduleUpdate?.zipUrl.orEmpty(),
+                        onUninstallClicked = {
+                            viewModel.viewModelScope.launch {
+                                withContext(Dispatchers.IO) {
+                                    onModuleUninstallClicked(module)
                                 }
-                                if (success) {
-                                    viewModel.fetchModuleList()
-
-                                    val softReboot = isSoftRebootPreferred()
-                                    val result = snackBarHost.showSnackbar(
-                                        message = rebootToApply,
-                                        actionLabel = if (softReboot) rebootSoft else reboot,
-                                        duration = SnackbarDuration.Long
-                                    )
-                                    if (result == SnackbarResult.ActionPerformed) {
-                                        reboot(if (softReboot) "soft_reboot" else "")
+                            }
+                        },
+                        onCheckChanged = {
+                            viewModel.viewModelScope.launch {
+                                withContext(Dispatchers.IO) {
+                                    val success = withContext(Dispatchers.IO) {
+                                        toggleModule(module.dirId, !module.enabled)
                                     }
-                                } else {
-                                    val message =
-                                        if (module.enabled) failedDisable else failedEnable
-                                    snackBarHost.showSnackbar(message.format(module.name))
+                                    if (success) {
+                                        viewModel.fetchModuleList()
+    
+                                        val softReboot = isSoftRebootPreferred()
+                                        val result = snackBarHost.showSnackbar(
+                                            message = rebootToApply,
+                                            actionLabel = if (softReboot) rebootSoft else reboot,
+                                            duration = SnackbarDuration.Long
+                                        )
+                                        if (result == SnackbarResult.ActionPerformed) {
+                                            reboot(if (softReboot) "soft_reboot" else "")
+                                        }
+                                    } else {
+                                        val message =
+                                            if (module.enabled) failedDisable else failedEnable
+                                        snackBarHost.showSnackbar(message.format(module.name))
+                                    }
                                 }
                             }
-                        }
-                    },
-                    onUpdate = {
-                        viewModel.viewModelScope.launch {
-                            withContext(Dispatchers.IO) {
-                                onModuleUpdate(
-                                    module,
-                                    module.moduleUpdate!!.changelog,
-                                    module.moduleUpdate.zipUrl,
-                                    "${module.name}-${module.moduleUpdate.version}.zip"
-                                )
+                        },
+                        onUpdate = {
+                            viewModel.viewModelScope.launch {
+                                withContext(Dispatchers.IO) {
+                                    onModuleUpdate(
+                                        module,
+                                        module.moduleUpdate!!.changelog,
+                                        module.moduleUpdate.zipUrl,
+                                        "${module.name}-${module.moduleUpdate.version}.zip"
+                                    )
+                                }
                             }
+                        },
+                        onClick = {
+                            onClickModule(it.dirId, it.name, it.hasWebUi)
+                        },
+                        onModuleAddShortcut = {
+                            onModuleAddShortcut(it)
                         }
-                    },
-                    onClick = {
-                        onClickModule(it.dirId, it.name, it.hasWebUi)
-                    },
-                    onModuleAddShortcut = {
-                        onModuleAddShortcut(it)
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
+                    )
+                } else {
+                    ModuleItem(
+                        viewModel = viewModel,
+                        module = module,
+                        moduleSizes = uiState.moduleSizes,
+                        moduleBanners = uiState.moduleBanners,
+                        updateUrl = module.moduleUpdate?.zipUrl.orEmpty(),
+                        onUninstallClicked = {
+                            viewModel.viewModelScope.launch {
+                                withContext(Dispatchers.IO) {
+                                    onModuleUninstallClicked(module)
+                                }
+                            }
+                        },
+                        onCheckChanged = {
+                            viewModel.viewModelScope.launch {
+                                withContext(Dispatchers.IO) {
+                                    val success = withContext(Dispatchers.IO) {
+                                        toggleModule(module.dirId, !module.enabled)
+                                    }
+                                    if (success) {
+                                        viewModel.fetchModuleList()
+    
+                                        val softReboot = isSoftRebootPreferred()
+                                        val result = snackBarHost.showSnackbar(
+                                            message = rebootToApply,
+                                            actionLabel = if (softReboot) rebootSoft else reboot,
+                                            duration = SnackbarDuration.Long
+                                        )
+                                        if (result == SnackbarResult.ActionPerformed) {
+                                            reboot(if (softReboot) "soft_reboot" else "")
+                                        }
+                                    } else {
+                                        val message =
+                                            if (module.enabled) failedDisable else failedEnable
+                                        snackBarHost.showSnackbar(message.format(module.name))
+                                    }
+                                }
+                            }
+                        },
+                        onUpdate = {
+                            viewModel.viewModelScope.launch {
+                                withContext(Dispatchers.IO) {
+                                    onModuleUpdate(
+                                        module,
+                                        module.moduleUpdate!!.changelog,
+                                        module.moduleUpdate.zipUrl,
+                                        "${module.name}-${module.moduleUpdate.version}.zip"
+                                    )
+                                }
+                            }
+                        },
+                        onClick = {
+                            onClickModule(it.dirId, it.name, it.hasWebUi)
+                        },
+                        onModuleAddShortcut = {
+                            onModuleAddShortcut(it)
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
 
             item {

@@ -1,5 +1,7 @@
 package com.nadekosu.ui.screen.about
 
+import com.nadekosu.data.UiStyle
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -63,7 +65,7 @@ import com.nadekosu.ui.theme.renderBackgroundBlur
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun OpenSourceLicenseScreen() {
+private fun MaterialOpenSourceLicenseScreen() {
     val navigator = LocalNavigator.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -241,5 +243,15 @@ fun OpenSourceLicenseScreen() {
                 modifier = Modifier.padding(24.dp)
             )
         }
+    }
+}
+
+/** Draws this screen with the component set picked in Settings > UI style. */
+@Composable
+fun OpenSourceLicenseScreen() {
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        MiuixOpenSourceLicenseScreen()
+    } else {
+        MaterialOpenSourceLicenseScreen()
     }
 }

@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.nadekosu.ui.component.settings.SettingsJumpPageWidget
+import com.nadekosu.ui.component.miuix.MiuixEmptyState
 import com.nadekosu.ui.component.settings.lazySegmentColumn
 import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.theme.renderBackgroundBlur
@@ -46,6 +47,10 @@ internal fun SuSFSDescriptionCard(
     description: String? = null,
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
+    if (isSuSFSMiuix) {
+        MiuixSuSFSDescriptionCard(title = title, description = description, content = content)
+        return
+    }
     Surface(
         modifier = modifier
             .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -88,30 +93,56 @@ internal fun <T> LazyListScope.susfsEntryList(
         entries.forEach { add(SuSFSEntryRow.Entry(it)) }
     }
 
-    lazySegmentColumn(
-        items = rows,
-        key = { _, row ->
-            when (row) {
-                SuSFSEntryRow.Add -> ADD_ENTRY_KEY
-                is SuSFSEntryRow.Entry -> "$ENTRY_KEY_PREFIX${entryKey(row.value)}"
-            }
-        },
-        contentType = { _, row ->
-            when (row) {
-                SuSFSEntryRow.Add -> ADD_ENTRY_KEY
-                is SuSFSEntryRow.Entry -> "susfs_entry"
-            }
-        },
-    ) { _, row ->
-        when (row) {
-            SuSFSEntryRow.Add -> SettingsJumpPageWidget(
-                iconPlaceholder = false,
-                title = addEntryTitle,
-                trailingIcon = Icons.TwoTone.Add,
-                onClick = { onAddEntry() },
-            )
+    if (isSuSFSMiuix) {
+        items(
+            count = rows.size,
+            key = { index ->
+                when (val row = rows[index]) {
+                    SuSFSEntryRow.Add -> ADD_ENTRY_KEY
+                    is SuSFSEntryRow.Entry -> "$ENTRY_KEY_PREFIX${entryKey(row.value)}"
+                }
+            },
+            contentType = { index -> if (rows[index] is SuSFSEntryRow.Add) ADD_ENTRY_KEY else "susfs_entry" },
+        ) { index ->
+            Column(Modifier.miuixSegment(isFirst = index == 0, isLast = index == rows.lastIndex)) {
+                when (val row = rows[index]) {
+                    SuSFSEntryRow.Add -> SuSFSJumpItem(
+                        iconPlaceholder = false,
+                        title = addEntryTitle,
+                        trailingIcon = Icons.TwoTone.Add,
+                        onClick = onAddEntry,
+                    )
 
-            is SuSFSEntryRow.Entry -> entryContent(row.value)
+                    is SuSFSEntryRow.Entry -> entryContent(row.value)
+                }
+            }
+        }
+    } else {
+        lazySegmentColumn(
+            items = rows,
+            key = { _, row ->
+                when (row) {
+                    SuSFSEntryRow.Add -> ADD_ENTRY_KEY
+                    is SuSFSEntryRow.Entry -> "$ENTRY_KEY_PREFIX${entryKey(row.value)}"
+                }
+            },
+            contentType = { _, row ->
+                when (row) {
+                    SuSFSEntryRow.Add -> ADD_ENTRY_KEY
+                    is SuSFSEntryRow.Entry -> "susfs_entry"
+                }
+            },
+        ) { _, row ->
+            when (row) {
+                SuSFSEntryRow.Add -> SettingsJumpPageWidget(
+                    iconPlaceholder = false,
+                    title = addEntryTitle,
+                    trailingIcon = Icons.TwoTone.Add,
+                    onClick = { onAddEntry() },
+                )
+
+                is SuSFSEntryRow.Entry -> entryContent(row.value)
+            }
         }
     }
 
@@ -128,6 +159,10 @@ internal fun <T> LazyListScope.susfsEntryList(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
+                    if (isSuSFSMiuix) {
+                        MiuixEmptyState(icon = Icons.TwoTone.Inbox, text = "$emptyTitle\n$emptyDescription")
+                        return@Column
+                    }
                     Icon(
                         imageVector = Icons.TwoTone.Inbox,
                         contentDescription = null,

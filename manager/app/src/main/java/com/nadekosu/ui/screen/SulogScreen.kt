@@ -75,6 +75,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nadekosu.R
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.component.SearchAppBar
 import com.nadekosu.ui.component.WarningCard
 import com.nadekosu.ui.component.settings.SettingsBaseWidget
@@ -130,10 +132,14 @@ fun SulogScreen() {
         onSelectFile = viewModel::refresh,
     )
 
-    SulogScreenContent(
-        state,
-        actions
-    )
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        MiuixSulogScreenContent(state, actions)
+    } else {
+        SulogScreenContent(
+            state,
+            actions
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)

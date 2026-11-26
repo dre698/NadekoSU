@@ -15,12 +15,8 @@ import androidx.compose.material.icons.twotone.Code
 import androidx.compose.material.icons.twotone.Computer
 import androidx.compose.material.icons.twotone.Security
 import androidx.compose.material.icons.twotone.VisibilityOff
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,11 +30,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.nadekosu.R
+import com.nadekosu.ui.screen.susfs.component.*
 import com.nadekosu.data.susfs.SuSFSConfigHelper
-import com.nadekosu.ui.component.settings.SegmentedColumn
-import com.nadekosu.ui.component.settings.SettingsJumpPageWidget
-import com.nadekosu.ui.component.settings.SettingsSwitchWidget
-import com.nadekosu.ui.component.settings.SettingsTextFieldWidget
 import com.nadekosu.ui.screen.susfs.RegisterSuSFSRefresh
 import com.nadekosu.ui.screen.susfs.SuSFSRefreshRegistrar
 import com.nadekosu.ui.util.LocalSnackbarHost
@@ -181,9 +174,9 @@ fun StandardFeaturesTab(
 
             if (hasLoadedConfig) {
                 item {
-                    SegmentedColumn {
+                    SuSFSGroup {
                         item {
-                            SettingsSwitchWidget(
+                            SuSFSSwitchItem(
                                 icon = Icons.TwoTone.BugReport,
                                 title = stringResource(R.string.susfs_standard_logging),
                                 description = stringResource(R.string.susfs_standard_logging_desc),
@@ -193,7 +186,7 @@ fun StandardFeaturesTab(
                         }
 
                         item {
-                            SettingsSwitchWidget(
+                            SuSFSSwitchItem(
                                 icon = Icons.TwoTone.Security,
                                 title = stringResource(R.string.susfs_standard_avc_log_spoofing),
                                 description = stringResource(R.string.susfs_standard_avc_log_spoofing_desc),
@@ -203,7 +196,7 @@ fun StandardFeaturesTab(
                         }
 
                         item {
-                            SettingsSwitchWidget(
+                            SuSFSSwitchItem(
                                 icon = Icons.TwoTone.VisibilityOff,
                                 title = stringResource(R.string.susfs_standard_hide_sus_mnts),
                                 description = stringResource(R.string.susfs_standard_hide_sus_mnts_desc),
@@ -213,7 +206,7 @@ fun StandardFeaturesTab(
                         }
 
                         item {
-                            SettingsJumpPageWidget(
+                            SuSFSJumpItem(
                                 icon = Icons.TwoTone.Computer,
                                 title = stringResource(R.string.susfs_standard_uname),
                                 description = stringResource(
@@ -229,7 +222,7 @@ fun StandardFeaturesTab(
                         }
 
                         item {
-                            SettingsJumpPageWidget(
+                            SuSFSJumpItem(
                                 icon = Icons.TwoTone.Code,
                                 title = stringResource(R.string.susfs_standard_cmdline_or_bootconfig),
                                 description = stringResource(
@@ -252,90 +245,55 @@ fun StandardFeaturesTab(
         }
 
         if (isLoading && !hasLoadedConfig) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                LoadingIndicator()
+            SuSFSLoadingIndicator()
+        }
+
+        SuSFSDialog(
+            show = showUnameDialog,
+            title = stringResource(R.string.susfs_standard_uname),
+            onDismiss = { showUnameDialog = false },
+            confirmText = stringResource(R.string.susfs_save),
+            onConfirm = handleUnameSave,
+            dismissText = stringResource(R.string.susfs_entry_cancel),
+        ) {
+            SuSFSGroup(contentPadding = PaddingValues(0.dp)) {
+                item {
+                    SuSFSTextField(
+                        state = unameReleaseInput,
+                        title = stringResource(R.string.susfs_standard_uname_release),
+                        enabled = !isLoading,
+                        lineLimits = TextFieldLineLimits.SingleLine,
+                    )
+                }
+                item {
+                    SuSFSTextField(
+                        state = unameVersionInput,
+                        title = stringResource(R.string.susfs_standard_uname_version),
+                        enabled = !isLoading,
+                        lineLimits = TextFieldLineLimits.SingleLine,
+                    )
+                }
             }
         }
 
-        if (showUnameDialog) {
-            AlertDialog(
-                onDismissRequest = { showUnameDialog = false },
-                title = { Text(stringResource(R.string.susfs_standard_uname)) },
-                text = {
-                    SegmentedColumn(contentPadding = PaddingValues(0.dp)) {
-                        item {
-                            SettingsTextFieldWidget(
-                                state = unameReleaseInput,
-                                title = stringResource(R.string.susfs_standard_uname_release),
-                                useLabelAsPlaceholder = true,
-                                enabled = !isLoading,
-                                lineLimits = TextFieldLineLimits.SingleLine,
-                                renderBackgroundBlur = false
-                            )
-                        }
-                        item {
-                            SettingsTextFieldWidget(
-                                state = unameVersionInput,
-                                title = stringResource(R.string.susfs_standard_uname_version),
-                                useLabelAsPlaceholder = true,
-                                enabled = !isLoading,
-                                lineLimits = TextFieldLineLimits.SingleLine,
-                                renderBackgroundBlur = false
-                            )
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = handleUnameSave
-                    ) {
-                        Text(stringResource(R.string.susfs_save))
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showUnameDialog = false }) {
-                        Text(stringResource(R.string.susfs_entry_cancel))
-                    }
-                },
-            )
-        }
-
-        if (showCmdlineDialog) {
-            AlertDialog(
-                onDismissRequest = { showCmdlineDialog = false },
-                title = {
-                    Text(stringResource(R.string.susfs_standard_cmdline_or_bootconfig))
-                },
-                text = {
-                    SegmentedColumn(contentPadding = PaddingValues(0.dp)) {
-                        item {
-                            SettingsTextFieldWidget(
-                                state = cmdlineInput,
-                                title = stringResource(R.string.susfs_standard_cmdline_path),
-                                useLabelAsPlaceholder = true,
-                                enabled = !isLoading,
-                                lineLimits = TextFieldLineLimits.SingleLine,
-                                renderBackgroundBlur = false
-                            )
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = handleCmdlineSave
-                    ) {
-                        Text(stringResource(R.string.susfs_save))
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showCmdlineDialog = false }) {
-                        Text(stringResource(R.string.susfs_entry_cancel))
-                    }
-                },
-            )
+        SuSFSDialog(
+            show = showCmdlineDialog,
+            title = stringResource(R.string.susfs_standard_cmdline_or_bootconfig),
+            onDismiss = { showCmdlineDialog = false },
+            confirmText = stringResource(R.string.susfs_save),
+            onConfirm = handleCmdlineSave,
+            dismissText = stringResource(R.string.susfs_entry_cancel),
+        ) {
+            SuSFSGroup(contentPadding = PaddingValues(0.dp)) {
+                item {
+                    SuSFSTextField(
+                        state = cmdlineInput,
+                        title = stringResource(R.string.susfs_standard_cmdline_path),
+                        enabled = !isLoading,
+                        lineLimits = TextFieldLineLimits.SingleLine,
+                    )
+                }
+            }
         }
     }
 }

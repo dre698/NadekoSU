@@ -9,8 +9,6 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,12 +21,10 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import com.nadekosu.R
+import com.nadekosu.ui.screen.susfs.component.*
 import com.nadekosu.data.susfs.OpenRedirectItem
 import com.nadekosu.data.susfs.SuSFSConfigHelper
 import com.nadekosu.data.susfs.UidScheme
-import com.nadekosu.ui.component.settings.SettingsDropdownWidget
-import com.nadekosu.ui.component.settings.SettingsJumpPageWidget
-import com.nadekosu.ui.component.settings.SettingsTextFieldWidget
 import com.nadekosu.ui.screen.susfs.RegisterSuSFSRefresh
 import com.nadekosu.ui.screen.susfs.SuSFSRefreshRegistrar
 import com.nadekosu.ui.screen.susfs.component.EntryDetailDialog
@@ -105,14 +101,8 @@ fun OpenRedirectTab(
                 title = stringResource(R.string.susfs_tab_open_redirect),
                 description = stringResource(R.string.susfs_redirect_description),
             ) {
-                Text(
-                    text = stringResource(R.string.susfs_redirect_uid_schemes_description),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Text(
-                    text = stringResource(R.string.susfs_redirect_important_notes),
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                SuSFSDescriptionText(stringResource(R.string.susfs_redirect_uid_schemes_description))
+                SuSFSDescriptionText(stringResource(R.string.susfs_redirect_important_notes))
             }
         }
 
@@ -124,7 +114,7 @@ fun OpenRedirectTab(
             entryKey = { "${it.target_path}|${it.redirected_path}|${it.uid_scheme.value}" },
             onAddEntry = { showManualAdd = true },
         ) { item ->
-            SettingsJumpPageWidget(
+            SuSFSJumpItem(
                 iconPlaceholder = false,
                 title = item.target_path,
                 description = stringResource(
@@ -166,30 +156,25 @@ fun OpenRedirectTab(
         },
         formContent = {
             item {
-                SettingsTextFieldWidget(
+                SuSFSTextField(
                     state = manualTarget,
                     title = targetPathLabel,
-                    useLabelAsPlaceholder = true,
                     enabled = !isLoading,
-                    lineLimits = TextFieldLineLimits.SingleLine,
-                    renderBackgroundBlur = false,
+                    lineLimits = TextFieldLineLimits.SingleLine
                 )
             }
             item {
-                SettingsTextFieldWidget(
+                SuSFSTextField(
                     state = manualRedirected,
                     title = redirectedPathLabel,
-                    useLabelAsPlaceholder = true,
                     enabled = !isLoading,
-                    lineLimits = TextFieldLineLimits.SingleLine,
-                    renderBackgroundBlur = false,
+                    lineLimits = TextFieldLineLimits.SingleLine
                 )
             }
             item {
-                SettingsDropdownWidget(
+                SuSFSDropdownItem(
                     title = uidSchemeLabel,
                     description = selectedUidLabel,
-                    iconPlaceholder = false,
                     choice = uidSchemeOptions.indexOfFirst { it.first == manualUidScheme }
                         .coerceAtLeast(0),
                     data = uidSchemeOptions.map { it.second },

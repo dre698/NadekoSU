@@ -1,5 +1,7 @@
 package com.nadekosu.ui.screen.about
 
+import com.nadekosu.data.UiStyle
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,7 +68,7 @@ import com.nadekosu.ui.theme.renderBackgroundBlur
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun AboutScreen() {
+private fun MaterialAboutScreen() {
     val navigator = LocalNavigator.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -272,5 +274,15 @@ private fun StatusCard() {
                 }
             }
         }
+    }
+}
+
+/** Draws this screen with the component set picked in Settings > UI style. */
+@Composable
+fun AboutScreen() {
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        MiuixAboutScreen()
+    } else {
+        MaterialAboutScreen()
     }
 }

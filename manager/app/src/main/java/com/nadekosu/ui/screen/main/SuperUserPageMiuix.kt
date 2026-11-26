@@ -43,6 +43,7 @@ import com.nadekosu.R
 import com.nadekosu.ksuApp
 import com.nadekosu.ui.component.miuix.MiuixEmptyState
 import com.nadekosu.ui.component.miuix.MiuixGroupCard
+import com.nadekosu.ui.component.miuix.MiuixScrollableTabRow
 import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.component.miuix.miuixCardColors
 import com.nadekosu.ui.component.miuix.MiuixListPage
@@ -177,7 +178,7 @@ internal fun MiuixSuperUserPage(bottomPadding: Dp) {
             val tabs = AppCategory.entries.map {
                 "${stringResource(it.displayNameRes)} (${appCounts[it] ?: 0})"
             }
-            TabRow(
+            MiuixScrollableTabRow(
                 tabs = tabs,
                 selectedTabIndex = AppCategory.entries.indexOf(uiState.selectedCategory),
                 onTabSelected = { viewModel.updateSelectedCategory(AppCategory.entries[it]) },

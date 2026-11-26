@@ -50,6 +50,7 @@ import com.nadekosu.R
 import com.nadekosu.data.UiStyle
 import com.nadekosu.ui.component.miuix.MiuixBarAction
 import com.nadekosu.ui.component.miuix.MiuixPageScaffold
+import com.nadekosu.ui.component.miuix.MiuixScrollableTabRow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.Icons
 import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
@@ -235,7 +236,7 @@ fun SuSFSConfigScreen() {
                     .fillMaxSize()
                     .padding(top = innerPadding.calculateTopPadding()),
             ) {
-                MiuixTabRow(
+                MiuixScrollableTabRow(
                     tabs = visibleSubpages.map { it.value.title },
                     selectedTabIndex = selectedTabIndex,
                     onTabSelected = { index ->

@@ -53,8 +53,6 @@ import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material.icons.rounded.Tag
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -123,6 +121,11 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.ListPopupColumn
+import top.yukonga.miuix.kmp.basic.PopupPositionProvider
+import top.yukonga.miuix.kmp.overlay.OverlayListPopup
+import com.nadekosu.ui.component.ListPopupDefaults
+import com.nadekosu.ui.component.miuix.DropdownItem
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
@@ -309,26 +312,38 @@ private fun MiuixRebootAction() {
         methods = methods + (R.string.reboot_userspace to "userspace")
     }
 
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(
-                imageVector = Icons.Rounded.PowerSettingsNew,
-                contentDescription = stringResource(id = R.string.reboot),
-                tint = MiuixTheme.colorScheme.onBackground,
-            )
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            methods.forEach { (id, reason) ->
-                DropdownMenuItem(
-                    text = { androidx.compose.material3.Text(stringResource(id)) },
-                    onClick = {
-                        expanded = false
-                        reboot(reason)
-                    },
-                )
-            }
-        }
+    val options = methods.entries.toList()
+    IconButton(
+        onClick = { expanded = true },
+        holdDownState = expanded,
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.PowerSettingsNew,
+            contentDescription = stringResource(id = R.string.reboot),
+            tint = MiuixTheme.colorScheme.onBackground,
+        )
     }
+    OverlayListPopup(
+        show = expanded,
+        popupPositionProvider = ListPopupDefaults.MenuPositionProvider,
+        alignment = PopupPositionProvider.Align.TopEnd,
+        onDismissRequest = { expanded = false },
+        content = {
+            ListPopupColumn {
+                options.forEachIndexed { idx, (id, reason) ->
+                    DropdownItem(
+                        text = stringResource(id),
+                        optionSize = options.size,
+                        index = idx,
+                        onSelectedIndexChange = {
+                            expanded = false
+                            reboot(reason)
+                        },
+                    )
+                }
+            }
+        },
+    )
 }
 
 

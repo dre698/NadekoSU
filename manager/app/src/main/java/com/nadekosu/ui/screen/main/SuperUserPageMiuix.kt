@@ -104,7 +104,9 @@ internal fun MiuixSuperUserPage(bottomPadding: Dp) {
         title = stringResource(R.string.superuser),
         showBack = false,
         bottomPadding = bottomPadding,
-        isRefreshing = uiState.isRefreshing,
+        // While the list is still empty the body shows its own spinner; keeping the pull-to-refresh
+        // header on as well would draw two loading indicators at once.
+        isRefreshing = uiState.isRefreshing && uiState.appGroupList.isNotEmpty(),
         onRefresh = { scope.launch { viewModel.fetchAppList() } },
         navigationIcon = {
             MiuixBarAction(

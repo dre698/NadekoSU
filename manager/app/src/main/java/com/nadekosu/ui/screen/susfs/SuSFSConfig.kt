@@ -47,6 +47,14 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.nadekosu.R
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.component.miuix.MiuixBarAction
+import com.nadekosu.ui.component.miuix.MiuixMaterialBridge
+import com.nadekosu.ui.component.miuix.MiuixPageScaffold
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.Icons
+import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator as MiuixLinearProgress
 import com.nadekosu.data.susfs.SuSFSConfigHelper
 import com.nadekosu.ui.component.SwipeableSnackbarHost
 import com.nadekosu.ui.component.settings.AppBackButton
@@ -205,6 +213,59 @@ fun SuSFSConfigScreen() {
         if (configEnabled == false && subpages[pagerState.currentPage].requirePersist) {
             pagerState.scrollToPage(defaultPage)
         }
+    }
+
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        BackHandler(enabled = pagerState.currentPage != defaultPage) {
+            coroutineScope.launch { pagerState.animateScrollToPage(defaultPage) }
+        }
+        MiuixPageScaffold(
+            title = stringResource(R.string.susfs_config_title),
+            smallTitle = true,
+            actions = {
+                MiuixBarAction(
+                    icon = Icons.Rounded.Refresh,
+                    contentDescription = stringResource(R.string.refresh),
+                    enabled = !isRefreshing,
+                    onClick = ::requestRefresh,
+                )
+            },
+        ) { innerPadding, miuixScrollBehavior ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = innerPadding.calculateTopPadding()),
+            ) {
+                MiuixTabRow(
+                    tabs = visibleSubpages.map { it.value.title },
+                    selectedTabIndex = selectedTabIndex,
+                    onTabSelected = { index ->
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(visibleSubpages[index].index)
+                        }
+                    },
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 8.dp),
+                )
+                if (isRefreshing) {
+                    MiuixLinearProgress(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp))
+                }
+                MiuixMaterialBridge {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        userScrollEnabled = configEnabled == true,
+                    ) { page ->
+                        subpages[page].content(
+                            PaddingValues(bottom = innerPadding.calculateBottomPadding() + 16.dp),
+                            miuixScrollBehavior.nestedScrollConnection,
+                        )
+                    }
+                }
+            }
+        }
+        return
     }
 
     Scaffold(

@@ -90,6 +90,8 @@ import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.nadekosu.Natives
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.R
 import com.nadekosu.ksuApp
 import com.nadekosu.ui.component.SearchAppBar
@@ -117,7 +119,7 @@ data class BottomSheetMenuItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SuperUserPage(bottomPadding: Dp) {
+private fun MaterialSuperUserPage(bottomPadding: Dp) {
     val context = LocalContext.current
     val viewModel = viewModel<SuperUserViewModel>(
         viewModelStoreOwner = ksuApp
@@ -680,5 +682,15 @@ private fun AppGroupItem(
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp)
         )
+    }
+}
+
+/** Draws the superuser tab with the component set picked in Settings > UI style. */
+@Composable
+fun SuperUserPage(bottomPadding: Dp) {
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        MiuixSuperUserPage(bottomPadding)
+    } else {
+        MaterialSuperUserPage(bottomPadding)
     }
 }

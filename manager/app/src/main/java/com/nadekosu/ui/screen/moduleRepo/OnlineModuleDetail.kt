@@ -81,6 +81,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 import com.nadekosu.R
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.component.miuix.MiuixBarAction
+import com.nadekosu.ui.component.miuix.MiuixMaterialBridge
+import com.nadekosu.ui.component.miuix.MiuixPageScaffold
+import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
 import com.nadekosu.ui.activity.PermissionRequestInterface
 import com.nadekosu.ui.component.ConfirmResult
 import com.nadekosu.ui.component.GithubMarkdown
@@ -154,6 +159,63 @@ private fun OnlineModuleDetailContent(module: ModuleRepoViewModel.RepoModule) {
     LaunchedEffect(Unit) {
         scrollBehavior.state.heightOffset =
             scrollBehavior.state.heightOffsetLimit
+    }
+
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        BackHandler(pagerState.currentPage != 0) {
+            coroutineScope.launch { pagerState.animateScrollToPage(0) }
+        }
+        val homeUrl = if (ModuleRepoViewModel.isExternal(module.moduleId)) {
+            module.sourceUrl
+        } else {
+            "https://modules.kernelsu.org/module/${module.moduleId}"
+        }
+        MiuixPageScaffold(
+            title = module.moduleName,
+            smallTitle = true,
+            onBack = { navigator.pop() },
+            actions = {
+                if (homeUrl.isNotBlank()) {
+                    MiuixBarAction(
+                        icon = Icons.TwoTone.OpenInBrowser,
+                        contentDescription = stringResource(R.string.open_module_home_page),
+                        onClick = { uriHandler.openUri(homeUrl) },
+                    )
+                }
+            },
+        ) { innerPadding, miuixScrollBehavior ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = innerPadding.calculateTopPadding()),
+            ) {
+                MiuixTabRow(
+                    tabs = tabTitles,
+                    selectedTabIndex = pagerState.currentPage,
+                    onTabSelected = { index ->
+                        coroutineScope.launch { pagerState.animateScrollToPage(index) }
+                    },
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 8.dp),
+                )
+                val tabPadding = PaddingValues(bottom = innerPadding.calculateBottomPadding())
+                val nested = miuixScrollBehavior.nestedScrollConnection
+                MiuixMaterialBridge {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize()
+                    ) { page ->
+                        when (page) {
+                            0 -> ReadmeTab(module, nested, tabPadding)
+                            1 -> ReleasesTab(module, nested, coroutineScope, tabPadding)
+                            2 -> InfoTab(module, nested, tabPadding)
+                        }
+                    }
+                }
+            }
+        }
+        return
     }
 
     Scaffold(

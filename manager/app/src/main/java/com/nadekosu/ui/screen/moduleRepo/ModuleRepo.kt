@@ -100,6 +100,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nadekosu.R
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.component.miuix.MiuixBarAction
+import com.nadekosu.ui.component.miuix.MiuixEmptyState
+import com.nadekosu.ui.component.miuix.MiuixListPage
+import com.nadekosu.ui.component.miuix.MiuixLoadingBox
+import com.nadekosu.ui.component.miuix.MiuixMaterialBridge
+import com.nadekosu.ui.component.miuix.MiuixSearchField
+import top.yukonga.miuix.kmp.basic.Button as MiuixButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
+import top.yukonga.miuix.kmp.basic.Text as MiuixText
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.nadekosu.data.AppPreferencesRepository
 import com.nadekosu.data.appPreferences
 import com.nadekosu.ui.activity.PermissionRequestInterface
@@ -169,6 +180,99 @@ fun ModuleRepoScreen() {
     }
 
     val isLoading = uiState.modules.isEmpty() && uiState.search.isEmpty()
+
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        var offline by remember { mutableStateOf(!isNetworkAvailable(context)) }
+        LaunchedEffect(isLoading, offline) {
+            if (isLoading && !offline) {
+                viewModel.refresh(onFailure = { offline = true })
+            }
+        }
+        MiuixListPage(
+            title = stringResource(R.string.module_repo),
+            onBack = { navigator.pop() },
+            actions = {
+                MiuixBarAction(
+                    icon = Icons.TwoTone.MoreVert,
+                    contentDescription = stringResource(id = R.string.settings),
+                    onClick = { showBottomSheet = true },
+                )
+            },
+            isRefreshing = if (isLoading) null else uiState.isRefreshing,
+            onRefresh = { viewModel.refresh() },
+            overlay = {
+                if (showBottomSheet) {
+                    MiuixMaterialBridge {
+                        ModalBottomSheet(
+                            onDismissRequest = { showBottomSheet = false },
+                            sheetState = bottomSheetState,
+                        ) {
+                            ModuleRepoBottomSheetContent(
+                                viewModel = viewModel,
+                                uiState = uiState,
+                                prefs = prefs,
+                                scope = scope,
+                                bottomSheetState = bottomSheetState,
+                                onDismiss = { showBottomSheet = false }
+                            )
+                        }
+                    }
+                }
+            },
+        ) {
+            item {
+                MiuixSearchField(
+                    query = uiState.search,
+                    onQueryChange = viewModel::updateSearch,
+                    label = context.getString(R.string.search_modules),
+                )
+            }
+            when {
+                isLoading && offline -> item {
+                    MiuixEmptyState(
+                        icon = Icons.TwoTone.SignalWifiOff,
+                        text = context.getString(R.string.network_offline) + "\n" +
+                            context.getString(R.string.please_check_network),
+                    )
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        MiuixButton(
+                            onClick = {
+                                offline = !isNetworkAvailable(context)
+                                if (!offline) viewModel.refresh(onFailure = { offline = true })
+                            },
+                            colors = MiuixButtonDefaults.buttonColorsPrimary(),
+                        ) {
+                            MiuixText(
+                                text = context.getString(R.string.network_retry),
+                                color = MiuixTheme.colorScheme.onPrimary,
+                            )
+                        }
+                    }
+                }
+                isLoading -> item {
+                    MiuixLoadingBox(Modifier.height(240.dp))
+                }
+                uiState.modules.isEmpty() -> item {
+                    MiuixEmptyState(
+                        icon = Icons.TwoTone.Extension,
+                        text = context.getString(R.string.search_no_any_match),
+                    )
+                }
+                else -> items(uiState.modules) { module ->
+                    MiuixMaterialBridge {
+                        OnlineModuleItem(
+                            module,
+                            viewModel,
+                            confirmDialog,
+                            chooseDialog,
+                            currentModuleForChooseDialog
+                        )
+                    }
+                }
+            }
+        }
+        return
+    }
 
     Scaffold(
         topBar = {

@@ -776,9 +776,10 @@ private fun MiuixInfoSections(uiState: HomeUiState, combined: Boolean) {
     val softwareRows = allRows.filter { it.icon !in deviceIcons && it.icon !in securityIcons }
     // Dashboard style always shows the leading icons
     val showIcons = combined || uiState.showHomeCardIcons
-    MiuixInfoGroup(stringResource(R.string.home_group_device), deviceRows, showIcons)
-    MiuixInfoGroup(stringResource(R.string.home_group_software), softwareRows, showIcons)
-    MiuixInfoGroup(stringResource(R.string.home_group_security), securityRows, showIcons)
+    // Untitled cards, spaced like the groups on the Settings page
+    MiuixInfoGroup(null, deviceRows, showIcons)
+    MiuixInfoGroup(null, softwareRows, showIcons)
+    MiuixInfoGroup(null, securityRows, showIcons)
 }
 
 @Composable

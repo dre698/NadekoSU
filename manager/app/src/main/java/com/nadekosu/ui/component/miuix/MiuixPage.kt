@@ -120,6 +120,7 @@ fun MiuixListPage(
     floatingActionButton: @Composable () -> Unit = {},
     isRefreshing: Boolean? = null,
     onRefresh: () -> Unit = {},
+    overlay: @Composable () -> Unit = {},
     content: LazyListScope.() -> Unit,
 ) {
     MiuixPageScaffold(
@@ -132,6 +133,7 @@ fun MiuixListPage(
         bottomPadding = bottomPadding,
         actions = actions,
         floatingActionButton = floatingActionButton,
+        overlay = overlay,
     ) { innerPadding, scrollBehavior ->
         val padding = PaddingValues(
             top = innerPadding.calculateTopPadding() + 12.dp,
@@ -175,6 +177,7 @@ fun MiuixPageScaffold(
     actions: @Composable RowScope.() -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
+    overlay: @Composable () -> Unit = {},
     content: @Composable (PaddingValues, ScrollBehavior) -> Unit,
 ) {
     NadekoMiuixTheme {
@@ -221,6 +224,7 @@ fun MiuixPageScaffold(
             ),
         ) { innerPadding ->
             content(innerPadding, scrollBehavior)
+            overlay()
         }
     }
 }

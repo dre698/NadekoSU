@@ -106,12 +106,15 @@ internal fun MiuixModuleScaffold(
         title = stringResource(R.string.module),
         showBack = false,
         bottomPadding = bottomPadding,
-        actions = {
+        navigationIcon = {
             MiuixBarAction(
                 icon = Icons.Rounded.Cloud,
                 contentDescription = stringResource(R.string.module_repo),
+                modifier = Modifier,
                 onClick = { navigator.push(Route.ModuleRepo) },
             )
+        },
+        actions = {
             IconButton(
                 modifier = Modifier.padding(end = 16.dp),
                 onClick = { showMenu = true },
@@ -181,6 +184,7 @@ internal fun MiuixModuleScaffold(
             viewModel = viewModel,
             uiState = uiState,
             prefs = prefs,
+            bottomPadding = bottomPadding,
         )
     }
 }
@@ -192,6 +196,7 @@ private fun MiuixModuleMenuSheet(
     viewModel: ModuleViewModel,
     uiState: ModuleUiState,
     prefs: AppPreferencesRepository,
+    bottomPadding: Dp,
 ) {
     val context = LocalContext.current
     val restoreLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -203,7 +208,7 @@ private fun MiuixModuleMenuSheet(
         title = stringResource(R.string.menu_options),
         onDismissRequest = onDismiss,
     ) {
-        Column(Modifier.padding(bottom = 16.dp)) {
+        Column(Modifier.padding(bottom = bottomPadding + 16.dp)) {
             Card(colors = miuixCardColors(), modifier = Modifier.padding(bottom = 12.dp)) {
                 SwitchPreference(
                     title = stringResource(R.string.module_sort_action_first),

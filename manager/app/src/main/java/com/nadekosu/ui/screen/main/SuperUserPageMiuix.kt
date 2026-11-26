@@ -95,12 +95,15 @@ internal fun MiuixSuperUserPage(bottomPadding: Dp) {
         bottomPadding = bottomPadding,
         isRefreshing = uiState.isRefreshing,
         onRefresh = { scope.launch { viewModel.fetchAppList() } },
-        actions = {
+        navigationIcon = {
             MiuixBarAction(
                 icon = Icons.AutoMirrored.Rounded.Article,
                 contentDescription = stringResource(R.string.sulog),
+                modifier = Modifier,
                 onClick = { navigator.push(Route.Sulog) },
             )
+        },
+        actions = {
             OverlayIconDropdownMenu(
                 entry = DropdownEntry(
                     items = SortType.entries.mapIndexed { index, type ->

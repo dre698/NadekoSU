@@ -86,10 +86,11 @@ fun MiuixBarAction(
     icon: ImageVector,
     contentDescription: String?,
     enabled: Boolean = true,
+    modifier: Modifier = Modifier.padding(end = 8.dp),
     onClick: () -> Unit,
 ) {
     IconButton(
-        modifier = Modifier.padding(end = 8.dp),
+        modifier = modifier,
         enabled = enabled,
         onClick = onClick,
     ) {
@@ -116,6 +117,7 @@ fun MiuixListPage(
     subtitle: String = "",
     bottomPadding: Dp = 0.dp,
     listState: LazyListState = rememberLazyListState(),
+    navigationIcon: (@Composable () -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
     isRefreshing: Boolean? = null,
@@ -131,6 +133,7 @@ fun MiuixListPage(
         smallTitle = smallTitle,
         subtitle = subtitle,
         bottomPadding = bottomPadding,
+        navigationIcon = navigationIcon,
         actions = actions,
         floatingActionButton = floatingActionButton,
         overlay = overlay,
@@ -174,6 +177,7 @@ fun MiuixPageScaffold(
     smallTitle: Boolean = false,
     subtitle: String = "",
     bottomPadding: Dp = 0.dp,
+    navigationIcon: (@Composable () -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
@@ -183,7 +187,7 @@ fun MiuixPageScaffold(
     NadekoMiuixTheme {
         val scrollBehavior = MiuixScrollBehavior()
         val color = miuixPageColor()
-        val navigation: @Composable () -> Unit = {
+        val navigation: @Composable () -> Unit = navigationIcon ?: {
             if (showBack) MiuixBackButton(onBack)
         }
         Scaffold(

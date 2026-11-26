@@ -48,6 +48,8 @@ import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.nadekosu.R
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.ui.component.ConfirmResult
 import com.nadekosu.ui.component.DialogHandle
 import com.nadekosu.ui.component.SearchAppBar
@@ -128,6 +130,22 @@ fun DynamicManagerScreen() {
     LaunchedEffect(Unit) {
         scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
         viewModel.refresh()
+    }
+
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        MiuixDynamicManagerContent(
+            viewModel = viewModel,
+            onManualConfig = { manualDialog.show() },
+            onClearConfig = { runClearOperation() },
+            onAppClick = { app ->
+                if (app.isSelected) {
+                    runClearOperation()
+                } else {
+                    runGrantOperation { viewModel.setManagerApp(app) }
+                }
+            },
+        )
+        return
     }
 
     Scaffold(

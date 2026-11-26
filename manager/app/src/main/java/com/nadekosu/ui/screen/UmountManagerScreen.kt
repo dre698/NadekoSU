@@ -1,5 +1,7 @@
 package com.nadekosu.ui.screen
 
+import com.nadekosu.data.UiStyle
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -75,7 +77,7 @@ import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun UmountManagerScreen() {
+private fun MaterialUmountManagerScreen() {
     val viewModel = viewModel<UmountManagerScreenViewModel>()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
@@ -336,4 +338,14 @@ fun AddUmountPathDialog(
             }
         }
     )
+}
+
+/** Draws this screen with the component set picked in Settings > UI style. */
+@Composable
+fun UmountManagerScreen() {
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        MiuixUmountManagerScreen()
+    } else {
+        MaterialUmountManagerScreen()
+    }
 }

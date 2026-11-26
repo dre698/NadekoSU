@@ -336,3 +336,51 @@ fun MiuixEmptyState(
         )
     }
 }
+
+/** Round floating action button with a single icon. */
+@Composable
+fun MiuixIconFab(
+    icon: ImageVector,
+    contentDescription: String?,
+    onClick: () -> Unit,
+) {
+    top.yukonga.miuix.kmp.basic.FloatingActionButton(
+        modifier = Modifier.padding(end = 4.dp, bottom = 8.dp),
+        onClick = onClick,
+        containerColor = MiuixTheme.colorScheme.primary,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = MiuixTheme.colorScheme.onPrimary,
+        )
+    }
+}
+
+/** Cancel / confirm button row placed at the bottom of a Miuix dialog. */
+@Composable
+fun MiuixDialogButtons(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    confirmEnabled: Boolean = true,
+    confirmText: String = stringResource(android.R.string.ok),
+    dismissText: String = stringResource(android.R.string.cancel),
+) {
+    androidx.compose.foundation.layout.Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        top.yukonga.miuix.kmp.basic.TextButton(
+            text = dismissText,
+            onClick = onDismiss,
+            modifier = Modifier.weight(1f),
+        )
+        top.yukonga.miuix.kmp.basic.TextButton(
+            text = confirmText,
+            onClick = onConfirm,
+            enabled = confirmEnabled,
+            modifier = Modifier.weight(1f),
+            colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.textButtonColorsPrimary(),
+        )
+    }
+}

@@ -71,6 +71,18 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.nadekosu.R
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.component.miuix.ChoicePreference
+import com.nadekosu.ui.component.miuix.MiuixGroupCard
+import com.nadekosu.ui.component.miuix.MiuixListPage
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.preference.ArrowPreference
+import top.yukonga.miuix.kmp.preference.CheckboxPreference
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Button as MiuixButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
+import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import com.nadekosu.getKernelVersion
 import com.nadekosu.ui.component.DialogHandle
 import com.nadekosu.ui.component.rememberConfirmDialog
@@ -265,6 +277,96 @@ fun InstallScreen(
 
     LaunchedEffect(Unit) {
         scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
+    }
+
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        val onMethodSelected: (InstallMethod) -> Unit = { method ->
+            if (method is InstallMethod.HorizonKernel && method.uri != null && isAbDevice) {
+                tempKernelUri = method.uri
+                showSlotSelectionDialog = true
+            } else {
+                installMethod = method
+            }
+        }
+        MiuixListPage(title = stringResource(R.string.install)) {
+            item {
+                SelectInstallMethod(
+                    isGKI = isGKI,
+                    onSelected = onMethodSelected,
+                    selectedMethod = installMethod,
+                    miuix = true,
+                )
+            }
+            if (installMethod is InstallMethod.DirectInstall || installMethod is InstallMethod.DirectInstallToInactiveSlot) {
+                item {
+                    val isOta = installMethod is InstallMethod.DirectInstallToInactiveSlot
+                    val suffix = produceState(initialValue = "", isOta) { value = getSlotSuffix(isOta) }.value
+                    val partitions = produceState(initialValue = emptyList()) { value = getAvailablePartitions() }.value
+                    val defaultPartition = produceState(initialValue = "") { value = getDefaultPartition() }.value
+                    partitionsState = partitions
+                    val displayPartitions = partitions.map { name ->
+                        if (defaultPartition == name) "$name (default)" else name
+                    }
+                    val defaultIndex = partitions.indexOf(defaultPartition).takeIf { it >= 0 } ?: 0
+                    if (!hasCustomSelected) partitionSelectionIndex = defaultIndex
+                    if (displayPartitions.isNotEmpty()) {
+                        MiuixGroupCard {
+                            ChoicePreference(
+                                title = "${stringResource(R.string.install_select_partition)} ($suffix)",
+                                items = displayPartitions,
+                                selectedIndex = partitionSelectionIndex,
+                                onSelectedIndexChange = { index ->
+                                    hasCustomSelected = true
+                                    partitionSelectionIndex = index
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            if (isGKI) {
+                item {
+                    MiuixGroupCard {
+                        ArrowPreference(
+                            title = stringResource(id = R.string.install_upload_lkm_file),
+                            summary = (lkmSelection as? LkmSelection.LkmUri)?.let {
+                                stringResource(id = R.string.selected_lkm, it.uri.lastPathSegment ?: "(file)")
+                            },
+                            onClick = { onLkmUpload() },
+                        )
+                    }
+                }
+            }
+            (installMethod as? InstallMethod.HorizonKernel)?.slot?.let { slot ->
+                item {
+                    MiuixGroupCard {
+                        BasicComponent(
+                            title = stringResource(
+                                id = R.string.selected_slot,
+                                if (slot == "a") stringResource(id = R.string.slot_a)
+                                else stringResource(id = R.string.slot_b)
+                            ),
+                        )
+                    }
+                }
+            }
+            item {
+                MiuixButton(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    enabled = installMethod != null,
+                    onClick = { onClickNext() },
+                    colors = MiuixButtonDefaults.buttonColorsPrimary(),
+                ) {
+                    MiuixText(
+                        text = stringResource(id = R.string.install_next),
+                        color = MiuixTheme.colorScheme.onPrimary,
+                    )
+                }
+            }
+        }
+        return
     }
 
     Scaffold(
@@ -493,7 +595,8 @@ sealed class InstallMethod {
 private fun SelectInstallMethod(
     isGKI: Boolean = false,
     onSelected: (InstallMethod) -> Unit = {},
-    selectedMethod: InstallMethod? = null
+    selectedMethod: InstallMethod? = null,
+    miuix: Boolean = false,
 ) {
     val rootAvailable = rootAvailable()
     val isAbDevice = produceState(initialValue = false) {
@@ -589,6 +692,17 @@ private fun SelectInstallMethod(
 
     var lkmExpanded by remember { mutableStateOf(false) }
     var gkiExpanded by remember { mutableStateOf(false) }
+
+    if (miuix) {
+        MiuixInstallMethodCards(
+            isGKI = isGKI,
+            rootAvailable = rootAvailable,
+            options = radioOptions,
+            selectedOption = selectedOption,
+            onClick = onClick,
+        )
+        return
+    }
 
     Column(
         modifier = Modifier.padding(horizontal = 16.dp)
@@ -902,4 +1016,36 @@ private fun isKoFile(context: Context, uri: Uri): Boolean {
 @Composable
 fun SelectInstallPreview() {
     InstallScreen()
+}
+
+@Composable
+private fun MiuixInstallMethodCards(
+    isGKI: Boolean,
+    rootAvailable: Boolean,
+    options: List<InstallMethod>,
+    selectedOption: InstallMethod?,
+    onClick: (InstallMethod) -> Unit,
+) {
+    @Composable
+    fun Option(option: InstallMethod) {
+        val selected = option.javaClass == selectedOption?.javaClass
+        CheckboxPreference(
+            title = stringResource(id = option.label),
+            summary = option.summary,
+            checked = selected,
+            onCheckedChange = { onClick(option) },
+        )
+    }
+    if (isGKI) {
+        SmallTitle(text = stringResource(R.string.Lkm_install_methods))
+        MiuixGroupCard {
+            options.filter { it !is InstallMethod.HorizonKernel }.forEach { Option(it) }
+        }
+    }
+    if (rootAvailable) {
+        SmallTitle(text = stringResource(R.string.GKI_install_methods))
+        MiuixGroupCard {
+            options.filterIsInstance<InstallMethod.HorizonKernel>().forEach { Option(it) }
+        }
+    }
 }

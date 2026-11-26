@@ -7,6 +7,7 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -312,7 +314,13 @@ private fun PhoneContent(state: ThemePreviewState) {
                     .padding(top = 28.dp, bottom = 30.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                if (state.dashboardLayout) {
+                if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+                    if (state.dashboardLayout) {
+                        MiuixDashboardHome(state, cardAlpha)
+                    } else {
+                        MiuixCircleHome(state, cardAlpha)
+                    }
+                } else if (state.dashboardLayout) {
                     DashboardHome(state, cardAlpha)
                 } else {
                     CircleHome(state, cardAlpha)
@@ -347,6 +355,164 @@ private fun PhoneContent(state: ThemePreviewState) {
 
             PreviewBottomBar(state, Modifier.align(Alignment.BottomCenter))
         }
+    }
+}
+
+/** Colors of the Miuix home status card, same rules as the real page. */
+private class MiuixPreviewStatusColors(
+    val card: Color,
+    val accent: Color,
+    val lkmChip: Color,
+    val warnChip: Color,
+    val title: Color,
+    val subtitle: Color,
+)
+
+@Composable
+private fun miuixPreviewStatusColors(colors: PreviewColors): MiuixPreviewStatusColors {
+    val monet = ThemeConfig.miuixMonet
+    val isDark = ThemeConfig.forceDarkMode ?: isSystemInDarkTheme()
+    val accent = if (monet) colors.primary else Color(0xFF36D167)
+    return MiuixPreviewStatusColors(
+        card = when {
+            monet -> colors.secondaryContainer
+            isDark -> Color(0xFF1A3825)
+            else -> Color(0xFFDFFAE4)
+        },
+        accent = accent,
+        lkmChip = accent,
+        warnChip = MiuixTheme.colorScheme.errorContainer,
+        title = colors.onSurface,
+        subtitle = colors.onSurfaceVariant.copy(alpha = 0.7f),
+    )
+}
+
+@Composable
+private fun MiuixPreviewChips(status: MiuixPreviewStatusColors) {
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        Box(
+            modifier = Modifier
+                .size(width = 8.dp, height = 4.dp)
+                .clip(RoundedCornerShape(1.5.dp))
+                .background(status.lkmChip)
+        )
+        Box(
+            modifier = Modifier
+                .size(width = 16.dp, height = 4.dp)
+                .clip(RoundedCornerShape(1.5.dp))
+                .background(status.warnChip)
+        )
+    }
+}
+
+/** One info card of the Miuix home: leading icon dots (optional) plus two text lines per row. */
+@Composable
+private fun MiuixPreviewInfoCard(
+    rows: Int,
+    showIcons: Boolean,
+    cardAlpha: Float,
+    colors: PreviewColors,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(7.dp))
+            .background(colors.surfaceContainer.copy(alpha = cardAlpha))
+            .padding(horizontal = 5.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        repeat(rows) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                if (showIcons) Dot(6.dp, colors.onSurfaceVariant.copy(alpha = 0.7f))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Bar(24.dp, 3.dp, colors.onSurface.copy(alpha = 0.8f))
+                    Bar(38.dp, 2.5.dp, colors.onSurfaceVariant.copy(alpha = 0.5f))
+                }
+            }
+        }
+    }
+}
+
+/** Miuix Dashboard UI: big status card with ring, two counter tiles, grouped info cards. */
+@Composable
+private fun MiuixDashboardHome(state: ThemePreviewState, cardAlpha: Float) {
+    val colors = previewColors()
+    val status = miuixPreviewStatusColors(colors)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(46.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(status.card.copy(alpha = cardAlpha))
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = 9.dp, y = 9.dp)
+                .size(28.dp)
+                .border(3.dp, status.accent, CircleShape)
+        )
+        Box(modifier = Modifier.padding(6.dp)) {
+            Box(modifier = Modifier.align(Alignment.TopStart)) { MiuixPreviewChips(status) }
+            Column(
+                modifier = Modifier.align(Alignment.BottomStart),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Bar(24.dp, 5.dp, status.title)
+                Bar(18.dp, 2.5.dp, status.subtitle)
+            }
+        }
+    }
+
+    if (!state.hideOtherInfo) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            repeat(2) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(colors.surfaceContainer.copy(alpha = cardAlpha))
+                        .padding(horizontal = 5.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Bar(9.dp, 5.dp, colors.onSurface)
+                    Bar(16.dp, 2.5.dp, colors.onSurfaceVariant.copy(alpha = 0.6f))
+                }
+            }
+        }
+    }
+
+    // The dashboard layout always shows leading icons, like the real page
+    MiuixPreviewInfoCard(if (state.simpleMode) 2 else 3, true, cardAlpha, colors)
+    if (!state.simpleMode) {
+        MiuixPreviewInfoCard(2, true, cardAlpha, colors)
+    }
+}
+
+/** Miuix Circle UI: compact status card (no ring), then grouped info cards. */
+@Composable
+private fun MiuixCircleHome(state: ThemePreviewState, cardAlpha: Float) {
+    val colors = previewColors()
+    val status = miuixPreviewStatusColors(colors)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(status.card.copy(alpha = cardAlpha))
+            .padding(horizontal = 6.dp, vertical = 5.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        MiuixPreviewChips(status)
+        Bar(24.dp, 5.dp, status.title)
+        Bar(34.dp, 2.5.dp, status.subtitle)
+    }
+
+    MiuixPreviewInfoCard(if (state.simpleMode) 2 else 3, state.showHomeCardIcons, cardAlpha, colors)
+    if (!state.simpleMode) {
+        MiuixPreviewInfoCard(2, state.showHomeCardIcons, cardAlpha, colors)
     }
 }
 

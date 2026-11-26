@@ -63,6 +63,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nadekosu.R
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.component.miuix.MiuixLogPage
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.data.appPreferences
 import com.nadekosu.ui.component.KeyEventBlocker
 import com.nadekosu.ui.component.SwipeableSnackbarHost
@@ -224,6 +228,51 @@ fun KernelFlashScreen(
 
     BackHandler(enabled = true) {
         onBack()
+    }
+
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        KeyEventBlocker {
+            it.key == Key.VolumeDown || it.key == Key.VolumeUp
+        }
+        val miuixListState = rememberLazyListState()
+        LaunchedEffect(logText) {
+            miuixListState.animateScrollToItem(2)
+        }
+        MiuixLogPage(
+            title = stringResource(
+                when {
+                    flashState.error.isNotEmpty() -> R.string.flash_failed
+                    flashState.isCompleted -> R.string.flash_success
+                    else -> R.string.flashing
+                }
+            ),
+            text = logText,
+            listState = miuixListState,
+            running = flashState.isFlashing && !flashState.isCompleted && flashState.error.isEmpty(),
+            onBack = onBack,
+            onSave = {
+                scope.launch {
+                    val format = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.getDefault())
+                    val date = format.format(Date())
+                    val file = File(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                        "KernelSU_kernel_flash_log_${date}.log"
+                    )
+                    file.writeText(logContent.toString())
+                    snackBarHost.showSnackbar(logSavedString.format(file.absolutePath))
+                }
+            },
+            showFab = showFloatAction,
+            fabIcon = Icons.TwoTone.Refresh,
+            fabLabel = stringResource(R.string.reboot),
+            onFabClick = {
+                scope.launch {
+                    withContext(Dispatchers.IO) { reboot() }
+                }
+            },
+            header = { MiuixFlashProgress(flashState) },
+        )
+        return
     }
 
     Scaffold(
@@ -485,4 +534,33 @@ private fun TopBar(
         windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
         scrollBehavior = scrollBehavior
     )
+}
+
+@Composable
+private fun MiuixFlashProgress(flashState: FlashState) {
+    val colors = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
+    val failed = flashState.error.isNotEmpty()
+    val progress = animateFloatAsState(targetValue = flashState.progress, label = "MiuixFlashProgress")
+    com.nadekosu.ui.component.miuix.MiuixGroupCard {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            if (flashState.currentStep.isNotEmpty()) {
+                top.yukonga.miuix.kmp.basic.Text(
+                    text = flashState.currentStep,
+                    color = colors.onSurfaceVariantSummary,
+                )
+                Spacer(Modifier.height(10.dp))
+            }
+            top.yukonga.miuix.kmp.basic.LinearProgressIndicator(
+                progress = progress.value,
+                modifier = Modifier.fillMaxWidth(),
+                colors = top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults.progressIndicatorColors(
+                    foregroundColor = if (failed) colors.error else colors.primary,
+                ),
+            )
+            if (failed) {
+                Spacer(Modifier.height(10.dp))
+                top.yukonga.miuix.kmp.basic.Text(text = flashState.error, color = colors.error)
+            }
+        }
+    }
 }

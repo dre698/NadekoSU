@@ -56,7 +56,8 @@ fun GithubMarkdown(
     content: String,
     backgroundColor: androidx.compose.ui.graphics.Color,
     loading: MutableState<Boolean> = remember { mutableStateOf(true) },
-    callerProvideLoadingIndicator: Boolean = false
+    callerProvideLoadingIndicator: Boolean = false,
+    linkColor: androidx.compose.ui.graphics.Color? = null,
 ) {
     val isDark = isInDarkTheme(ThemeConfig.forceDarkMode)
     val dir = if (LocalLayoutDirection.current == LayoutDirection.Rtl) "rtl" else "ltr"
@@ -74,7 +75,7 @@ fun GithubMarkdown(
     val bgMuted = cssColorFromArgb(makeVariant(if (bgLuminance > 0.6) -0.06f else 0.06f))
     val bgNeutralMuted = cssColorFromArgb(makeVariant(if (bgLuminance > 0.6) -0.12f else 0.12f))
     val bgAttentionMuted = cssColorFromArgb(makeVariant(-0.12f))
-    val fgLink = cssColorFromArgb(MaterialTheme.colorScheme.primary.toArgb())
+    val fgLink = cssColorFromArgb((linkColor ?: MaterialTheme.colorScheme.primary).toArgb())
 
     val cssHref = "https://appassets.androidplatform.net/assets/github-markdown.css"
     val html = """

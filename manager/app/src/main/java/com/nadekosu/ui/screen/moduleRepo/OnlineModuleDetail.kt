@@ -83,7 +83,7 @@ import androidx.compose.ui.unit.max
 import com.nadekosu.R
 import com.nadekosu.data.UiStyle
 import com.nadekosu.ui.component.miuix.MiuixBarAction
-import com.nadekosu.ui.component.miuix.MiuixMaterialBridge
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nadekosu.ui.component.miuix.MiuixPageScaffold
 import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
 import com.nadekosu.ui.activity.PermissionRequestInterface
@@ -170,8 +170,11 @@ private fun OnlineModuleDetailContent(module: ModuleRepoViewModel.RepoModule) {
         } else {
             "https://modules.kernelsu.org/module/${module.moduleId}"
         }
+        val miuixInstallState = rememberMiuixRepoInstallState()
+        val miuixViewModel = viewModel<ModuleRepoViewModel>()
         MiuixPageScaffold(
             title = module.moduleName,
+            overlay = { MiuixRepoInstallDialogs(state = miuixInstallState, viewModel = miuixViewModel) },
             smallTitle = true,
             onBack = { navigator.pop() },
             actions = {
@@ -201,16 +204,14 @@ private fun OnlineModuleDetailContent(module: ModuleRepoViewModel.RepoModule) {
                 )
                 val tabPadding = PaddingValues(bottom = innerPadding.calculateBottomPadding())
                 val nested = miuixScrollBehavior.nestedScrollConnection
-                MiuixMaterialBridge {
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxSize()
-                    ) { page ->
-                        when (page) {
-                            0 -> ReadmeTab(module, nested, tabPadding)
-                            1 -> ReleasesTab(module, nested, coroutineScope, tabPadding)
-                            2 -> InfoTab(module, nested, tabPadding)
-                        }
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    when (page) {
+                        0 -> MiuixReadmeTab(module, nested, tabPadding)
+                        1 -> MiuixReleasesTab(module, nested, tabPadding, miuixInstallState)
+                        2 -> MiuixInfoTab(module, nested, tabPadding)
                     }
                 }
             }

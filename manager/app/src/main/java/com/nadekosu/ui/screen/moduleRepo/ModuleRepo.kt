@@ -105,7 +105,6 @@ import com.nadekosu.ui.component.miuix.MiuixBarAction
 import com.nadekosu.ui.component.miuix.MiuixEmptyState
 import com.nadekosu.ui.component.miuix.MiuixListPage
 import com.nadekosu.ui.component.miuix.MiuixLoadingBox
-import com.nadekosu.ui.component.miuix.MiuixMaterialBridge
 import com.nadekosu.ui.component.miuix.MiuixSearchField
 import top.yukonga.miuix.kmp.basic.Button as MiuixButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
@@ -182,6 +181,7 @@ fun ModuleRepoScreen() {
     val isLoading = uiState.modules.isEmpty() && uiState.search.isEmpty()
 
     if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        val miuixInstallState = rememberMiuixRepoInstallState()
         var offline by remember { mutableStateOf(!isNetworkAvailable(context)) }
         LaunchedEffect(isLoading, offline) {
             if (isLoading && !offline) {
@@ -201,23 +201,14 @@ fun ModuleRepoScreen() {
             isRefreshing = if (isLoading) null else uiState.isRefreshing,
             onRefresh = { viewModel.refresh() },
             overlay = {
-                if (showBottomSheet) {
-                    MiuixMaterialBridge {
-                        ModalBottomSheet(
-                            onDismissRequest = { showBottomSheet = false },
-                            sheetState = bottomSheetState,
-                        ) {
-                            ModuleRepoBottomSheetContent(
-                                viewModel = viewModel,
-                                uiState = uiState,
-                                prefs = prefs,
-                                scope = scope,
-                                bottomSheetState = bottomSheetState,
-                                onDismiss = { showBottomSheet = false }
-                            )
-                        }
-                    }
-                }
+                MiuixModuleRepoOptionsSheet(
+                    show = showBottomSheet,
+                    onDismiss = { showBottomSheet = false },
+                    viewModel = viewModel,
+                    uiState = uiState,
+                    prefs = prefs,
+                )
+                MiuixRepoInstallDialogs(state = miuixInstallState, viewModel = viewModel)
             },
         ) {
             item {
@@ -259,15 +250,7 @@ fun ModuleRepoScreen() {
                     )
                 }
                 else -> items(uiState.modules) { module ->
-                    MiuixMaterialBridge {
-                        OnlineModuleItem(
-                            module,
-                            viewModel,
-                            confirmDialog,
-                            chooseDialog,
-                            currentModuleForChooseDialog
-                        )
-                    }
+                    MiuixOnlineModuleItem(module, viewModel, miuixInstallState)
                 }
             }
         }

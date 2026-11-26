@@ -74,6 +74,7 @@ import com.nadekosu.ui.navigation.Navigator
 import com.nadekosu.ui.navigation.Route
 import com.nadekosu.ui.theme.CardConfig
 import com.nadekosu.ui.theme.ThemeConfig
+import com.nadekosu.data.UiStyle
 import com.nadekosu.ui.theme.blurEffect
 import com.nadekosu.ui.theme.blurSource
 import com.nadekosu.ui.viewmodel.TemplateViewModel
@@ -111,54 +112,80 @@ fun AppProfileTemplateScreen() {
         }
     }
 
+    val context = LocalContext.current
+    val clipboardManager = context.getSystemService<ClipboardManager>()
+    val showToast = fun(msg: String) {
+        scope.launch(Dispatchers.Main) {
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
+    val appProfileTemplateImportEmpty =
+        stringResource(R.string.app_profile_template_import_empty)
+    val appProfileTemplateImportSuccess =
+        stringResource(R.string.app_profile_template_import_success)
+    val appProfileTemplateExportEmpty =
+        stringResource(R.string.app_profile_template_export_empty)
+    val onImport: () -> Unit = {
+        scope.launch {
+            val clipboardText = clipboardManager?.primaryClip?.getItemAt(0)?.text?.toString()
+            if (clipboardText.isNullOrEmpty()) {
+                showToast(appProfileTemplateImportEmpty)
+                return@launch
+            }
+            viewModel.importTemplates(
+                clipboardText,
+                {
+                    showToast(appProfileTemplateImportSuccess)
+                    viewModel.fetchTemplates(false)
+                },
+                showToast
+            )
+        }
+    }
+    val onExport: () -> Unit = {
+        scope.launch {
+            viewModel.exportTemplates(
+                {
+                    showToast(appProfileTemplateExportEmpty)
+                }
+            ) { text ->
+                clipboardManager?.setPrimaryClip(ClipData.newPlainText("", text))
+            }
+        }
+    }
+    val onCreate: () -> Unit = {
+        navigator.navigateForResult(
+            Route.TemplateEditor(
+                templateId = "",
+                readOnly = false,
+                isCreation = true,
+            ),
+            "template_edit"
+        )
+    }
+
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        MiuixTemplateList(
+            templates = uiState.templateList,
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { scope.launch { viewModel.fetchTemplates() } },
+            onSync = { scope.launch { viewModel.fetchTemplates(true) } },
+            onImport = onImport,
+            onExport = onExport,
+            onCreate = onCreate,
+        )
+        return
+    }
+
     Scaffold(
         topBar = {
-            val context = LocalContext.current
-            val clipboardManager = context.getSystemService<ClipboardManager>()
-            val showToast = fun(msg: String) {
-                scope.launch(Dispatchers.Main) {
-                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                }
-            }
-            val appProfileTemplateImportEmpty =
-                stringResource(R.string.app_profile_template_import_empty)
-            val appProfileTemplateImportSuccess =
-                stringResource(R.string.app_profile_template_import_success)
-            val appProfileTemplateExportEmpty =
-                stringResource(R.string.app_profile_template_export_empty)
             TopBar(
                 onBack = dropUnlessResumed { navigator.pop() },
                 onSync = {
                     scope.launch { viewModel.fetchTemplates(true) }
                 },
-                onImport = {
-                    scope.launch {
-                        val clipboardText = clipboardManager?.primaryClip?.getItemAt(0)?.text?.toString()
-                        if (clipboardText.isNullOrEmpty()) {
-                            showToast(appProfileTemplateImportEmpty)
-                            return@launch
-                        }
-                        viewModel.importTemplates(
-                            clipboardText,
-                            {
-                                showToast(appProfileTemplateImportSuccess)
-                                viewModel.fetchTemplates(false)
-                            },
-                            showToast
-                        )
-                    }
-                },
-                onExport = {
-                    scope.launch {
-                        viewModel.exportTemplates(
-                            {
-                                showToast(appProfileTemplateExportEmpty)
-                            }
-                        ) { text ->
-                            clipboardManager?.setPrimaryClip(ClipData.newPlainText("", text))
-                        }
-                    }
-                },
+                onImport = onImport,
+                onExport = onExport,
                 scrollBehavior = scrollBehavior,
             )
         },

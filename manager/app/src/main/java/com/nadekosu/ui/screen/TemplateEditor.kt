@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.nadekosu.Natives
 import com.nadekosu.R
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.theme.ThemeConfig
 import com.nadekosu.toOrdinalList
 import com.nadekosu.toRawFlags
 import com.nadekosu.toRootProfileFlags
@@ -94,6 +96,54 @@ fun TemplateEditorScreen(
 
     LaunchedEffect(Unit) {
         scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
+    }
+
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        val context = LocalContext.current
+        val saveTemplateFailed = stringResource(id = R.string.app_profile_template_save_failed)
+        val idConflictError = stringResource(id = R.string.app_profile_template_id_exist)
+        val idInvalidError = stringResource(id = R.string.app_profile_template_id_invalid)
+        val author = if (initialTemplate.author.isNotEmpty()) "@${initialTemplate.author}" else ""
+        val readOnlyHint = if (readOnly) {
+            " - ${stringResource(id = R.string.app_profile_template_readonly)}"
+        } else ""
+        val update: (TemplateViewModel.TemplateInfo) -> Unit = { next ->
+            if (!autoSave || saveTemplate(next)) template = next
+        }
+        MiuixTemplateEditor(
+            title = when {
+                isCreation -> stringResource(R.string.app_profile_template_create)
+                readOnly -> stringResource(R.string.app_profile_template_view)
+                else -> stringResource(R.string.app_profile_template_edit)
+            },
+            summary = "${initialTemplate.id}$author$readOnlyHint",
+            readOnly = readOnly,
+            isCreation = isCreation,
+            template = template,
+            idError = { value ->
+                when {
+                    isTemplateExist(value) -> idConflictError
+                    !isValidTemplateId(value) -> idInvalidError
+                    else -> ""
+                }
+            },
+            onIdChange = { template = template.copy(id = it) },
+            onTemplateChange = update,
+            onBack = { if (readOnly) navigator.pop() else navigator.setResult("template_edit", true) },
+            onDelete = {
+                if (deleteAppProfileTemplate(template.id)) {
+                    navigator.setResult("template_edit", true)
+                }
+            },
+            onSave = {
+                if (saveTemplate(template, isCreation)) {
+                    navigator.setResult("template_edit", true)
+                } else {
+                    Toast.makeText(context, saveTemplateFailed, Toast.LENGTH_SHORT).show()
+                }
+            },
+        )
+        return
     }
 
     Scaffold(

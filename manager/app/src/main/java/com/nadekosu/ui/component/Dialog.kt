@@ -35,12 +35,15 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.theme.ThemeConfig
 import io.noties.markwon.Markwon
 import io.noties.markwon.utils.NoCopySpannableFactory
 import kotlinx.coroutines.CancellableContinuation
@@ -339,7 +342,9 @@ fun rememberLoadingDialog(): LoadingDialogHandle {
     }
     val coroutineScope = rememberCoroutineScope()
 
-    if (visible.value) {
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        LoadingDialogMiuix(visible)
+    } else if (visible.value) {
         LoadingDialog()
     }
 
@@ -365,7 +370,14 @@ private fun rememberConfirmDialog(visuals: ConfirmDialogVisuals, callback: Confi
         }
     )
 
-    if (visible.value) {
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        ConfirmDialogMiuix(
+            handle.visuals,
+            confirm = { coroutineScope.launch { resultChannel.send(ConfirmResult.Confirmed) } },
+            dismiss = { coroutineScope.launch { resultChannel.send(ConfirmResult.Canceled) } },
+            showDialog = visible
+        )
+    } else if (visible.value) {
         ConfirmDialog(
             handle.visuals,
             confirm = { coroutineScope.launch { resultChannel.send(ConfirmResult.Confirmed) } },
@@ -470,8 +482,7 @@ private fun ConfirmDialog(visuals: ConfirmDialogVisuals, confirm: () -> Unit, di
 }
 
 @Composable
-private fun MarkdownContent(content: String) {
-    val contentColor = LocalContentColor.current
+internal fun MarkdownContent(content: String, contentColor: Color = LocalContentColor.current) {
 
     Column(
         modifier = Modifier

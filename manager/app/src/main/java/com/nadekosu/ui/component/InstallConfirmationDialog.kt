@@ -36,6 +36,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nadekosu.R
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.theme.ThemeConfig
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStream
@@ -308,6 +310,20 @@ object ZipFileDetector {
 
 @Composable
 fun InstallConfirmationDialog(
+    show: Boolean,
+    zipFiles: List<ZipFileInfo>,
+    onConfirm: (List<ZipFileInfo>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        InstallConfirmationDialogMiuix(show, zipFiles, onConfirm, onDismiss)
+    } else {
+        InstallConfirmationDialogMaterial(show, zipFiles, onConfirm, onDismiss)
+    }
+}
+
+@Composable
+private fun InstallConfirmationDialogMaterial(
     show: Boolean,
     zipFiles: List<ZipFileInfo>,
     onConfirm: (List<ZipFileInfo>) -> Unit,

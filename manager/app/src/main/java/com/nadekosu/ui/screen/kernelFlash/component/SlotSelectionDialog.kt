@@ -34,14 +34,29 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.nadekosu.R
+import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.theme.ThemeConfig
 
 /**
  * 槽位选择对话框组件
  * 用于Kernel刷写时选择目标槽位
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SlotSelectionDialog(
+    show: Boolean,
+    onDismiss: () -> Unit,
+    onSlotSelected: (String) -> Unit
+) {
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        SlotSelectionDialogMiuix(show, onDismiss, onSlotSelected)
+    } else {
+        SlotSelectionDialogMaterial(show, onDismiss, onSlotSelected)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SlotSelectionDialogMaterial(
     show: Boolean,
     onDismiss: () -> Unit,
     onSlotSelected: (String) -> Unit
@@ -255,7 +270,7 @@ data class ListOption(
 )
 
 // Utility function to get current slot
-private fun getCurrentSlot(): String? {
+internal fun getCurrentSlot(): String? {
     return runCommandGetOutput(true, "getprop ro.boot.slot_suffix")?.let {
         if (it.startsWith("_")) it.substring(1) else it
     }

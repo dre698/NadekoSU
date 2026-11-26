@@ -447,6 +447,7 @@ private fun MiuixStatusCard(
                 )
             }
             val hasBanner = bannerFile != null
+            val versionLabel = stringResource(R.string.version)
             val versionText = buildString {
                 append(systemStatus.ksuVersion ?: 0)
                 systemStatus.kernelUAPIVersion?.let { append("-").append(it) }
@@ -516,7 +517,7 @@ private fun MiuixStatusCard(
                                 color = if (hasBanner) Color.White else colors.onSurface,
                             )
                             Text(
-                                text = if (big) versionText else summary,
+                                text = if (big) "$versionLabel: $versionText" else summary,
                                 // keep the long version string clear of the big check icon
                                 modifier = if (big && !hasBanner) Modifier.fillMaxWidth(0.66f) else Modifier,
                                 fontSize = 14.sp,
@@ -765,13 +766,19 @@ private fun MiuixInfoSections(uiState: HomeUiState, combined: Boolean) {
         }
     }
 
-    if (combined) {
-        // Dashboard style: a single card with leading icons
-        MiuixInfoGroup(title = null, rows = versionRows + statusRows, showIcons = true)
-    } else {
-        MiuixInfoGroup(null, versionRows, uiState.showHomeCardIcons)
-        MiuixInfoGroup(null, statusRows, uiState.showHomeCardIcons)
-    }
+    // Group by what the row describes; each group is its own titled card. The icon identifies
+    // the row, so the two lists above stay as they are.
+    val allRows = versionRows + statusRows
+    val deviceIcons = setOf(Icons.Rounded.Smartphone, Icons.Rounded.DeveloperBoard, Icons.Rounded.Android)
+    val securityIcons = setOf(Icons.Rounded.Security, Icons.Rounded.FilterList, Icons.Rounded.Group)
+    val deviceRows = allRows.filter { it.icon in deviceIcons }
+    val securityRows = allRows.filter { it.icon in securityIcons }
+    val softwareRows = allRows.filter { it.icon !in deviceIcons && it.icon !in securityIcons }
+    // Dashboard style always shows the leading icons
+    val showIcons = combined || uiState.showHomeCardIcons
+    MiuixInfoGroup(stringResource(R.string.home_group_device), deviceRows, showIcons)
+    MiuixInfoGroup(stringResource(R.string.home_group_software), softwareRows, showIcons)
+    MiuixInfoGroup(stringResource(R.string.home_group_security), securityRows, showIcons)
 }
 
 @Composable

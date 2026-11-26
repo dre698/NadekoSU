@@ -42,10 +42,12 @@ fun LoadingDialogMiuix(
         content = {
             // Consume the back gesture before the dialog's own handler
             val navEventState = rememberNavigationEventState(NavigationEventInfo.None)
+            // Typed value: a bare `{ }` is ambiguous between the two NavigationBackHandler overloads
+            val ignoreBack: () -> Unit = {}
             NavigationBackHandler(
                 state = navEventState,
                 isBackEnabled = true,
-                onBackCompleted = { },
+                onBackCompleted = ignoreBack,
             )
             Box(
                 modifier = Modifier.fillMaxWidth(),

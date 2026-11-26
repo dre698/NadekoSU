@@ -23,6 +23,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -1036,25 +1037,7 @@ private fun ModuleList(
         }
     }
 
-    PullToRefreshBox(
-        state = pullRefreshState,
-        onRefresh = {
-            viewModel.fetchModuleList(true)
-        },
-        modifier = boxModifier
-            .fillMaxSize()
-            .then(if (miuix) Modifier else Modifier.blurSource()),
-        indicator = {
-            PullToRefreshDefaults.LoadingIndicator(
-                modifier = Modifier
-                    .padding(top = topPadding)
-                    .align(Alignment.TopCenter),
-                state = pullRefreshState,
-                isRefreshing = uiState.isRefreshing,
-            )
-        },
-        isRefreshing = uiState.isRefreshing
-    ) {
+    val listContent: @Composable BoxScope.() -> Unit = {
         val metaModuleWarningText by produceState<String?>(
             initialValue = null,
             uiState.hasModuleRequireMount,
@@ -1234,6 +1217,40 @@ private fun ModuleList(
             item {
                 Spacer(modifier = Modifier.height(bottomPadding))
             }
+        }
+    }
+
+    if (miuix) {
+        // Miuix pages use the Miuix pull-to-refresh, not the Material loading blob
+        top.yukonga.miuix.kmp.basic.PullToRefresh(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.fetchModuleList(true) },
+            pullToRefreshState = top.yukonga.miuix.kmp.basic.rememberPullToRefreshState(),
+            contentPadding = PaddingValues(top = topPadding),
+        ) {
+            Box(modifier = boxModifier.fillMaxSize()) { listContent() }
+        }
+    } else {
+        PullToRefreshBox(
+            state = pullRefreshState,
+            onRefresh = {
+                viewModel.fetchModuleList(true)
+            },
+            modifier = boxModifier
+                .fillMaxSize()
+                .then(if (miuix) Modifier else Modifier.blurSource()),
+            indicator = {
+                PullToRefreshDefaults.LoadingIndicator(
+                    modifier = Modifier
+                        .padding(top = topPadding)
+                        .align(Alignment.TopCenter),
+                    state = pullRefreshState,
+                    isRefreshing = uiState.isRefreshing,
+                )
+            },
+            isRefreshing = uiState.isRefreshing
+        ) {
+            listContent()
         }
     }
 

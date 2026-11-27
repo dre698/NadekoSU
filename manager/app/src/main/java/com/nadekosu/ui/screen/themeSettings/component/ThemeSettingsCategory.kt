@@ -684,6 +684,10 @@ private fun CircleHome(state: ThemePreviewState, cardAlpha: Float) {
 @Composable
 private fun PreviewBottomBar(state: ThemePreviewState, modifier: Modifier = Modifier) {
     val colors = previewColors()
+    if (!state.liquidGlass && ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        PreviewMiuixFlatBottomBar(state, colors, modifier)
+        return
+    }
     Row(
         modifier = modifier
             .padding(horizontal = 8.dp, vertical = 6.dp)
@@ -732,6 +736,59 @@ private fun PreviewBottomBar(state: ThemePreviewState, modifier: Modifier = Modi
                 Dot(6.dp, colors.onSurfaceVariant)
                 if (index < 2 && state.showNavBadge && !state.hideOtherInfo) {
                     Dot(4.dp, colors.primary)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Miuix bar with blur off, mirroring FloatingBottomBar(isBlurEnabled = false): solid surfaceContainer
+ * capsule, four equal tabs with icon + label, the selected tab is a full-tab pill tinted with the
+ * accent at 15% and its icon/label drawn in the accent colour.
+ */
+@Composable
+private fun PreviewMiuixFlatBottomBar(
+    state: ThemePreviewState,
+    colors: PreviewColors,
+    modifier: Modifier = Modifier,
+) {
+    val selected = 0
+    Row(
+        modifier = modifier
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .fillMaxWidth()
+            .height(18.dp)
+            .clip(CircleShape)
+            .background(colors.surfaceContainer)
+            .padding(2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        repeat(4) { index ->
+            val isSelected = index == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(CircleShape)
+                    .background(
+                        if (isSelected) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
+                        CircleShape,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    val tint = if (isSelected) colors.primary else colors.onSurface
+                    Box(contentAlignment = Alignment.TopEnd) {
+                        Dot(4.dp, tint)
+                        if (index in 1..2 && state.showNavBadge && !state.hideOtherInfo) {
+                            Dot(3.dp, colors.primary)
+                        }
+                    }
+                    Bar(8.dp, 1.5.dp, tint)
                 }
             }
         }

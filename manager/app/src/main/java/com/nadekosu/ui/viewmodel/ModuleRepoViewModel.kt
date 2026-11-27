@@ -66,6 +66,12 @@ class ModuleRepoViewModel : ViewModel() {
         private val externalCache = ConcurrentHashMap<String, RepoModule>()
 
         fun isExternal(moduleId: String): Boolean = externalCache.containsKey(moduleId)
+
+        /** Last loaded repo list, process-wide, so the detail page can show a title right away. */
+        private val listCache = ConcurrentHashMap<String, RepoModule>()
+
+        fun cachedModule(moduleId: String): RepoModule? =
+            externalCache[moduleId] ?: listCache[moduleId]
     }
 
     private var modulesCache: List<RepoModule> = emptyList()
@@ -136,6 +142,8 @@ class ModuleRepoViewModel : ViewModel() {
             }
             if (parsed != null) {
                 modulesCache = parsed
+                listCache.clear()
+                parsed.forEach { listCache[it.moduleId] = it }
                 _uiState.update { state ->
                     state.copy(
                         modules = buildModuleList(state.search, state.sortStargazerCountFirst),

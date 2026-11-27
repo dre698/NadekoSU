@@ -26,6 +26,11 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
+import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -68,12 +73,17 @@ fun miuixPageColor(): Color =
 @Composable
 fun MiuixBackButton(onClick: (() -> Unit)? = null) {
     val navigator = LocalNavigator.current
+    val layoutDirection = LocalLayoutDirection.current
+    // No extra start padding: the top bar already insets its navigation slot, and the other
+    // Miuix pages (theme settings, KernelSU) sit at that same spot.
     IconButton(
-        modifier = Modifier.padding(start = 16.dp),
         onClick = onClick ?: { navigator.pop() },
     ) {
         Icon(
-            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+            modifier = Modifier.graphicsLayer {
+                if (layoutDirection == LayoutDirection.Rtl) scaleX = -1f
+            },
+            imageVector = MiuixIcons.Back,
             contentDescription = stringResource(R.string.back),
             tint = MiuixTheme.colorScheme.onBackground,
         )

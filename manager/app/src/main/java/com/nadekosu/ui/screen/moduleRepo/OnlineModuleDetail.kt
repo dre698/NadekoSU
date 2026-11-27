@@ -85,6 +85,7 @@ import com.nadekosu.data.UiStyle
 import com.nadekosu.ui.component.miuix.MiuixBarAction
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nadekosu.ui.component.miuix.MiuixPageScaffold
+import com.nadekosu.ui.component.miuix.MiuixLoadingBox
 import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
 import com.nadekosu.ui.activity.PermissionRequestInterface
 import com.nadekosu.ui.component.ConfirmResult
@@ -139,6 +140,18 @@ fun OnlineModuleDetailScreen(moduleId: String) {
     when {
         module != null -> OnlineModuleDetailContent(module!!)
         lookupFailed -> LaunchedEffect(Unit) { navigator.pop() }
+        ThemeConfig.uiStyle == UiStyle.MIUIX -> {
+            // The detail is fetched from the network; show the page frame right away so the
+            // transition doesn't land on an empty screen.
+            val preview = remember(moduleId) { ModuleRepoViewModel.cachedModule(moduleId) }
+            MiuixPageScaffold(
+                title = preview?.moduleName.orEmpty(),
+                smallTitle = true,
+                onBack = { navigator.pop() },
+            ) { _, _ ->
+                MiuixLoadingBox()
+            }
+        }
         else -> Unit
     }
 }

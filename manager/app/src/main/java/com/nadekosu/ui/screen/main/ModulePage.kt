@@ -23,6 +23,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -123,6 +125,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -1254,7 +1257,55 @@ private fun ModuleList(
         }
     }
 
-    if (showShortcutDialog.value) {
+    if (miuix) {
+        MiuixModuleShortcutDialog(
+            show = showShortcutDialog.value,
+            showTypeRow = showShortcutTypeRow.value,
+            selectedType = selectedShortcutType,
+            onSelectType = { type ->
+                selectedShortcutType = type
+                val icon = when (type) {
+                    ShortcutType.Action -> defaultActionShortcutIconUri
+                    ShortcutType.WebUI -> defaultWebUiShortcutIconUri
+                }
+                shortcutIconUri = icon
+                defaultShortcutIconUri = icon
+            },
+            previewIcon = shortcutPreviewIcon.value,
+            iconIsDefault = shortcutIconUri == defaultShortcutIconUri,
+            onPickIcon = { pickShortcutIconLauncher.launch("image/*") },
+            onResetIcon = { shortcutIconUri = defaultShortcutIconUri },
+            name = textFieldState.text.toString(),
+            onNameChange = { newName -> textFieldState.edit { replace(0, length, newName) } },
+            hasExistingShortcut = hasExistingShortcut,
+            onDelete = {
+                val moduleId = shortcutModuleId
+                val type = selectedShortcutType
+                if (!moduleId.isNullOrBlank() && type != null) {
+                    deleteModuleShortcut(context, moduleId, type)
+                }
+                showShortcutDialog.value = false
+            },
+            onConfirm = {
+                val moduleId = shortcutModuleId
+                val type = selectedShortcutType
+                if (!moduleId.isNullOrBlank() && textFieldState.text.isNotBlank() && type != null) {
+                    createModuleShortcut(
+                        context = context,
+                        moduleId = moduleId,
+                        name = textFieldState.text.toString(),
+                        iconUri = shortcutIconUri,
+                        type = type
+                    )
+                }
+                showShortcutDialog.value = false
+            },
+            onDismiss = {
+                showShortcutDialog.value = false
+                showShortcutTypeRow.value = false
+            },
+        )
+    } else if (showShortcutDialog.value) {
         ModalBottomSheet(
             sheetState = rememberBottomSheetState(
                 initialValue = SheetValue.Hidden,
@@ -1453,6 +1504,118 @@ private fun ModuleList(
             }
         }
     }
+}
+
+/** Miuix version of the module shortcut sheet: icon preview, icon picker, name, delete/confirm. */
+@Composable
+private fun MiuixModuleShortcutDialog(
+    show: Boolean,
+    showTypeRow: Boolean,
+    selectedType: ShortcutType?,
+    onSelectType: (ShortcutType) -> Unit,
+    previewIcon: ImageBitmap?,
+    iconIsDefault: Boolean,
+    onPickIcon: () -> Unit,
+    onResetIcon: () -> Unit,
+    name: String,
+    onNameChange: (String) -> Unit,
+    hasExistingShortcut: Boolean,
+    onDelete: () -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val nameBlank = name.isBlank()
+    top.yukonga.miuix.kmp.window.WindowDialog(
+        show = show,
+        title = stringResource(R.string.module_shortcut_title),
+        onDismissRequest = onDismiss,
+        content = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                if (showTypeRow) {
+                    com.nadekosu.ui.component.miuix.MiuixScrollableTabRow(
+                        tabs = listOf("Action", "WebUI"),
+                        selectedTabIndex = selectedType?.ordinal ?: 0,
+                        onTabSelected = { index -> onSelectType(ShortcutType.entries[index]) },
+                    )
+                }
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .padding(vertical = 8.dp)
+                        .size(100.dp)
+                        .clip(ContinuousRoundedRectangle(25.dp))
+                ) {
+                    if (previewIcon != null) {
+                        Image(
+                            bitmap = previewIcon,
+                            modifier = Modifier.size(100.dp),
+                            contentDescription = null,
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .background(Color.White)
+                        )
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                            contentDescription = null,
+                            contentScale = FixedScale(1.5f)
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    top.yukonga.miuix.kmp.basic.TextButton(
+                        text = stringResource(R.string.module_shortcut_icon_pick),
+                        onClick = onPickIcon,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (!iconIsDefault) {
+                        top.yukonga.miuix.kmp.basic.TextButton(
+                            text = stringResource(R.string.restore),
+                            onClick = onResetIcon,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+                top.yukonga.miuix.kmp.basic.TextField(
+                    value = name,
+                    onValueChange = onNameChange,
+                    label = stringResource(R.string.module_shortcut_name_label),
+                    singleLine = true,
+                )
+                if (nameBlank) {
+                    top.yukonga.miuix.kmp.basic.Text(
+                        text = stringResource(R.string.module_shortcut_should_not_empty),
+                        fontSize = 13.sp,
+                        color = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.error,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                if (hasExistingShortcut) {
+                    top.yukonga.miuix.kmp.basic.TextButton(
+                        text = stringResource(R.string.module_shortcut_delete),
+                        onClick = onDelete,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                com.nadekosu.ui.component.miuix.MiuixDialogButtons(
+                    onDismiss = onDismiss,
+                    onConfirm = onConfirm,
+                    confirmEnabled = !nameBlank,
+                    confirmText = if (hasExistingShortcut) {
+                        stringResource(R.string.module_update)
+                    } else {
+                        stringResource(android.R.string.ok)
+                    },
+                )
+            }
+        }
+    )
 }
 
 @SuppressLint("LocalContextGetResourceValueCall")

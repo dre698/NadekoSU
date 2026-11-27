@@ -1,5 +1,6 @@
 package com.nadekosu.ui.component
 
+import com.nadekosu.ui.component.miuix.MiuixDialogButtons
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -122,6 +123,37 @@ fun ConfirmDialogMiuix(
                         colors = ButtonDefaults.textButtonColorsPrimary()
                     )
                 }
+            }
+        }
+    )
+}
+
+/** Plain title + message + cancel/confirm dialog in the Miuix look, for the simple Material alerts. */
+@Composable
+fun MiuixMessageDialog(
+    show: Boolean,
+    title: String,
+    message: String,
+    confirmText: String,
+    dismissText: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    confirmEnabled: Boolean = true,
+) {
+    WindowDialog(
+        show = show,
+        title = title,
+        onDismissRequest = onDismiss,
+        content = {
+            Column {
+                Text(text = message, color = MiuixTheme.colorScheme.onSurface)
+                MiuixDialogButtons(
+                    onDismiss = onDismiss,
+                    onConfirm = onConfirm,
+                    confirmEnabled = confirmEnabled,
+                    confirmText = confirmText,
+                    dismissText = dismissText,
+                )
             }
         }
     )

@@ -1,6 +1,8 @@
 package com.nadekosu.ui.screen
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,6 +35,9 @@ import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +47,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -410,6 +416,11 @@ private fun DynamicManagerManualDialog(
         }
     }
 
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        MiuixDynamicManagerManualDialog(onDismiss = onDismiss, onConfirm = onConfirm)
+        return
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.dynamic_manager_manual_config)) },
@@ -455,6 +466,53 @@ private fun DynamicManagerManualDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(android.R.string.cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun MiuixDynamicManagerManualDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (Int, String) -> Unit,
+) {
+    var size by remember { mutableStateOf("") }
+    var hash by remember { mutableStateOf("") }
+    val sizeValue = size.toIntOrNull()
+    val hashValid = hash.length == 64
+    val isValid = sizeValue != null && sizeValue > 0 && hashValid
+
+    top.yukonga.miuix.kmp.window.WindowDialog(
+        show = true,
+        title = stringResource(R.string.dynamic_manager_manual_config),
+        onDismissRequest = onDismiss,
+        content = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                top.yukonga.miuix.kmp.basic.TextField(
+                    value = size,
+                    onValueChange = { size = it.filter(Char::isDigit) },
+                    label = stringResource(R.string.signature_size),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+                top.yukonga.miuix.kmp.basic.TextField(
+                    value = hash,
+                    onValueChange = { hash = it.trim() },
+                    label = stringResource(R.string.signature_hash),
+                    singleLine = true,
+                )
+                if (hash.isNotEmpty() && !hashValid) {
+                    top.yukonga.miuix.kmp.basic.Text(
+                        text = stringResource(R.string.hash_must_be_64_chars),
+                        fontSize = 13.sp,
+                        color = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.error,
+                    )
+                }
+                com.nadekosu.ui.component.miuix.MiuixDialogButtons(
+                    onDismiss = onDismiss,
+                    onConfirm = { onConfirm(sizeValue ?: return@MiuixDialogButtons, hash) },
+                    confirmEnabled = isValid,
+                )
             }
         }
     )

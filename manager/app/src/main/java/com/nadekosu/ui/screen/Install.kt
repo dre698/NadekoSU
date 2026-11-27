@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.nadekosu.R
 import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.component.MiuixMessageDialog
 import com.nadekosu.ui.component.miuix.ChoicePreference
 import com.nadekosu.ui.component.miuix.MiuixGroupCard
 import com.nadekosu.ui.component.miuix.MiuixListPage
@@ -544,6 +545,18 @@ private fun RebootDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        MiuixMessageDialog(
+            show = show,
+            title = stringResource(id = R.string.reboot_complete_title),
+            message = stringResource(id = R.string.reboot_complete_msg),
+            confirmText = stringResource(id = R.string.yes),
+            dismissText = stringResource(id = R.string.no),
+            onConfirm = onConfirm,
+            onDismiss = onDismiss,
+        )
+        return
+    }
     if (show) {
         AlertDialog(
             onDismissRequest = onDismiss,

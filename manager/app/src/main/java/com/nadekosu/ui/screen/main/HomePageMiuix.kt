@@ -54,7 +54,6 @@ import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material.icons.rounded.Tag
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -211,10 +210,12 @@ private fun MiuixHomeContent(bottomPadding: Dp) {
             WindowInsetsSides.Top + WindowInsetsSides.Horizontal
         ),
     ) { innerPadding ->
-        PullToRefreshBox(
+        top.yukonga.miuix.kmp.basic.PullToRefresh(
             isRefreshing = uiState.isRefreshing,
             onRefresh = { viewModel.refreshData(context, refreshUI = true) },
-            modifier = Modifier.fillMaxSize(),
+            pullToRefreshState = top.yukonga.miuix.kmp.basic.rememberPullToRefreshState(),
+            contentPadding = PaddingValues(top = innerPadding.calculateTopPadding()),
+            topAppBarScrollBehavior = scrollBehavior,
         ) {
             LazyColumn(
                 modifier = Modifier

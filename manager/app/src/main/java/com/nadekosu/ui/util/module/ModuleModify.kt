@@ -12,6 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import com.nadekosu.R
+import com.nadekosu.ui.theme.ThemeConfig
+import com.nadekosu.ui.component.MiuixMessageDialog
+import com.nadekosu.data.UiStyle
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +34,19 @@ object ModuleModify {
         onDismiss: () -> Unit
     ) {
         val context = LocalContext.current
+
+        if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+            MiuixMessageDialog(
+                show = showDialog,
+                title = context.getString(R.string.allowlist_restore_confirm_title),
+                message = context.getString(R.string.allowlist_restore_confirm_message),
+                confirmText = context.getString(R.string.confirm),
+                dismissText = context.getString(R.string.cancel),
+                onConfirm = onConfirm,
+                onDismiss = onDismiss,
+            )
+            return
+        }
 
         if (showDialog) {
             AlertDialog(

@@ -79,6 +79,7 @@ import com.nadekosu.Natives
 import com.nadekosu.R
 import androidx.compose.ui.unit.sp
 import com.nadekosu.data.UiStyle
+import com.nadekosu.ui.component.MiuixMessageDialog
 import com.nadekosu.ui.component.miuix.MiuixLogPage
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.nadekosu.ui.component.KeyEventBlocker
@@ -672,6 +673,24 @@ fun JailbreakFlashWarningDialog(
             delay(1000)
             countdown--
         }
+    }
+
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
+        MiuixMessageDialog(
+            show = true,
+            title = stringResource(android.R.string.dialog_alert_title),
+            message = stringResource(R.string.jailbreak_flash_warning),
+            confirmText = if (countdown > 0) {
+                stringResource(R.string.jailbreak_flash_warning_countdown, countdown)
+            } else {
+                stringResource(R.string.install_next)
+            },
+            dismissText = stringResource(android.R.string.cancel),
+            confirmEnabled = countdown == 0,
+            onConfirm = onConfirm,
+            onDismiss = onDismiss,
+        )
+        return
     }
 
     AlertDialog(

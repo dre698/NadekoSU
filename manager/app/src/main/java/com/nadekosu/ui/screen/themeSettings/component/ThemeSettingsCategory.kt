@@ -684,7 +684,7 @@ private fun CircleHome(state: ThemePreviewState, cardAlpha: Float) {
 @Composable
 private fun PreviewBottomBar(state: ThemePreviewState, modifier: Modifier = Modifier) {
     val colors = previewColors()
-    if (!state.liquidGlass && ThemeConfig.uiStyle == UiStyle.MIUIX) {
+    if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
         PreviewMiuixFlatBottomBar(state, colors, modifier)
         return
     }
@@ -743,9 +743,9 @@ private fun PreviewBottomBar(state: ThemePreviewState, modifier: Modifier = Modi
 }
 
 /**
- * Miuix bar with blur off, mirroring FloatingBottomBar(isBlurEnabled = false): solid surfaceContainer
- * capsule, four equal tabs with icon + label, the selected tab is a full-tab pill tinted with the
- * accent at 15% and its icon/label drawn in the accent colour.
+ * Miuix bar, mirroring FloatingBottomBar: four equal tabs with icon + label, selected tab is a
+ * full-tab pill with its icon/label in the accent colour. Blur off = solid surfaceContainer capsule
+ * with an accent 15% pill; liquid glass = translucent capsule with a light edge and a lit pill.
  */
 @Composable
 private fun PreviewMiuixFlatBottomBar(
@@ -754,13 +754,22 @@ private fun PreviewMiuixFlatBottomBar(
     modifier: Modifier = Modifier,
 ) {
     val selected = 0
+    // The real bar is in glass mode whenever the blur backdrop exists (top bar blur or liquid glass).
+    val glass = state.liquidGlass || state.topBarBlur
     Row(
         modifier = modifier
             .padding(horizontal = 8.dp, vertical = 6.dp)
             .fillMaxWidth()
             .height(18.dp)
             .clip(CircleShape)
-            .background(colors.surfaceContainer)
+            .background(
+                if (glass) colors.surfaceContainer.copy(alpha = 0.4f) else colors.surfaceContainer
+            )
+            .then(
+                if (glass) Modifier.border(
+                    1.dp, colors.onSurface.copy(alpha = 0.25f), CircleShape
+                ) else Modifier
+            )
             .padding(2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -772,7 +781,9 @@ private fun PreviewMiuixFlatBottomBar(
                     .fillMaxHeight()
                     .clip(CircleShape)
                     .background(
-                        if (isSelected) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
+                        if (!isSelected) Color.Transparent
+                        else if (glass) colors.onSurface.copy(alpha = 0.14f)
+                        else colors.primary.copy(alpha = 0.15f),
                         CircleShape,
                     ),
                 contentAlignment = Alignment.Center,

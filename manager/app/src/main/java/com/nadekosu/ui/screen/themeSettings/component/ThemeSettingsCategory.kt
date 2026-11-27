@@ -7,6 +7,7 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.border
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.foundation.isSystemInDarkTheme
 import android.net.Uri
 import androidx.annotation.StringRes
@@ -363,7 +364,6 @@ private class MiuixPreviewStatusColors(
     val card: Color,
     val accent: Color,
     val lkmChip: Color,
-    val warnChip: Color,
     val title: Color,
     val subtitle: Color,
 )
@@ -381,7 +381,6 @@ private fun miuixPreviewStatusColors(colors: PreviewColors): MiuixPreviewStatusC
         },
         accent = accent,
         lkmChip = accent,
-        warnChip = MiuixTheme.colorScheme.errorContainer,
         title = colors.onSurface,
         subtitle = colors.onSurfaceVariant.copy(alpha = 0.7f),
     )
@@ -389,20 +388,12 @@ private fun miuixPreviewStatusColors(colors: PreviewColors): MiuixPreviewStatusC
 
 @Composable
 private fun MiuixPreviewChips(status: MiuixPreviewStatusColors) {
-    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        Box(
-            modifier = Modifier
-                .size(width = 8.dp, height = 4.dp)
-                .clip(RoundedCornerShape(1.5.dp))
-                .background(status.lkmChip)
-        )
-        Box(
-            modifier = Modifier
-                .size(width = 16.dp, height = 4.dp)
-                .clip(RoundedCornerShape(1.5.dp))
-                .background(status.warnChip)
-        )
-    }
+    Box(
+        modifier = Modifier
+            .size(width = 10.dp, height = 4.5.dp)
+            .clip(RoundedCornerShape(1.5.dp))
+            .background(status.lkmChip)
+    )
 }
 
 /** One info card of the Miuix home: leading icon dots (optional) plus two text lines per row. */
@@ -444,25 +435,34 @@ private fun MiuixDashboardHome(state: ThemePreviewState, cardAlpha: Float) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(46.dp)
+            .height(34.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(status.card.copy(alpha = cardAlpha))
     ) {
+        // Ring with a check, partly cut off by the card edge like the real hero
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .offset(x = 9.dp, y = 9.dp)
-                .size(28.dp)
-                .border(3.dp, status.accent, CircleShape)
-        )
-        Box(modifier = Modifier.padding(6.dp)) {
+                .offset(x = 5.dp, y = 5.dp)
+                .size(24.dp)
+                .border(2.5.dp, status.accent, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Check,
+                contentDescription = null,
+                tint = status.accent,
+                modifier = Modifier.size(14.dp),
+            )
+        }
+        Box(modifier = Modifier.fillMaxSize().padding(6.dp)) {
             Box(modifier = Modifier.align(Alignment.TopStart)) { MiuixPreviewChips(status) }
             Column(
                 modifier = Modifier.align(Alignment.BottomStart),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Bar(24.dp, 5.dp, status.title)
-                Bar(18.dp, 2.5.dp, status.subtitle)
+                Bar(25.dp, 5.5.dp, status.title)
+                Bar(24.dp, 2.5.dp, status.subtitle)
             }
         }
     }

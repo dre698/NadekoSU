@@ -84,10 +84,10 @@ import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 /**
  * Miuix frame for the module tab. The list itself is the shared [ModuleList], drawn with
@@ -111,6 +111,8 @@ internal fun MiuixModuleScaffold(
         title = stringResource(R.string.module),
         showBack = false,
         bottomPadding = bottomPadding,
+        // The FAB slot already carries bottomPadding and the snackbar stacks above it
+        snackbarBottomPadding = if (hideInstallButton) bottomPadding else 0.dp,
         navigationIcon = {
             MiuixBarAction(
                 icon = Icons.Rounded.Cloud,
@@ -189,7 +191,6 @@ internal fun MiuixModuleScaffold(
             viewModel = viewModel,
             uiState = uiState,
             prefs = prefs,
-            bottomPadding = bottomPadding,
         )
     }
 }
@@ -201,19 +202,19 @@ private fun MiuixModuleMenuSheet(
     viewModel: ModuleViewModel,
     uiState: ModuleUiState,
     prefs: AppPreferencesRepository,
-    bottomPadding: Dp,
 ) {
     val context = LocalContext.current
     val restoreLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
     ) { uri -> if (uri != null) viewModel.restoreModules(context, uri) }
 
-    OverlayBottomSheet(
+    // Window-level sheet: drawn above the floating nav bar instead of behind it.
+    WindowBottomSheet(
         show = show,
         title = stringResource(R.string.menu_options),
         onDismissRequest = onDismiss,
     ) {
-        Column(Modifier.padding(bottom = bottomPadding + 16.dp)) {
+        Column(Modifier.padding(bottom = 16.dp)) {
             Card(colors = miuixCardColors(), modifier = Modifier.padding(bottom = 12.dp)) {
                 SwitchPreference(
                     title = stringResource(R.string.module_sort_action_first),

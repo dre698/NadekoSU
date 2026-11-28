@@ -201,9 +201,14 @@ private class ConfirmDialogHandleImpl(
     visible: MutableState<Boolean>,
     coroutineScope: CoroutineScope,
     callback: ConfirmCallback,
-    override var visuals: ConfirmDialogVisuals = ConfirmDialogVisualsImpl.Empty,
+    initialVisuals: ConfirmDialogVisuals = ConfirmDialogVisualsImpl.Empty,
     private val resultFlow: ReceiveChannel<ConfirmResult>
 ) : ConfirmDialogHandle, DialogHandleBase(visible, coroutineScope) {
+    // Compose state so the Miuix dialog, which keeps itself mounted and only toggles `show`,
+    // recomposes with the title/content that awaitConfirm() just set instead of the empty ones.
+    private val visualsState = mutableStateOf(initialVisuals)
+    override val visuals: ConfirmDialogVisuals get() = visualsState.value
+
     private class ResultCollector(
         private val callback: ConfirmCallback
     ) : FlowCollector<ConfirmResult> {
@@ -264,7 +269,7 @@ private class ConfirmDialogHandleImpl(
     }
 
     fun updateVisuals(visuals: ConfirmDialogVisuals) {
-        this.visuals = visuals
+        visualsState.value = visuals
     }
 
     override fun show() {

@@ -187,6 +187,7 @@ fun MiuixPageScaffold(
     smallTitle: Boolean = false,
     subtitle: String = "",
     bottomPadding: Dp = 0.dp,
+    snackbarBottomPadding: Dp = bottomPadding,
     navigationIcon: (@Composable () -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
@@ -227,7 +228,7 @@ fun MiuixPageScaffold(
             floatingActionButton = floatingActionButton,
             snackbarHost = {
                 SwipeableSnackbarHost(
-                    modifier = Modifier.padding(bottom = bottomPadding),
+                    modifier = Modifier.padding(bottom = snackbarBottomPadding),
                     hostState = LocalSnackbarHost.current,
                 )
             },

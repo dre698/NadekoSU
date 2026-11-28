@@ -1,6 +1,7 @@
 package com.nadekosu.ui.component
 
 import android.graphics.text.LineBreaker
+import com.nadekosu.ui.theme.NadekoMiuixTheme
 import android.os.Build
 import android.os.Parcelable
 import android.text.Layout
@@ -348,7 +349,7 @@ fun rememberLoadingDialog(): LoadingDialogHandle {
     val coroutineScope = rememberCoroutineScope()
 
     if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
-        LoadingDialogMiuix(visible)
+        NadekoMiuixTheme { LoadingDialogMiuix(visible) }
     } else if (visible.value) {
         LoadingDialog()
     }
@@ -376,12 +377,15 @@ private fun rememberConfirmDialog(visuals: ConfirmDialogVisuals, callback: Confi
     )
 
     if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
-        ConfirmDialogMiuix(
-            handle.visuals,
-            confirm = { coroutineScope.launch { resultChannel.send(ConfirmResult.Confirmed) } },
-            dismiss = { coroutineScope.launch { resultChannel.send(ConfirmResult.Canceled) } },
-            showDialog = visible
-        )
+        // Some callers sit outside a Miuix page scaffold, so the theme is applied here
+        NadekoMiuixTheme {
+            ConfirmDialogMiuix(
+                handle.visuals,
+                confirm = { coroutineScope.launch { resultChannel.send(ConfirmResult.Confirmed) } },
+                dismiss = { coroutineScope.launch { resultChannel.send(ConfirmResult.Canceled) } },
+                showDialog = visible
+            )
+        }
     } else if (visible.value) {
         ConfirmDialog(
             handle.visuals,

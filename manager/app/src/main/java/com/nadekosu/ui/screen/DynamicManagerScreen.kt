@@ -1,6 +1,7 @@
 package com.nadekosu.ui.screen
 
 import androidx.compose.foundation.layout.Box
+import com.nadekosu.ui.theme.NadekoMiuixTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -417,7 +418,7 @@ private fun DynamicManagerManualDialog(
     }
 
     if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
-        MiuixDynamicManagerManualDialog(onDismiss = onDismiss, onConfirm = onConfirm)
+        NadekoMiuixTheme { MiuixDynamicManagerManualDialog(onDismiss = onDismiss, onConfirm = onConfirm) }
         return
     }
 

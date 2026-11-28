@@ -1,6 +1,7 @@
 package com.nadekosu.ui.screen.kernelFlash.component
 
 import androidx.compose.foundation.background
+import com.nadekosu.ui.theme.NadekoMiuixTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -48,7 +49,7 @@ fun SlotSelectionDialog(
     onSlotSelected: (String) -> Unit
 ) {
     if (ThemeConfig.uiStyle == UiStyle.MIUIX) {
-        SlotSelectionDialogMiuix(show, onDismiss, onSlotSelected)
+        NadekoMiuixTheme { SlotSelectionDialogMiuix(show, onDismiss, onSlotSelected) }
     } else {
         SlotSelectionDialogMaterial(show, onDismiss, onSlotSelected)
     }
